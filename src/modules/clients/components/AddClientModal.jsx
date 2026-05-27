@@ -44,7 +44,7 @@ const AddClientModal = ({
               {/* Company Profile Section */}
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">
-                  
+
                   Company Profile
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -54,7 +54,7 @@ const AddClientModal = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input label="Website" name="website" placeholder="e.g. invertio.in" required />
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500">Industry</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Industry</label>
                     <select name="industry" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
                       <option value="">Select Industry</option>
                       <option value="Technology">Technology</option>
@@ -70,7 +70,7 @@ const AddClientModal = ({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500">Related Project (Context)</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Related Project (Context)</label>
                     <select name="project_id" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
                       <option value="none">No specific project</option>
                       {projects.map(p => (
@@ -79,7 +79,7 @@ const AddClientModal = ({
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500">Project Maintenance</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Project Maintenance</label>
                     <select name="maintenance_status" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
                       {MAINTENANCE_STATUSES.map(s => (
                         <option key={s} value={s}>{s}</option>
@@ -92,7 +92,7 @@ const AddClientModal = ({
               {/* Point of Contact Section */}
               <div className="space-y-4 pt-6 border-t border-slate-100">
                 <h3 className="text-xl font-bold">
-                  
+                  <UserIcon className="w-3 h-3" />
                   Point of Contact
                 </h3>
                 <Input label="Contact Person" name="contact_person" placeholder="Jane Doe" required />
@@ -105,7 +105,7 @@ const AddClientModal = ({
               {/* Sales & Location Section */}
               <div className="space-y-4 pt-6 border-t border-slate-100">
                 <h3 className="text-xl font-bold">
-                  
+                  <Target className="w-3 h-3" />
                   Sales & Location
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -118,7 +118,7 @@ const AddClientModal = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500">Currency</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Currency</label>
                     <select name="currency" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
                       {CURRENCIES.map(c => (
                         <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
@@ -133,11 +133,11 @@ const AddClientModal = ({
               {/* Reference Section */}
               <div className="space-y-4 pt-6 border-t border-slate-100">
                 <h3 className="text-xl font-bold">
-                  
+                  <Sparkles className="w-3 h-3" />
                   Lead Source & Reference
                 </h3>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500">Lead Source</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Lead Source</label>
                   <select
                     name="lead_source"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
@@ -157,7 +157,7 @@ const AddClientModal = ({
                 {leadSource === 'Reference' && (
                   <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500">Reference Type</label>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Reference Type</label>
                       <select
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                         onChange={(e) => setRefType(e.target.value)}
@@ -185,7 +185,7 @@ const AddClientModal = ({
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500">Share Type</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase">Share Type</label>
                         <select name="reference_share_type" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
                           <option value="Percentage">Percentage (%)</option>
                           <option value="Fixed">Fixed Amount</option>

@@ -50,8 +50,11 @@ const TasksPage = () => {
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const canViewAll = user.role_name === 'Super Admin' || !!user.modules?.tasks?.view_all;
-  const canCreate = user.role_name === 'Super Admin' || !!user.modules?.tasks?.create;
+  const role = (user.role_name || '').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
+
+  const canViewAll = isAdmin || !!user.modules?.tasks?.view_all;
+  const canCreate = isAdmin || !!user.modules?.tasks?.create;
   const showBoardsTab = canViewAll || canCreate;
 
   useEffect(() => {
@@ -62,7 +65,7 @@ const TasksPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const canViewTasks = user.role_name === 'Super Admin' || !!user.modules?.tasks?.view;
+      const canViewTasks = isAdmin || !!user.modules?.tasks?.view;
 
       if (!canViewTasks) {
         setLoading(false);
