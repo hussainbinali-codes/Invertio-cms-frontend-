@@ -50,7 +50,7 @@ const UsersTable = ({
           {hasPermission('users', 'salary.view') && <TableHead className="py-4">Salary</TableHead>}
           <TableHead className="py-4">Skills</TableHead>
           <TableHead className="py-4">Status</TableHead>
-          <TableHead className="text-right py-4">Actions</TableHead>
+          <TableHead className="py-4">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <tbody>
@@ -102,8 +102,8 @@ const UsersTable = ({
                 {user.status || 'Pending'}
               </Badge>
             </TableCell>
-            <TableCell className="text-right py-5">
-              <div className="flex items-center justify-end gap-3">
+            <TableCell className="py-5">
+              <div className="flex items-center justify-start gap-3">
                 {hasPermission('users', 'status.edit') && (
                   <select 
                     className="text-[10px] font-bold uppercase bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"

@@ -1,8 +1,10 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import { X, Upload, Plus, Loader2, FileText, ExternalLink, Trash2 } from 'lucide-react';
+import { cn } from '../../../utils/cn';
 import { BASE_URL } from '../../../api/baseUrl';
 
 const DocsModal = ({
@@ -12,12 +14,14 @@ const DocsModal = ({
   handleUploadDoc,
   isUploadingDoc,
   docsList,
-  handleDeleteDoc
+  handleDeleteDoc,
+  canManageConfidential
 }) => {
+  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 text-slate-900">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
       <Card className="w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between py-6 border-b border-slate-100">
           <div>
@@ -52,6 +56,16 @@ const DocsModal = ({
                       <option value="Resignation">Resignation</option>
                       <option value="Appraisal">Appraisal</option>
                       <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Classification</label>
+                    <select 
+                      name="classification" 
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:ring-2 focus:ring-primary-500 bg-white"
+                    >
+                      <option value="internal">Internal</option>
+                      {canManageConfidential && <option value="confidential">Confidential</option>}
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -96,6 +110,12 @@ const DocsModal = ({
                           <div className="text-xs font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name || 'Untitled Document'}</div>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0">{doc.doc_type}</Badge>
+                            <Badge className={cn(
+                              "text-[8px] font-bold uppercase py-0 px-1.5 h-4",
+                              doc.classification === 'confidential' ? "bg-rose-100 text-rose-600 border-rose-200" : "bg-slate-100 text-slate-500 border-slate-200"
+                            )}>
+                              {doc.classification || 'INTERNAL'}
+                            </Badge>
                             <span className="text-[9px] text-slate-400 font-bold uppercase">{new Date(doc.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>

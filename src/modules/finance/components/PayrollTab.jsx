@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
-import { Search } from 'lucide-react';
+import { Search, CheckCircle2 } from 'lucide-react';
+import { hasPermission } from '../../../utils/permissionUtils';
 
 const PayrollTab = ({
   payrollData,
@@ -10,7 +11,8 @@ const PayrollTab = ({
   setPayrollSearch,
   payrollYearFilter,
   setPayrollYearFilter,
-  currencies
+  currencies,
+  updatePayrollStatus
 }) => {
   const filteredPayroll = payrollData.filter(pay => {
     const matchesSearch = pay.user_name?.toLowerCase().includes(payrollSearch.toLowerCase()) || 
@@ -67,7 +69,19 @@ const PayrollTab = ({
               ) : (
                 filteredPayroll.map(pay => (
                   <TableRow key={pay.id}>
-                    <TableCell className="py-5 font-bold text-slate-900 text-sm">{pay.user_name}</TableCell>
+                    <TableCell className="py-5 font-bold text-slate-900 text-sm">
+                      {pay.user_name}
+                      {pay.proof_url && (
+                        <a
+                          href={pay.proof_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 mt-1 uppercase"
+                        >
+                          <CheckCircle2 className="w-3 h-3" /> View Proof
+                        </a>
+                      )}
+                    </TableCell>
                     <TableCell className="py-5 font-bold text-slate-500 text-sm">{pay.project_name || 'General Admin'}</TableCell>
                     <TableCell className="py-5 text-sm text-slate-600">{pay.month}/{pay.year}</TableCell>
                     <TableCell className="py-5 font-bold text-slate-900">
@@ -75,7 +89,32 @@ const PayrollTab = ({
                       {pay.amount?.toLocaleString()}
                     </TableCell>
                     <TableCell className="py-5">
-                      <Badge variant={pay.status === 'Paid' ? 'success' : 'default'} className="text-[10px] font-bold uppercase">{pay.status}</Badge>
+                      {hasPermission('finance', 'payroll.manage') ? (
+                        <div className="flex flex-col">
+                          <select
+                            value={pay.status}
+                            onChange={(e) => updatePayrollStatus(pay.id, e.target.value)}
+                            className="bg-transparent border-none text-[10px] font-bold text-slate-400 focus:ring-0 cursor-pointer hover:text-primary-600 transition-colors uppercase tracking-wider"
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Paid">Paid</option>
+                          </select>
+                          {pay.payment_notes && (
+                             <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 max-w-[120px] truncate" title={pay.payment_notes}>
+                               {pay.payment_notes}
+                             </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <Badge variant={pay.status === 'Paid' ? 'success' : 'default'} className="text-[10px] font-bold uppercase w-fit">{pay.status}</Badge>
+                          {pay.payment_notes && (
+                             <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[100px]" title={pay.payment_notes}>
+                               {pay.payment_notes}
+                             </p>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

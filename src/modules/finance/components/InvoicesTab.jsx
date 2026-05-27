@@ -3,8 +3,9 @@ import { Card, CardTitle, CardContent } from '../../../components/ui/Card';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
-import { Search, FileText } from 'lucide-react';
+import { Search, FileText, CheckCircle2 } from 'lucide-react';
 import { hasPermission } from '../../../utils/permissionUtils';
+import InvoiceStatusModal from './InvoiceStatusModal';
 
 const InvoicesTab = ({
   invoices,
@@ -19,6 +20,12 @@ const InvoicesTab = ({
   updateStatus,
   fileBaseUrl
 }) => {
+  const [statusModal, setStatusModal] = React.useState({
+    isOpen: false,
+    invoice: null,
+    targetStatus: ''
+  });
+
   const filteredInvoices = invoices.filter(inv => {
     const matchesSearch = inv.invoice_number?.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
       inv.client_name?.toLowerCase().includes(invoiceSearch.toLowerCase());
@@ -95,7 +102,7 @@ const InvoicesTab = ({
                 <TableHead className="py-4">Amount</TableHead>
                 <TableHead className="py-4">Date</TableHead>
                 <TableHead className="py-4">Status</TableHead>
-                <TableHead className="text-right py-4">Actions</TableHead>
+                <TableHead className="py-4">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <tbody>
@@ -123,6 +130,16 @@ const InvoicesTab = ({
                           <FileText className="w-3 h-3" /> VIEW PDF
                         </a>
                       )}
+                      {inv.payment_proof_url && (
+                        <a
+                          href={inv.payment_proof_url.startsWith('http') ? inv.payment_proof_url : `${fileBaseUrl}${inv.payment_proof_url}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 mt-1"
+                        >
+                          <CheckCircle2 className="w-3 h-3" /> VIEW PROOF
+                        </a>
+                      )}
                     </TableCell>
                     <TableCell className="py-5">
                       <div className="text-sm font-bold text-slate-900">{inv.client_name || 'Vendor'}</div>
@@ -139,13 +156,35 @@ const InvoicesTab = ({
                       <Badge variant={inv.status === 'Paid' ? 'success' : inv.status === 'Overdue' ? 'destructive' : 'default'} className="text-[10px] font-bold uppercase tracking-wider">
                         {inv.status}
                       </Badge>
+                      {inv.payment_notes && (
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 max-w-[120px] truncate" title={inv.payment_notes}>
+                          {inv.payment_notes}
+                        </p>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right py-5">
-                      {hasPermission('finance', 'invoices.edit') ? (
+                    <TableCell className="py-5">
+                      {inv.status === 'Cancelled' ? (
+                        <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Cancelled</Badge>
+                      ) : hasPermission('finance', 'invoices.edit') ? (
                         <select
                           className="bg-transparent border-none text-[10px] font-bold text-slate-400 focus:ring-0 cursor-pointer hover:text-primary-600 transition-colors uppercase tracking-wider"
                           value={inv.status}
-                          onChange={(e) => updateStatus(inv.id, e.target.value)}
+                          onChange={(e) => {
+                            const newStatus = e.target.value;
+                            if (newStatus === 'Unpaid') {
+                              updateStatus(inv.id, { status: 'Unpaid', notes: '', proof: null });
+                            } else if (newStatus === 'Cancelled') {
+                              if (window.confirm('Are you sure you want to cancel this invoice? This action cannot be undone.')) {
+                                updateStatus(inv.id, { status: 'Cancelled', notes: 'Invoice cancelled', proof: null });
+                              }
+                            } else {
+                              setStatusModal({
+                                isOpen: true,
+                                invoice: inv,
+                                targetStatus: newStatus
+                              });
+                            }
+                          }}
                         >
                           <option value="Unpaid">Unpaid</option>
                           <option value="Paid">Paid</option>
@@ -163,6 +202,18 @@ const InvoicesTab = ({
           </Table>
         )}
       </CardContent>
+
+      <InvoiceStatusModal 
+        isOpen={statusModal.isOpen}
+        onClose={() => setStatusModal({ ...statusModal, isOpen: false })}
+        invoiceNumber={statusModal.invoice?.invoice_number}
+        currentStatus={statusModal.invoice?.status}
+        targetStatus={statusModal.targetStatus}
+        onConfirm={async (data) => {
+           await updateStatus(statusModal.invoice.id, data);
+           setStatusModal({ isOpen: false, invoice: null, targetStatus: '' });
+        }}
+      />
     </Card>
   );
 };

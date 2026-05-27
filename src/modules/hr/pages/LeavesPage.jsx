@@ -20,9 +20,6 @@ import Skeleton from '../../../components/ui/Skeleton';
 
 const LeavesPage = () => {
     const [leaves, setLeaves] = useState([]);
-    const [balance, setBalance] = useState(0);
-    const [pendingDays, setPendingDays] = useState(0);
-    const [effectiveBalance, setEffectiveBalance] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectionType, setSelectionType] = useState('range'); // 'single' or 'range'
@@ -34,13 +31,6 @@ const LeavesPage = () => {
         fetchMyLeaves();
     }, []);
 
-    useEffect(() => {
-        const pending = leaves
-            .filter(l => l.status === 'Pending' && (l.leave_type === 'Available' || !l.leave_type))
-            .reduce((sum, l) => sum + parseFloat(l.days_count), 0);
-        setPendingDays(pending);
-        setEffectiveBalance(balance - pending);
-    }, [leaves, balance]);
 
     const fetchMyLeaves = async () => {
         try {
@@ -63,8 +53,6 @@ const LeavesPage = () => {
             const leavesList = leaveRes.data.data || [];
             setLeaves(leavesList);
             
-            // Use balance from profile data (already has joined employee info)
-            setBalance(userData.leave_balance ?? 12);
         } catch (err) {
             console.error("Fetch error", err);
             toast.error("Failed to load leave data");
@@ -87,12 +75,6 @@ const LeavesPage = () => {
             const start = new Date(payload.start_date);
             const end = new Date(payload.end_date || payload.start_date);
             requestedDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-        }
-
-        // Pre-validation for 'Available' leaves
-        if (type === 'Available' && requestedDays > effectiveBalance) {
-            toast.error(`Insufficient Balance! You have ${balance} total, with ${pendingDays} pending. Effective limit: ${effectiveBalance.toFixed(1)}`);
-            return;
         }
 
         setIsSubmitting(true);
@@ -146,26 +128,32 @@ const LeavesPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6">
                     <div className="space-y-4">
-                        <StatCard 
-                            title="Total Balance" 
-                            value={`${balance} Days`} 
-                            icon={Calendar} 
-                            subtext="Annual Leave entitlement" 
-                        />
-                        {pendingDays > 0 && (
-                            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <div className="flex items-center gap-2 text-amber-800 mb-1">
-                                    <Clock className="w-4 h-4" />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Pending Requests</span>
+                        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 bg-indigo-50 rounded-lg">
+                                    <Calendar className="w-5 h-5 text-indigo-600" />
                                 </div>
-                                <div className="text-2xl font-black text-amber-900">{pendingDays.toFixed(1)} Days</div>
-                                <p className="text-[10px] text-amber-700 font-medium mt-1">These days are reserved and subtracted from your effective balance.</p>
-                                <div className="mt-3 pt-3 border-t border-amber-200/50 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-amber-600 uppercase">Effective Limit</span>
-                                    <span className="text-sm font-black text-amber-900">{effectiveBalance.toFixed(1)} Days</span>
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-900">Monthly Allowance</h3>
+                                    <p className="text-[10px] text-slate-500 font-medium">Reset every 1st of the month</p>
                                 </div>
                             </div>
-                        )}
+                            
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">Paid Leave</span>
+                                    <span className="text-xs font-black text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-100">1 Day / Month</span>
+                                </div>
+                                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">Sick Leave</span>
+                                    <span className="text-xs font-black text-emerald-600 bg-white px-2 py-0.5 rounded border border-emerald-100">1 Day / Month</span>
+                                </div>
+                            </div>
+                            
+                            <p className="text-[10px] text-slate-400 mt-4 leading-relaxed italic">
+                                * Allowances do not carry forward. Any additional requests within the same month will be marked as **Unpaid Leave**.
+                            </p>
+                        </div>
                     </div>
 
                     <Card>
@@ -213,12 +201,12 @@ const LeavesPage = () => {
                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                                         required
                                     >
-                                        <option value="Available">Available (Paid - Deducts Balance)</option>
-                                        <option value="Special">Special (Paid - No Deduction)</option>
+                                        <option value="Available">Available (Paid Leave)</option>
+                                        <option value="Sick Leave">Sick Leave (Medical Grounds)</option>
                                         <option value="Unpaid">Unpaid (No Deduction)</option>
                                     </select>
                                     <p className="text-[10px] text-slate-400 font-medium italic mt-1">
-                                        * Standard leave uses your accrued balance. Special & Unpaid do not.
+                                        * First Paid Leave and first Sick Leave of the month are paid. Subsequent ones are unpaid.
                                     </p>
                                 </div>
                                 
@@ -302,7 +290,11 @@ const LeavesPage = () => {
                                                 <TableCell className="py-5">
                                                     <div className="flex flex-col gap-1">
                                                         <Badge 
-                                                            variant={leave.leave_type === 'Available' ? 'outline' : leave.leave_type === 'Special' ? 'success' : 'danger'}
+                                                            variant={
+                                                                leave.leave_type === 'Available' ? 'outline' : 
+                                                                leave.leave_type === 'Sick Leave' ? 'success' : 
+                                                                leave.leave_type === 'Unpaid' ? 'danger' : 'secondary'
+                                                            }
                                                             className="text-[9px] font-bold uppercase tracking-wider w-fit"
                                                         >
                                                             {leave.leave_type || 'Available'}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from '../../../api/axios';
+import Input from '../../../components/ui/Input';
 import { Mail, Lock, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -35,51 +36,35 @@ const LoginPage = () => {
     <div className="w-full">
       <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
         {error && (
-          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-in fade-in slide-in-from-top-1">
             {error}
           </div>
         )}
-        <div className="space-y-4 rounded-md shadow-sm">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="email">Email Address</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-slate-400" />
-              </div>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                className="appearance-none rounded-lg relative block w-full px-3 py-2 pl-10 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                placeholder="you@company.com"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="password">Password</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-slate-400" />
-              </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-lg relative block w-full px-3 py-2 pl-10 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
+        <div className="space-y-4">
+          <Input 
+            label="Email Address"
+            name="email"
+            type="email"
+            required
+            placeholder="you@company.com"
+            icon={Mail}
+            value={formData.email}
+            onChange={handleChange}
+          />
+          <Input 
+            label="Password"
+            name="password"
+            type="password"
+            required
+            placeholder="••••••••"
+            icon={Lock}
+            value={formData.password}
+            onChange={handleChange}
+          />
         </div>
 
         <div className="flex items-center justify-end">
-          <Link to="/forgot-password" size="sm" className="text-[11px] font-bold text-primary-600 hover:text-primary-700 uppercase tracking-widest">
+          <Link to="/forgot-password" size="sm" className="text-[11px] font-bold text-primary-600 hover:text-primary-700 uppercase tracking-widest transition-colors">
             Forgot password?
           </Link>
         </div>

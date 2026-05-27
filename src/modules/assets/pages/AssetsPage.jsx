@@ -17,7 +17,8 @@ import {
   Box,
   CheckCircle2,
   Plus,
-  ExternalLink
+  ExternalLink,
+  X
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
@@ -75,13 +76,13 @@ const AssetsPage = () => {
   };
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Asset Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Track company hardware inventory and software license allocation.</p>
+    <div className="space-y-6 sm:space-y-8 pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="max-w-2xl">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Asset Management</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Track company hardware inventory and software license allocation.</p>
         </div>
-        <Button className="bg-primary-600 hover:bg-primary-700">
+        <Button className="bg-primary-600 hover:bg-primary-700 h-9 sm:h-10 text-xs sm:text-sm w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Add New Asset
         </Button>
@@ -93,12 +94,15 @@ const AssetsPage = () => {
          <StatCard title="In Stock" value={assets.filter(a => !a.assignee_name).length} icon={CheckCircle2} subtext="Available for allocation" />
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-6">
-            <CardTitle className="text-xl font-bold">Asset Inventory</CardTitle>
+            <div>
+              <CardTitle className="text-lg sm:text-xl font-bold">Asset Inventory</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5 font-medium">Tracking {assets.length} assets.</p>
+            </div>
             <div className="relative w-full sm:w-72">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-               <Input className="pl-10 h-10 text-sm" placeholder="Search by name or serial..." />
+               <Input className="pl-10 h-10 text-sm w-full" placeholder="Search by name or serial..." />
             </div>
          </CardHeader>
          <CardContent className="p-0">
@@ -130,7 +134,7 @@ const AssetsPage = () => {
                        <TableHead className="py-4">Identifier</TableHead>
                        <TableHead className="py-4">Custodian</TableHead>
                        <TableHead className="py-4">Status</TableHead>
-                       <TableHead className="text-right py-4">Actions</TableHead>
+                       <TableHead className="py-4">Actions</TableHead>
                     </TableRow>
                  </TableHeader>
                  <tbody>
@@ -163,8 +167,8 @@ const AssetsPage = () => {
                              <TableCell className="py-5">
                                 <Badge variant={asset.status === 'Active' ? 'success' : 'default'} className="text-[10px] font-bold uppercase tracking-wider">{asset.status}</Badge>
                              </TableCell>
-                             <TableCell className="text-right py-5">
-                                <div className="flex justify-end gap-2">
+                             <TableCell className="py-5">
+                                <div className="flex justify-start gap-2">
                                    <Button 
                                      variant="ghost" 
                                      size="sm"
@@ -192,7 +196,7 @@ const AssetsPage = () => {
 
       {/* Assign Asset Modal */}
       {showAssignModal && selectedAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
           <Card className="w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
             <CardHeader className="flex flex-row items-center justify-between py-6">
               <div>
@@ -201,7 +205,7 @@ const AssetsPage = () => {
               </div>
               <button 
                 onClick={() => setShowAssignModal(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-lg hover:bg-slate-50"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -214,10 +218,10 @@ const AssetsPage = () => {
                    Ensure the hardware serial number matches the physical handover.
                 </div>
                 <div className="flex gap-3 justify-end pt-4">
-                  <Button type="button" variant="secondary" onClick={() => setShowAssignModal(false)}>
+                  <Button type="button" variant="secondary" onClick={() => setShowAssignModal(false)} className="flex-1 sm:flex-none">
                     Cancel
                   </Button>
-                  <Button type="submit" className="bg-primary-600 hover:bg-primary-700">
+                  <Button type="submit" className="bg-primary-600 hover:bg-primary-700 flex-1 sm:flex-none">
                     Confirm Assignment
                   </Button>
                 </div>

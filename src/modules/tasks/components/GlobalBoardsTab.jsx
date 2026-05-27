@@ -15,9 +15,9 @@ const GlobalBoardsTab = ({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="py-4">Project Boards</TableHead>
-          <TableHead className="py-4">Status</TableHead>
-          <TableHead className="text-right py-4">Institutional Actions</TableHead>
+          <TableHead className="py-4 w-[60%]">Project Boards</TableHead>
+          <TableHead className="py-4 w-[15%]">Status</TableHead>
+          <TableHead className="py-4 w-[25%]">Institutional Actions</TableHead>
         </TableRow>
       </TableHeader>
       <tbody>
@@ -39,8 +39,8 @@ const GlobalBoardsTab = ({
                   <Badge variant="success" className="text-[10px] font-bold uppercase tracking-wider">Active</Badge>
                 )}
               </TableCell>
-              <TableCell className="text-right py-5">
-                <div className="flex justify-end gap-2">
+              <TableCell className="py-5">
+                <div className="flex justify-start gap-2">
                    <Button 
                      size="sm" 
                      variant="ghost"

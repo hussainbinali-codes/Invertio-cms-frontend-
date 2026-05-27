@@ -48,6 +48,7 @@ const TasksPage = () => {
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionFiles, setCompletionFiles] = useState([]);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const canViewAll = user.role_name === 'Super Admin' || !!user.modules?.tasks?.view_all;
   const canCreate = user.role_name === 'Super Admin' || !!user.modules?.tasks?.create;
@@ -62,7 +63,7 @@ const TasksPage = () => {
     try {
       setLoading(true);
       const canViewTasks = user.role_name === 'Super Admin' || !!user.modules?.tasks?.view;
-      
+
       if (!canViewTasks) {
         setLoading(false);
         return;
@@ -79,14 +80,14 @@ const TasksPage = () => {
       }
 
       const results = await Promise.all(requests);
-      
+
       setStats(results[0].data.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
       setMyTasks(results[1].data.data || []);
-      
+
       if (showBoardsTab && results[3]) {
         setProjects(Array.isArray(results[3].data.data) ? results[3].data.data : []);
       }
-      
+
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -106,7 +107,7 @@ const TasksPage = () => {
     try {
       await axios.patch(`/projects/tasks/${taskId}`, updates);
       toast.success('Task updated successfully');
-      fetchData(); 
+      fetchData();
     } catch (err) {
       toast.error('Failed to update task');
     } finally {
@@ -156,10 +157,10 @@ const TasksPage = () => {
       toast.error("Access Denied: Project is currently Blocked (Financial). Clear outstanding payments to resume operations.");
       return;
     }
-    
+
     setSelectedProject(project);
     setIsFetchingTeam(true);
-    
+
     try {
       const res = await axios.get(`/projects/${project.id}/team`);
       setProjectTeam(res.data.data || []);
@@ -190,7 +191,7 @@ const TasksPage = () => {
         priority: payload.priority || 'Medium',
         task_references: taskReferences ? [{ title: 'Notes', value: taskReferences }] : []
       });
-      
+
       const newTask = taskRes.data.data;
 
       if (selectedFiles.length > 0) {
@@ -209,11 +210,20 @@ const TasksPage = () => {
       setSelectedFiles([]);
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create task');
+      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const filteredMyTasks = myTasks.filter(task =>
+    task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    task.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredProjects = projects.filter(project =>
+    project.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-8 pb-10">
@@ -230,12 +240,12 @@ const TasksPage = () => {
         <StatCard title="Completed" value={stats.completed} icon={CheckCircle2} subtext="Resolved tasks" />
         <StatCard title="Overdue" value={stats.overdue} icon={AlertTriangle} subtext="Critical attention" />
         <StatCard title="Backlog Velocity" value={stats.total_points || 0} icon={Target} subtext="Total story points" />
-        <StatCard title="Completed Pts" value={stats.completed_points || 0} icon={TrendingUp} subtext="Delivered value" className="bg-emerald-50 border-emerald-100" />
+        <StatCard title="Completed Pts" value={stats.completed_points || 0} icon={TrendingUp} subtext="Delivered value" />
       </div>
 
       {showBoardsTab && (
         <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
-          <button 
+          <button
             onClick={() => setActiveTab('boards')}
             className={cn(
               "px-6 py-2 rounded-lg text-xs font-bold transition-all",
@@ -244,7 +254,7 @@ const TasksPage = () => {
           >
             GLOBAL BOARDS
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('my')}
             className={cn(
               "px-6 py-2 rounded-lg text-xs font-bold transition-all",
@@ -263,14 +273,19 @@ const TasksPage = () => {
               {activeTab === 'boards' ? 'Institutional Boards' : 'Personal Pipeline'}
             </CardTitle>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              {activeTab === 'boards' 
-                ? `Managing tasks across ${projects.length} project pipelines.` 
+              {activeTab === 'boards'
+                ? `Managing tasks across ${projects.length} project pipelines.`
                 : `Tracking ${myTasks.length} items assigned to you.`}
             </p>
           </div>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input className="pl-10 h-10 text-sm" placeholder="Search tasks..." />
+            <Input
+              className="pl-10 h-10 text-sm"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -291,15 +306,15 @@ const TasksPage = () => {
           ) : (
             <Suspense fallback={<TabLoader />}>
               {activeTab === 'my' ? (
-                <MyPipelineTab 
-                  tasks={myTasks}
+                <MyPipelineTab
+                  tasks={filteredMyTasks}
                   handleUpdateTask={handleUpdateTask}
                   updatingTaskId={updatingTaskId}
                   setSelectedTaskDetail={setSelectedTaskDetail}
                 />
               ) : (
-                <GlobalBoardsTab 
-                  projects={projects}
+                <GlobalBoardsTab
+                  projects={filteredProjects}
                   canCreate={canCreate}
                   handleViewTasks={handleViewTasks}
                   handleCreateTask={handleCreateTask}
@@ -311,7 +326,7 @@ const TasksPage = () => {
       </Card>
 
       <Suspense fallback={null}>
-        <AddTaskModal 
+        <AddTaskModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           selectedProject={selectedProject}
@@ -324,7 +339,7 @@ const TasksPage = () => {
           setSelectedFiles={setSelectedFiles}
         />
 
-        <ProofOfCompletionModal 
+        <ProofOfCompletionModal
           isOpen={showProofModal}
           onClose={() => setShowProofModal(false)}
           onSubmit={submitCompletionProof}
@@ -336,16 +351,16 @@ const TasksPage = () => {
         />
 
         {showTasksModal && selectedProject && (
-          <TaskViewModal 
-              project={selectedProject} 
-              onClose={() => setShowTasksModal(false)} 
+          <TaskViewModal
+            project={selectedProject}
+            onClose={() => setShowTasksModal(false)}
           />
         )}
 
         {selectedTaskDetail && (
-          <TaskDetailModal 
-              task={selectedTaskDetail} 
-              onClose={() => setSelectedTaskDetail(null)} 
+          <TaskDetailModal
+            task={selectedTaskDetail}
+            onClose={() => setSelectedTaskDetail(null)}
           />
         )}
       </Suspense>

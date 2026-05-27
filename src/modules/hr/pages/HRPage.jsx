@@ -2,13 +2,15 @@ import React, { useEffect, useState, Suspense, lazy } from 'react';
 import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
 import Skeleton from '../../../components/ui/Skeleton';
 import {
   Users,
   Calendar,
   UserPlus,
   Loader2,
-  Filter
+  Filter,
+  Search
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
@@ -27,6 +29,7 @@ const HolidayModal = lazy(() => import('../components/HolidayModal'));
 const PerformanceActionModal = lazy(() => import('../components/PerformanceActionModal'));
 const DocsModal = lazy(() => import('../components/DocsModal'));
 const ConfirmationModal = lazy(() => import('../../../components/ui/ConfirmationModal'));
+const HiredModal = lazy(() => import('../components/HiredModal'));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-20">
@@ -42,10 +45,11 @@ const HRPage = () => {
   const [employees, setEmployees] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [holidays, setHolidays] = useState([]);
-  const [users, setUsers] = useState([]); 
+  const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Document Management
   const [showDocsModal, setShowDocsModal] = useState(false);
@@ -59,26 +63,36 @@ const HRPage = () => {
   const [showPerfModal, setShowPerfModal] = useState(false); // Type: 'rating' | 'bonus' | 'hike'
   const [perfModalType, setPerfModalType] = useState('rating');
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = (user?.role_name || '').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
+  const canManageConfidential = isAdmin || user?.modules?.hr?.['documents.confidential'];
+
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [confirmModal, setConfirmModal] = useState({ 
-    show: false, 
-    title: '', 
-    message: '', 
-    onConfirm: () => {}, 
-    confirmText: 'Confirm', 
-    variant: 'primary' 
+  // Hiring confirmation states
+  const [showHiredModal, setShowHiredModal] = useState(false);
+  const [hiredCandidateId, setHiredCandidateId] = useState(null);
+  const [joiningDate, setJoiningDate] = useState('');
+
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+    confirmText: 'Confirm',
+    variant: 'primary'
   });
 
   const fetchPerfData = async (userId) => {
     try {
-        const res = await axios.get(`/hr/performance/data/${userId}`);
-        setPerformanceData(res.data.data || { reviews: [], bonuses: [], hikes: [] });
+      const res = await axios.get(`/hr/performance/data/${userId}`);
+      setPerformanceData(res.data.data || { reviews: [], bonuses: [], hikes: [] });
     } catch (err) {
-        toast.error('Failed to fetch performance records');
+      toast.error('Failed to fetch performance records');
     }
   };
 
@@ -91,28 +105,28 @@ const HRPage = () => {
     let endpoint = '/hr/performance/reviews';
     if (perfModalType === 'bonus') endpoint = '/hr/performance/bonuses';
     if (perfModalType === 'hike') {
-        endpoint = '/hr/performance/hikes';
-        const newSalary = formData.get('new_salary');
-        formData.append('previous_salary', selectedUserForPerf.salary);
-        const hikeAmount = parseFloat(newSalary) - parseFloat(selectedUserForPerf.salary);
-        const percentage = ((hikeAmount / selectedUserForPerf.salary) * 100).toFixed(2);
-        formData.append('percentage', percentage);
+      endpoint = '/hr/performance/hikes';
+      const newSalary = formData.get('new_salary');
+      formData.append('previous_salary', selectedUserForPerf.salary);
+      const hikeAmount = parseFloat(newSalary) - parseFloat(selectedUserForPerf.salary);
+      const percentage = ((hikeAmount / selectedUserForPerf.salary) * 100).toFixed(2);
+      formData.append('percentage', percentage);
     }
 
     try {
-        const config = {};
-        if (perfModalType === 'bonus') {
-            config.headers = { 'Content-Type': 'multipart/form-data' };
-        }
-        await axios.post(endpoint, formData, config);
-        toast.success(`${perfModalType.charAt(0).toUpperCase() + perfModalType.slice(1)} logged successfully`);
-        setShowPerfModal(false);
-        fetchPerfData(selectedUserForPerf.id);
-        fetchHRData(); // Refresh directory to see updated salary
+      const config = {};
+      if (perfModalType === 'bonus') {
+        config.headers = { 'Content-Type': 'multipart/form-data' };
+      }
+      await axios.post(endpoint, formData, config);
+      toast.success(`${perfModalType.charAt(0).toUpperCase() + perfModalType.slice(1)} logged successfully`);
+      setShowPerfModal(false);
+      fetchPerfData(selectedUserForPerf.id);
+      fetchHRData(); // Refresh directory to see updated salary
     } catch (err) {
-        toast.error('Operation failed');
+      toast.error('Operation failed');
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -140,8 +154,8 @@ const HRPage = () => {
           name: stage,
           fill: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e'][i]
         })).filter(s => s.value > 0);
-        
-        setPipeline(chartMap.length > 0 ? chartMap : [{value: 1, name: 'Applied', fill: '#3b82f6'}]);
+
+        setPipeline(chartMap.length > 0 ? chartMap : [{ value: 1, name: 'Applied', fill: '#3b82f6' }]);
       } else if (activeTab === 'directory') {
         const [empRes, candRes] = await Promise.all([
           axios.get(`/hr/employees?includeAll=true`),
@@ -173,14 +187,14 @@ const HRPage = () => {
     const payload = Object.fromEntries(formData);
 
     try {
-        await axios.post('/hr/holidays', payload);
-        toast.success('Holiday added successfully');
-        setShowHolidayModal(false);
-        fetchHRData();
+      await axios.post('/hr/holidays', payload);
+      toast.success('Holiday added successfully');
+      setShowHolidayModal(false);
+      fetchHRData();
     } catch (err) {
-        toast.error(err.response?.data?.message || 'Failed to add holiday');
+      // Handled by global interceptor
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -216,12 +230,48 @@ const HRPage = () => {
   };
 
   const updateStage = async (candidateId, newStage) => {
+    if (newStage === 'Hired') {
+      const cand = candidates.find(c => c.id === candidateId);
+      let defaultDate = '';
+      if (cand && cand.joining_date) {
+        defaultDate = new Date(cand.joining_date).toISOString().split('T')[0];
+      } else {
+        defaultDate = new Date().toISOString().split('T')[0];
+      }
+      setJoiningDate(defaultDate);
+      setHiredCandidateId(candidateId);
+      setShowHiredModal(true);
+      return;
+    }
+
     try {
       await axios.patch(`/hr/recruitment/candidates/${candidateId}/stage`, { stage: newStage });
       toast.success(`Stage updated to ${newStage}`);
       fetchHRData();
     } catch (err) {
       toast.error('Failed to update stage');
+    }
+  };
+
+  const handleHiredSubmit = async (e) => {
+    e.preventDefault();
+    if (!hiredCandidateId || !joiningDate) return;
+
+    setIsSubmitting(true);
+    try {
+      await axios.patch(`/hr/recruitment/candidates/${hiredCandidateId}/stage`, {
+        stage: 'Hired',
+        joining_date: joiningDate
+      });
+      toast.success('Candidate successfully hired!');
+      setShowHiredModal(false);
+      setHiredCandidateId(null);
+      setJoiningDate('');
+      fetchHRData();
+    } catch (err) {
+      toast.error('Failed to update stage to Hired');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -245,7 +295,6 @@ const HRPage = () => {
           designation: formData.get('designation'),
           department: formData.get('department'),
           salary: formData.get('salary'),
-          joining_date: formData.get('joining_date'),
           role_id: formData.get('role_id'),
           source: 'System Portal'
         });
@@ -263,7 +312,7 @@ const HRPage = () => {
       setSelectedCandidate(null);
       fetchHRData();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to complete scheduling');
+      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
@@ -271,36 +320,36 @@ const HRPage = () => {
 
   const fetchDocs = async (type, id) => {
     try {
-        const res = await axios.get(`/hr/documents/${type}/${id}`);
-        setDocsList(res.data.data || []);
+      const res = await axios.get(`/hr/documents/${type}/${id}`);
+      setDocsList(res.data.data || []);
     } catch (err) {
-        toast.error('Failed to fetch documents');
+      toast.error('Failed to fetch documents');
     }
   };
 
   const handleUploadDoc = async (e) => {
     e.preventDefault();
     if (!docsTarget) return;
-    
+
     setIsUploadingDoc(true);
     const formData = new FormData(e.target);
     if (docsTarget.type === 'user') {
-        formData.append('user_id', docsTarget.id);
+      formData.append('user_id', docsTarget.id);
     } else {
-        formData.append('candidate_id', docsTarget.id);
+      formData.append('candidate_id', docsTarget.id);
     }
 
     try {
-        await axios.post('/hr/documents', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        toast.success('Document uploaded successfully');
-        fetchDocs(docsTarget.type, docsTarget.id);
-        e.target.reset();
+      await axios.post('/hr/documents', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('Document uploaded successfully');
+      fetchDocs(docsTarget.type, docsTarget.id);
+      e.target.reset();
     } catch (err) {
-        toast.error('Failed to upload document');
+      toast.error('Failed to upload document');
     } finally {
-        setIsUploadingDoc(false);
+      setIsUploadingDoc(false);
     }
   };
 
@@ -339,6 +388,31 @@ const HRPage = () => {
     });
   };
 
+  // Filtered Data based on SearchTerm
+  const filteredCandidates = candidates.filter(c =>
+    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.designation?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredEmployees = employees.filter(e =>
+    e.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.department?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredLeaves = leaves.filter(l =>
+    l.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    l.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    l.leave_type?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredHolidays = holidays.filter(h =>
+    h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    h.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="space-y-8 pb-10">
@@ -368,92 +442,109 @@ const HRPage = () => {
   }
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Institutional HR</h1>
-          <p className="text-sm text-slate-500 mt-1">Recruitment governance and employee management hub.</p>
+    <div className="space-y-6 sm:space-y-8 pb-10">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="max-w-2xl">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Institutional HR</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Recruitment governance and employee management hub.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto no-scrollbar whitespace-nowrap">
             {['recruitment', 'directory', 'leaves', 'performance', 'holidays'].map((tab) => (
-              <Button 
-                  key={tab}
-                  variant={activeTab === tab ? 'primary' : 'ghost'} 
-                  onClick={() => setActiveTab(tab)}
-                  className="h-10 text-xs font-bold uppercase tracking-wider"
+              <Button
+                key={tab}
+                variant={activeTab === tab ? 'primary' : 'ghost'}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  "h-8 px-3 sm:px-4 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap",
+                  activeTab === tab ? "bg-white text-primary-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
+                )}
               >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab}
               </Button>
             ))}
+          </div>
 
+          <div className="flex gap-2">
             {activeTab === 'recruitment' && hasPermission('hr', 'recruitment.manage') && (
-                <Button onClick={() => { setSelectedCandidate(null); setShowInterviewModal(true); }} className="bg-primary-600 hover:bg-primary-700 h-10 ml-2">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    New Interview
-                </Button>
+              <Button onClick={() => { setSelectedCandidate(null); setShowInterviewModal(true); }} className="bg-primary-600 hover:bg-primary-700 h-9 sm:h-10 text-xs sm:text-sm flex-1 shadow-lg shadow-primary-100">
+                <UserPlus className="w-4 h-4 mr-1.5 sm:mr-2" />
+                New Interview
+              </Button>
             )}
             {activeTab === 'holidays' && hasPermission('hr', 'holidays.manage') && (
-                <Button onClick={() => setShowHolidayModal(true)} className="bg-emerald-600 hover:bg-emerald-700 h-10 ml-2">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Add Holiday
-                </Button>
+              <Button onClick={() => setShowHolidayModal(true)} className="bg-emerald-600 hover:bg-emerald-700 h-9 sm:h-10 text-xs sm:text-sm flex-1 shadow-lg shadow-emerald-100">
+                <Calendar className="w-4 h-4 mr-1.5 sm:mr-2" />
+                Add Holiday
+              </Button>
             )}
+          </div>
         </div>
       </div>
 
       <Suspense fallback={<TabLoader />}>
         {activeTab === 'recruitment' && (
-          <RecruitmentTab 
-            candidates={candidates}
+          <RecruitmentTab
+            candidates={filteredCandidates}
             pipeline={pipeline}
             updateStage={updateStage}
             formatDate={formatDate}
             setSelectedCandidate={setSelectedCandidate}
             setShowInterviewModal={setShowInterviewModal}
             openDocs={openDocs}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
           />
         )}
 
         {activeTab === 'directory' && (
-          <DirectoryTab 
-            employees={employees}
-            candidates={candidates}
+          <DirectoryTab
+            employees={filteredEmployees}
+            candidates={filteredCandidates}
             openDocs={openDocs}
             setSelectedCandidate={setSelectedCandidate}
             setShowInterviewModal={setShowInterviewModal}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
           />
         )}
 
         {activeTab === 'leaves' && (
-          <LeavesTab 
-            leaves={leaves}
+          <LeavesTab
+            leaves={filteredLeaves}
             handleLeaveAction={handleLeaveAction}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
           />
         )}
 
         {activeTab === 'performance' && (
-          <PerformanceTab 
-            employees={employees}
+          <PerformanceTab
+            employees={filteredEmployees}
             selectedUserForPerf={selectedUserForPerf}
             setSelectedUserForPerf={setSelectedUserForPerf}
             fetchPerfData={fetchPerfData}
             performanceData={performanceData}
             setPerfModalType={setPerfModalType}
             setShowPerfModal={setShowPerfModal}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
           />
         )}
 
         {activeTab === 'holidays' && (
-          <HolidaysTab 
-            holidays={holidays}
+          <HolidaysTab
+            holidays={filteredHolidays}
             deleteHoliday={deleteHoliday}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
           />
         )}
       </Suspense>
 
       {/* Modals (Lazy Loaded) */}
       <Suspense fallback={null}>
-        <InterviewModal 
+        <InterviewModal
           isOpen={showInterviewModal}
           onClose={() => setShowInterviewModal(false)}
           selectedCandidate={selectedCandidate}
@@ -463,14 +554,14 @@ const HRPage = () => {
           isSubmitting={isSubmitting}
         />
 
-        <HolidayModal 
+        <HolidayModal
           isOpen={showHolidayModal}
           onClose={() => setShowHolidayModal(false)}
           handleHolidaySubmit={handleHolidaySubmit}
           isSubmitting={isSubmitting}
         />
 
-        <PerformanceActionModal 
+        <PerformanceActionModal
           isOpen={showPerfModal}
           onClose={() => setShowPerfModal(false)}
           perfModalType={perfModalType}
@@ -479,7 +570,7 @@ const HRPage = () => {
           isSubmitting={isSubmitting}
         />
 
-        <DocsModal 
+        <DocsModal
           isOpen={showDocsModal}
           onClose={() => setShowDocsModal(false)}
           docsTarget={docsTarget}
@@ -487,9 +578,10 @@ const HRPage = () => {
           isUploadingDoc={isUploadingDoc}
           docsList={docsList}
           handleDeleteDoc={handleDeleteDoc}
+          canManageConfidential={canManageConfidential}
         />
 
-        <ConfirmationModal 
+        <ConfirmationModal
           isOpen={confirmModal.show}
           onClose={() => setConfirmModal(prev => ({ ...prev, show: false }))}
           title={confirmModal.title}
@@ -497,6 +589,20 @@ const HRPage = () => {
           onConfirm={confirmModal.onConfirm}
           confirmText={confirmModal.confirmText}
           variant={confirmModal.variant}
+        />
+
+        <HiredModal
+          isOpen={showHiredModal}
+          onClose={() => {
+            setShowHiredModal(false);
+            setHiredCandidateId(null);
+            setJoiningDate('');
+          }}
+          onSubmit={handleHiredSubmit}
+          candidateName={candidates.find(c => c.id === hiredCandidateId)?.name || ''}
+          joiningDate={joiningDate}
+          setJoiningDate={setJoiningDate}
+          isSubmitting={isSubmitting}
         />
       </Suspense>
     </div>

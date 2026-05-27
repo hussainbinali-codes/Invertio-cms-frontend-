@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
@@ -41,17 +42,33 @@ const ClientDetailModal = ({
   docLoading,
   handleUpload,
   isUploading,
+  uploadClassification,
+  setUploadClassification,
+  canManageConfidential,
   setShowDetailModal,
   setEditingClient,
   setShowEditModal,
   PIPELINE_STAGES,
   CURRENCIES
 }) => {
+  useLockBodyScroll(isOpen);
+  const activityEndRef = React.useRef(null);
+
+  const scrollToBottom = () => {
+    activityEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  React.useEffect(() => {
+    if (activeDetailTab === 'Activity') {
+      scrollToBottom();
+    }
+  }, [logs, activeDetailTab]);
+
   if (!isOpen || !selectedClient) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
-      <Card className="w-full max-w-5xl shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden h-[90vh] flex flex-col">
+      <Card className="w-full max-w-7xl shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden h-[95vh] flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between py-4 bg-white border-b border-slate-100">
           <div className="flex items-center gap-4">
             <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm", getAvatarColor(selectedClient.id))}>
@@ -202,6 +219,7 @@ const ClientDetailModal = ({
                   <Button 
                     variant="outline" 
                     className="w-full justify-start h-12 font-bold text-slate-700"
+                    disabled={selectedClient.lead_status === 'Not Interested'}
                     onClick={() => { setShowDetailModal(false); setEditingClient(selectedClient); setShowEditModal(true); }}
                   >
                     <Edit className="w-4 h-4 mr-2" />
@@ -215,7 +233,7 @@ const ClientDetailModal = ({
           {activeDetailTab === 'Activity' && (
             <div className="flex flex-col md:flex-row h-full overflow-hidden">
               <div className="w-full md:w-80 p-6 border-r border-slate-100 bg-slate-50 overflow-y-auto">
-                {hasPermission('clients', 'interactions.create') ? (
+                {hasPermission('clients', 'interactions.create') && selectedClient.lead_status !== 'Not Interested' ? (
                   <form onSubmit={logInteraction} className="space-y-4">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Log New Activity</h3>
                     <div className="space-y-1">
@@ -241,7 +259,9 @@ const ClientDetailModal = ({
                 ) : (
                   <div className="text-center p-8 bg-white rounded-xl border border-slate-200 shadow-sm">
                     <Shield className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Read Only</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                      {selectedClient.lead_status === 'Not Interested' ? 'Archived (Not Interested)' : 'Read Only'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -296,6 +316,7 @@ const ClientDetailModal = ({
                         </div>
                       </div>
                     ))}
+                    <div ref={activityEndRef} />
                   </div>
                 )}
               </div>
@@ -313,17 +334,27 @@ const ClientDetailModal = ({
                     </h3>
                     <p className="text-sm text-slate-500 mt-1 font-medium">Store contracts, proposals, and project specifications securely.</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <input type="file" id="doc-upload-unified" className="hidden" onChange={handleUpload} disabled={isUploading} />
-                    <label htmlFor="doc-upload-unified" className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-bold cursor-pointer transition-all shadow-md shadow-primary-200">
-                      {isUploading ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <UploadCloud className="w-4 h-4 mr-2" />
-                      )}
-                      {isUploading ? "Uploading..." : "Upload New File"}
-                    </label>
-                  </div>
+                  {selectedClient.lead_status !== 'Not Interested' && (
+                    <div className="flex items-center gap-3">
+                      <select 
+                        className="text-[10px] font-bold border border-slate-200 rounded-lg bg-white p-2 focus:ring-primary-500 focus:border-primary-500 outline-none uppercase"
+                        value={uploadClassification}
+                        onChange={(e) => setUploadClassification(e.target.value)}
+                      >
+                        <option value="internal">Internal</option>
+                        {canManageConfidential && <option value="confidential">Confidential</option>}
+                      </select>
+                      <input type="file" id="doc-upload-unified" className="hidden" multiple onChange={handleUpload} disabled={isUploading} />
+                      <label htmlFor="doc-upload-unified" className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-bold cursor-pointer transition-all shadow-md shadow-primary-200">
+                        {isUploading ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <UploadCloud className="w-4 h-4 mr-2" />
+                        )}
+                        {isUploading ? "Uploading..." : "Upload New File"}
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -358,6 +389,12 @@ const ClientDetailModal = ({
                             >
                               {doc.file_name}
                               <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <Badge className={cn(
+                                "text-[8px] font-bold uppercase py-0 px-1.5 h-4",
+                                doc.classification === 'confidential' ? "bg-rose-100 text-rose-600 border-rose-200" : "bg-slate-100 text-slate-500 border-slate-200"
+                              )}>
+                                {doc.classification || 'INTERNAL'}
+                              </Badge>
                             </a>
                             <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
                               <span>{(doc.file_size / 1024 / 1024).toFixed(2)} MB</span>
@@ -372,7 +409,7 @@ const ClientDetailModal = ({
                             </div>
                           </div>
                         </div>
-                        {hasPermission('clients', 'documents.delete') && (
+                        {hasPermission('clients', 'documents.delete') && selectedClient.lead_status !== 'Not Interested' && (
                           <Button 
                             variant="ghost" 
                             size="sm" 

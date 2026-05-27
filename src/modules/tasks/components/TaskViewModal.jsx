@@ -7,8 +7,10 @@ import { X, Loader2, Calendar, User, ClipboardList, FolderOpen } from 'lucide-re
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import TaskDetailModal from './TaskDetailModal';
 import Button from '../../../components/ui/Button';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 const TaskViewModal = ({ project, onClose }) => {
+  useLockBodyScroll(true);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showResources, setShowResources] = useState(false);
@@ -36,8 +38,8 @@ const TaskViewModal = ({ project, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
-      <Card className="w-full max-w-4xl shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between bg-slate-50 border-b border-slate-100 py-4">
+      <Card className="w-full max-w-6xl shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden max-h-[95vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between bg-slate-50 border-b border-slate-100 py-4 shrink-0">
           <div>
             <div className="flex items-center gap-2">
                 <ClipboardList className="w-5 h-5 text-primary-600" />
@@ -65,7 +67,7 @@ const TaskViewModal = ({ project, onClose }) => {
             </button>
           </div>
         </CardHeader>
-        <CardContent className="p-0 overflow-y-auto max-h-[70vh]">
+        <CardContent className="p-0 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-primary-500" />

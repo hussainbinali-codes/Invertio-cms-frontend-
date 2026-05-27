@@ -78,11 +78,20 @@ const ClientsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leadSource, setLeadSource] = useState('');
   const [refType, setRefType] = useState('client');
+  const [stats, setStats] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [stageCounts, setStageCounts] = useState({});
 
   // Document state
   const [documents, setDocuments] = useState([]);
   const [docLoading, setDocLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadClassification, setUploadClassification] = useState('internal');
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = (user?.role_name || '').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
+  const canManageConfidential = isAdmin || user?.modules?.clients?.['documents.confidential'];
 
   // Interaction logs state
   const [logs, setLogs] = useState([]);
@@ -106,14 +115,32 @@ const ClientsPage = () => {
   });
 
   useEffect(() => {
+
     if (!hasPermission('clients', 'view')) {
-      toast.error("Access Denied: You do not have permissions to access the Clients module.");
+
+      toast.error(
+        "Access Denied: You do not have permissions to access the Clients module."
+      );
+
       navigate('/dashboard');
+
       return;
+
     }
+
+    Promise.all([
+      fetchDashboardStats(),
+      fetchProjects(),
+      fetchAllClients()
+    ]);
+
+  }, []);
+
+
+  useEffect(() => {
+
     fetchClients();
-    fetchAllClients();
-    fetchProjects();
+
   }, [activeTab]);
 
   useEffect(() => {
@@ -145,6 +172,63 @@ const ClientsPage = () => {
       console.error("Fetch all clients error", err);
     }
   };
+
+  const fetchDashboardStats = async () => {
+
+    setStatsLoading(true);
+
+    try {
+
+      const res =
+        await axios.get(
+          '/clients/crm-stats'
+        );
+
+      const data =
+        res.data.data;
+
+      setStageCounts(
+        data.stageCounts || {}
+      );
+
+      setStats([
+        {
+          title: 'Pipeline Value',
+          value: `₹${(
+            data.pipelineValueINR /
+            100000
+          ).toFixed(1)}L`,
+          icon: BarChart3
+        },
+        {
+          title: 'Avg Lead Score',
+          value: `${data.avgLeadScore}/100`,
+          icon: Target
+        },
+        {
+          title: 'Hot Leads',
+          value: data.hotLeads,
+          icon: Zap
+        },
+        {
+          title: 'Conversion',
+          value: `${data.conversionRate}%`,
+          icon: TrendingUp
+        }
+      ]);
+
+    } catch (err) {
+
+      console.error(err);
+
+    } finally {
+
+      setStatsLoading(false);
+
+    }
+
+  };
+
 
   const fetchProjects = async () => {
     try {
@@ -189,27 +273,33 @@ const ClientsPage = () => {
   };
 
   const handleUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File too large. Max 10MB allowed.');
-      return;
+    // Check if any file is too large
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].size > 10 * 1024 * 1024) {
+        toast.error(`File "${files[i].name}" is too large. Max 10MB allowed.`);
+        return;
+      }
     }
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
     formData.append('folder', 'clients');
+    formData.append('classification', uploadClassification);
 
     try {
       await axios.post(`/clients/${selectedClient.id}/documents`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      toast.success('Document uploaded successfully');
+      toast.success(`${files.length} document(s) uploaded successfully`);
       fetchDocuments(selectedClient.id);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to upload document');
+      // Handled by global interceptor
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -272,9 +362,13 @@ const ClientsPage = () => {
       });
       toast.success(`${activeTab} added successfully`);
       setShowAddModal(false);
-      fetchClients();
+      await Promise.all([
+        fetchClients(),
+        fetchDashboardStats(),
+        fetchAllClients()
+      ]);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to add entry');
+      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
@@ -295,21 +389,46 @@ const ClientsPage = () => {
       });
       toast.success('Client updated successfully');
       setShowEditModal(false);
-      fetchClients();
+      await Promise.all([
+        fetchClients(),
+        fetchDashboardStats(),
+        fetchAllClients()
+      ]);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update client');
+      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleNextStage = async (clientId, currentStage) => {
+    const client = items.find(i => i.id === clientId);
+    if (client && client.lead_status === 'Not Interested') {
+      toast.error('Cannot advance lifecycle stage for a client marked as Not Interested');
+      return;
+    }
     const currentIndex = PIPELINE_STAGES.indexOf(currentStage);
     if (currentIndex < PIPELINE_STAGES.length - 1) {
       const nextStage = PIPELINE_STAGES[currentIndex + 1];
 
       if (nextStage === 'Project Started') {
         const client = items.find(i => i.id === clientId);
+
+        if (client && client.project_id) {
+          try {
+            await axios.patch(`/clients/${clientId}/stage`, { stage: nextStage });
+            toast.success(`Client moved to ${nextStage}`);
+            await Promise.all([
+              fetchClients(),
+              fetchDashboardStats(),
+              fetchAllClients()
+            ]);
+          } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to update stage');
+          }
+          return;
+        }
+
         setConfirmModal({
           show: true,
           title: 'Initialize Project',
@@ -330,7 +449,11 @@ const ClientsPage = () => {
               toast.success('Project initialized in Projects module');
               await axios.patch(`/clients/${clientId}/stage`, { stage: nextStage });
               toast.success(`Client moved to ${nextStage}`);
-              fetchClients();
+              await Promise.all([
+                fetchClients(),
+                fetchDashboardStats(),
+                fetchAllClients()
+              ]);
             } catch (err) {
               console.error("Project creation failed", err);
               toast.error('Failed to initialize project record');
@@ -345,9 +468,13 @@ const ClientsPage = () => {
       try {
         await axios.patch(`/clients/${clientId}/stage`, { stage: nextStage });
         toast.success(`Client moved to ${nextStage}`);
-        fetchClients();
+        await Promise.all([
+          fetchClients(),
+          fetchDashboardStats(),
+          fetchAllClients()
+        ]);
       } catch (err) {
-        toast.error('Failed to update stage');
+        toast.error(err.response?.data?.message || 'Failed to update stage');
       }
     }
   };
@@ -359,9 +486,13 @@ const ClientsPage = () => {
       try {
         await axios.patch(`/clients/${clientId}/stage`, { stage: prevStage });
         toast.success(`Client moved back to ${prevStage}`);
-        fetchClients();
+        await Promise.all([
+          fetchClients(),
+          fetchDashboardStats(),
+          fetchAllClients()
+        ]);
       } catch (err) {
-        toast.error('Failed to update stage');
+        toast.error(err.response?.data?.message || 'Failed to update stage');
       }
     }
   };
@@ -370,7 +501,11 @@ const ClientsPage = () => {
     try {
       await axios.patch(`/clients/${clientId}/status`, { status: newStatus });
       toast.success('Status updated');
-      fetchClients();
+      await Promise.all([
+        fetchClients(),
+        fetchDashboardStats(),
+        fetchAllClients()
+      ]);
     } catch (err) {
       toast.error('Failed to update status');
     }
@@ -414,7 +549,7 @@ const ClientsPage = () => {
   };
 
   const filteredItems = items.filter(item => {
-    const matchesSearch = 
+    const matchesSearch =
       item.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.contact_person?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.email?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -422,19 +557,9 @@ const ClientsPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const analytics = {
-    totalValue: allClients.filter(c => c.lead_status === 'Active' || !c.lead_status).reduce((acc, c) => acc + (parseFloat(c.expected_value) || 0), 0),
-    avgScore: allClients.length ? Math.round(allClients.reduce((acc, c) => acc + (parseInt(c.lead_score) || 0), 0) / allClients.length) : 0,
-    conversionRate: allClients.length ? Math.round((allClients.filter(c => c.lifecycle_stage === 'Project Started').length / allClients.length) * 100) : 0,
-    hotLeads: allClients.filter(c => parseInt(c.lead_score) >= 80 && (c.lead_status === 'Active' || !c.lead_status)).length
-  };
 
-  const statsList = [
-    { title: 'Pipeline Value', value: `$${(analytics.totalValue / 1000).toFixed(1)}k`, icon: BarChart3, subtext: 'Total expected revenue' },
-    { title: 'Avg Lead Score', value: `${analytics.avgScore}/100`, icon: Target, subtext: 'Pipeline quality' },
-    { title: 'Hot Leads', value: analytics.hotLeads, icon: Zap, trend: '+3', subtext: 'Score ≥ 80' },
-    { title: 'Conversion', value: `${analytics.conversionRate}%`, icon: TrendingUp, trend: '+2%', subtext: 'To project started' },
-  ];
+
+  const statsList = stats;
 
   return (
     <div className="space-y-8 pb-10">
@@ -452,14 +577,62 @@ const ClientsPage = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsList.map((stat, i) => (
-          <StatCard key={i} {...stat} />
-        ))}
+
+        {statsLoading ? (
+
+          [...Array(4)].map((_, i) => (
+
+            <Card
+              key={i}
+              className="p-5"
+            >
+
+              <div className="flex justify-between">
+
+                <div className="space-y-3 flex-1">
+
+                  <Skeleton
+                    className="h-4 w-24"
+                  />
+
+                  <Skeleton
+                    className="h-8 w-28"
+                  />
+
+                  <Skeleton
+                    className="h-3 w-20"
+                  />
+
+                </div>
+
+                <Skeleton
+                  className="w-12 h-12 rounded-xl"
+                />
+
+              </div>
+
+            </Card>
+
+          ))
+
+        ) : (
+
+          statsList.map((stat, i) => (
+
+            <StatCard
+              key={i}
+              {...stat}
+            />
+
+          ))
+
+        )}
+
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl p-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
         {PIPELINE_STAGES.map((tab) => {
-          const count = allClients.filter(c => c.lifecycle_stage === tab && (c.lead_status === 'Active' || !c.lead_status)).length;
+          const count = stageCounts[tab] || 0;
           return (
             <button
               key={tab}
@@ -502,7 +675,7 @@ const ClientsPage = () => {
             <select
               value={leadStatusFilter}
               onChange={(e) => setLeadStatusFilter(e.target.value)}
-              className="h-10 text-sm border-slate-200 rounded-lg bg-white px-3 focus:ring-2 focus:ring-primary-500 outline-none"
+              className="h-10 text-sm border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100/80 px-3 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer transition-colors shadow-sm font-medium text-slate-700"
             >
               <option value="All">All Statuses</option>
               {LEAD_STATUSES.map(s => (
@@ -545,7 +718,7 @@ const ClientsPage = () => {
                   <TableHead className="py-4 font-bold text-slate-700">Contact</TableHead>
                   <TableHead className="py-4 font-bold text-slate-700">Pipeline Stage</TableHead>
                   <TableHead className="py-4 font-bold text-slate-700">Disposition</TableHead>
-                  <TableHead className="text-right py-4 font-bold text-slate-700">Actions</TableHead>
+                  <TableHead className="py-4 font-bold text-slate-700">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <tbody>
@@ -557,7 +730,7 @@ const ClientsPage = () => {
                           {getInitials(item.company_name)}
                         </div>
                         <div>
-                          <button 
+                          <button
                             onClick={() => { setSelectedClient(item); setShowDetailModal(true); }}
                             className="font-bold text-slate-900 hover:text-primary-600 transition-colors text-left block"
                           >
@@ -586,16 +759,16 @@ const ClientsPage = () => {
                         {LEAD_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </TableCell>
-                    <TableCell className="text-right py-5">
-                      <div className="flex justify-end items-center gap-2">
+                    <TableCell className="py-5">
+                      <div className="flex justify-start items-center gap-2">
                         {hasPermission('clients', 'stage.edit') && (
                           <div className="flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={PIPELINE_STAGES.indexOf(item.lifecycle_stage) === 0} onClick={() => handlePreviousStage(item.id, item.lifecycle_stage)}><ChevronLeft className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] font-bold uppercase" disabled={PIPELINE_STAGES.indexOf(item.lifecycle_stage) === PIPELINE_STAGES.length - 1} onClick={() => handleNextStage(item.id, item.lifecycle_stage)}>Advance<ChevronRight className="w-3.5 h-3.5 ml-1" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={PIPELINE_STAGES.indexOf(item.lifecycle_stage) === 0 || item.lead_status === 'Not Interested'} onClick={() => handlePreviousStage(item.id, item.lifecycle_stage)}><ChevronLeft className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] font-bold uppercase" disabled={PIPELINE_STAGES.indexOf(item.lifecycle_stage) === PIPELINE_STAGES.length - 1 || item.lead_status === 'Not Interested'} onClick={() => handleNextStage(item.id, item.lifecycle_stage)}>Advance<ChevronRight className="w-3.5 h-3.5 ml-1" /></Button>
                           </div>
                         )}
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setSelectedClient(item); setShowDetailModal(true); setActiveDetailTab('Files'); }}><Folder className="w-4 h-4 text-slate-400" /></Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditingClient(item); setShowEditModal(true); }}><Edit className="w-4 h-4 text-slate-400" /></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={item.lead_status === 'Not Interested'} onClick={() => { setEditingClient(item); setShowEditModal(true); }}><Edit className="w-4 h-4 text-slate-400" /></Button>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setSelectedClient(item); setShowDetailModal(true); setActiveDetailTab('Activity'); }}><MessageSquare className="w-4 h-4 text-slate-400" /></Button>
                       </div>
                     </TableCell>
@@ -624,6 +797,9 @@ const ClientsPage = () => {
           docLoading={docLoading}
           handleUpload={handleUpload}
           isUploading={isUploading}
+          uploadClassification={uploadClassification}
+          setUploadClassification={setUploadClassification}
+          canManageConfidential={canManageConfidential}
           setShowDetailModal={setShowDetailModal}
           setEditingClient={setEditingClient}
           setShowEditModal={setShowEditModal}

@@ -107,6 +107,12 @@ const UsersPage = () => {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
+
+    if (selectedSkills.length === 0) {
+      toast.error('Please add at least one skill to the skill set.');
+      return;
+    }
+
     setIsSubmitting(true);
     const formData = new FormData(e.target);
     const payload = Object.fromEntries(formData);

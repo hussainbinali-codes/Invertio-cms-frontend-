@@ -7,12 +7,14 @@ import Input from '../../../components/ui/Input';
 import { Loader2, X, UserPlus, UserMinus, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { hasPermission } from '../../../utils/permissionUtils';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 /**
  * ProjectTeamModal: Allows management of project team membership.
  * Uses the resource_allocations system to link users to projects.
  */
 const ProjectTeamModal = ({ project, onClose }) => {
+  useLockBodyScroll(true);
   const [team, setTeam] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,8 +77,8 @@ const ProjectTeamModal = ({ project, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
-      <Card className="w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in duration-200">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100">
+      <Card className="w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[95vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 shrink-0">
           <div>
             <CardTitle className="text-xl">Team Management</CardTitle>
             <p className="text-sm text-slate-500 mt-1">Project: <span className="font-semibold text-slate-700">{project.name}</span></p>
@@ -85,7 +87,7 @@ const ProjectTeamModal = ({ project, onClose }) => {
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-6 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex justify-center p-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
@@ -94,7 +96,7 @@ const ProjectTeamModal = ({ project, onClose }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Current Team */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <h3 className="text-xl font-bold">
                   <Shield className="w-4 h-4 text-primary-500" />
                   Active Team Members ({team.length})
                 </h3>
@@ -132,7 +134,7 @@ const ProjectTeamModal = ({ project, onClose }) => {
               {/* Add Members */}
               {hasPermission('projects', 'team.manage') && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Add Team Members</h3>
+                  <h3 className="text-xl font-bold">Add Team Members</h3>
                   <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                     {availableUsers.length === 0 ? (
                       <p className="text-center p-8 text-slate-500 text-sm italic">All users are assigned.</p>

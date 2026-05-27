@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../api/axios';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
-import Button from './ui/Button';
 import { Clock, LogIn, LogOut, Loader2, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../utils/cn';
+import Button from './ui/Button';
 
 const AttendancePunch = () => {
     const [status, setStatus] = useState(null); // 'in', 'out', or null
@@ -50,7 +49,6 @@ const AttendancePunch = () => {
 
     const handlePunch = async () => {
         setActionLoading(true);
-        // Generate IST timestamp string with explicit offset (YYYY-MM-DDTHH:mm:ss+05:30)
         const format = (d) => {
             const z = (n) => ('0' + n).slice(-2);
             const istDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
@@ -61,14 +59,13 @@ const AttendancePunch = () => {
 
         try {
             if (!status) {
-                // Use pre-fetched location or try one last time with short timeout
                 let locationString = location || 'Location unavailable';
                 if (!location) {
                     try {
                         const pos = await new Promise((resolve, reject) => {
-                            navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                                enableHighAccuracy: true, 
-                                timeout: 3000 // 3s max wait for punch
+                            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                                enableHighAccuracy: true,
+                                timeout: 3000
                             });
                         });
                         locationString = `${pos.coords.latitude}, ${pos.coords.longitude}`;
@@ -77,7 +74,6 @@ const AttendancePunch = () => {
                     }
                 }
 
-                // Punch In
                 await axios.post('/hr/attendance/check-in', {
                     date,
                     check_in: now,
@@ -87,7 +83,6 @@ const AttendancePunch = () => {
                 setStatus('in');
                 toast.success('Punched in successfully');
             } else if (status === 'in') {
-                // Punch Out
                 await axios.post('/hr/attendance/check-out', {
                     date,
                     check_out: now
@@ -102,42 +97,54 @@ const AttendancePunch = () => {
         }
     };
 
-    if (loading) return null;
+    if (loading) return (
+        <div className="flex items-center justify-center p-4">
+            <Loader2 className="w-5 h-5 text-primary-500 animate-spin" />
+        </div>
+    );
 
     return (
-        <div className="space-y-4">
-            <div className="text-center">
-                <p className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+        <div className="bg-white/50 backdrop-blur-sm rounded-xl border border-slate-200/50 p-3 shadow-sm mx-1">
+            <div className="text-center mb-3">
+                <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    <Clock className="w-2.5 h-2.5" />
+                    Live Time
+                </div>
+                <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none">
                     {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
                 </p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                     {currentTime.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })}
                 </p>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="space-y-2">
                 <Button
                     onClick={handlePunch}
                     disabled={actionLoading || status === 'out'}
                     className={cn(
-                        "h-10 text-[10px] font-bold uppercase tracking-widest",
-                        status === 'in' ? "bg-rose-500 hover:bg-rose-600" : "bg-primary-600 hover:bg-primary-700"
+                        "w-full h-9 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-sm active:scale-[0.98]",
+                        status === 'in'
+                            ? "bg-rose-500 hover:bg-rose-600 shadow-rose-100"
+                            : status === 'out'
+                                ? "bg-slate-200 text-slate-500 shadow-none cursor-not-allowed"
+                                : "bg-primary-600 hover:bg-primary-700 shadow-primary-100"
                     )}
                 >
                     {actionLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : status === 'in' ? (
-                        <><LogOut className="w-4 h-4 mr-2" /> Punch Out</>
+                        <><LogOut className="w-3.5 h-3.5 mr-1.5" /> Punch Out</>
                     ) : status === 'out' ? (
-                        <><Clock className="w-4 h-4 mr-2" /> Logged</>
+                        <><Clock className="w-3.5 h-3.5 mr-1.5" /> Day Ended</>
                     ) : (
-                        <><LogIn className="w-4 h-4 mr-2" /> Punch In</>
+                        <><LogIn className="w-3.5 h-3.5 mr-1.5" /> Punch In</>
                     )}
                 </Button>
-                
-                <div className="flex items-center justify-center gap-1.5 text-[8px] font-bold text-slate-300 uppercase">
-                    <MapPin className="w-2.5 h-2.5" />
-                    <span>Geo-Logged</span>
+
+                <div className="flex items-center justify-center gap-1 text-[8px] font-bold text-slate-400 uppercase tracking-tight">
+                    <MapPin className={cn("w-2.5 h-2.5", location ? "text-emerald-500" : "text-slate-300")} />
+                    <span>{location ? 'Geo-Targeted' : 'location will be used'}</span>
                 </div>
             </div>
         </div>

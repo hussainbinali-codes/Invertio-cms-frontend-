@@ -3,19 +3,46 @@ import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { BASE_URL } from '../../../api/baseUrl';
 import Badge from '../../../components/ui/Badge';
-import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2 } from 'lucide-react';
+import Skeleton from '../../../components/ui/Skeleton';
+import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import Button from '../../../components/ui/Button';
+import ProofOfCompletionModal from './ProofOfCompletionModal';
+import toast from 'react-hot-toast';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
-const TaskDetailModal = ({ task, onClose }) => {
+const TaskDetailModal = ({ task, onClose, onUpdate }) => {
+  useLockBodyScroll(true);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = (user?.role_name || '').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
+  const canEdit = isAdmin || user?.modules?.tasks?.edit;
+
   const [showResources, setShowResources] = React.useState(false);
   const [documents, setDocuments] = React.useState([]);
   const [loadingDocs, setLoadingDocs] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editData, setEditData] = React.useState({
+    status: task?.status || 'Pending',
+    description: task?.description || '',
+    priority: task?.priority || 'Medium'
+  });
+  const [currentStatus, setCurrentStatus] = React.useState(task?.status || 'Pending');
+  const [isUpdating, setIsUpdating] = React.useState(false);
+  const [isUploading, setIsUploading] = React.useState(false);
+
+  // Proof of Completion states
+  const [showProofModal, setShowProofModal] = React.useState(false);
+  const [completionNotes, setCompletionNotes] = React.useState('');
+  const [completionFiles, setCompletionFiles] = React.useState([]);
+  const [isSubmittingProof, setIsSubmittingProof] = React.useState(false);
 
   React.useEffect(() => {
     if (task && task.id) {
         fetchTaskDocuments();
+        setCurrentStatus(task.status);
+        setEditData(prev => ({ ...prev, status: task.status, description: task.description, priority: task.priority }));
     }
   }, [task]);
 
@@ -31,6 +58,106 @@ const TaskDetailModal = ({ task, onClose }) => {
     }
   };
 
+  const handleUpdateTask = async () => {
+    setIsUpdating(true);
+    try {
+        await axios.patch(`/projects/tasks/${task.id}`, editData);
+        setIsEditing(false);
+        if (onUpdate) onUpdate();
+        // Since we don't have a direct way to update the parent's task object easily here 
+        // without a full refresh, we'll just show success and hope the parent re-fetches.
+        // Actually, TaskDetailModal should ideally be passed an onUpdate callback.
+    } catch (err) {
+        console.error("Failed to update task", err);
+    } finally {
+        setIsUpdating(false);
+    }
+  };
+
+  const handleUploadFile = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+    }
+    try {
+        await axios.post(`/projects/tasks/${task.id}/documents`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        toast.success(`${files.length} document(s) uploaded`);
+        fetchTaskDocuments();
+    } catch (err) {
+        console.error("Failed to upload file(s)", err);
+        toast.error("Upload failed");
+    } finally {
+        setIsUploading(false);
+        e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleQuickStatusUpdate = async (newStatus) => {
+    if (newStatus === 'Completed') {
+        setShowProofModal(true);
+        return;
+    }
+
+    setIsUpdating(true);
+    try {
+        await axios.patch(`/projects/tasks/${task.id}`, { status: newStatus });
+        setCurrentStatus(newStatus);
+        setEditData(prev => ({ ...prev, status: newStatus }));
+        toast.success(`Task status updated to ${newStatus}`);
+        if (onUpdate) onUpdate();
+    } catch (err) {
+        console.error("Failed to update status", err);
+        toast.error("Failed to update status");
+    } finally {
+        setIsUpdating(false);
+    }
+  };
+
+  const submitCompletionProof = async () => {
+    if (!completionNotes.trim()) {
+      toast.error("Please provide completion notes as proof.");
+      return;
+    }
+
+    setIsSubmittingProof(true);
+    try {
+      await axios.patch(`/projects/tasks/${task.id}`, {
+        status: 'Completed',
+        completion_notes: completionNotes,
+        completion_date: new Date().toISOString()
+      });
+
+      if (completionFiles.length > 0) {
+        const formData = new FormData();
+        for (const file of completionFiles) {
+          formData.append('files', file);
+        }
+        await axios.post(`/projects/tasks/${task.id}/documents`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      toast.success('Task completed with proof of work');
+      setShowProofModal(false);
+      setCompletionNotes('');
+      setCompletionFiles([]);
+      setCurrentStatus('Completed');
+      setEditData(prev => ({ ...prev, status: 'Completed' }));
+      fetchTaskDocuments();
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      toast.error('Failed to submit completion proof');
+    } finally {
+      setIsSubmittingProof(false);
+    }
+  };
+
   const completionTime = task?.completion_date ? new Date(task.completion_date).getTime() - 60000 : null;
   const initialDocs = documents.filter(d => !completionTime || new Date(d.created_at).getTime() < completionTime);
   const proofDocs = documents.filter(d => completionTime && new Date(d.created_at).getTime() >= completionTime);
@@ -43,7 +170,15 @@ const TaskDetailModal = ({ task, onClose }) => {
               <FileText className="w-4 h-4 text-slate-400 group-hover:text-primary-500" />
            </div>
            <div className="overflow-hidden">
-              <p className="text-[10px] font-bold text-slate-900 truncate">{doc.file_name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-bold text-slate-900 truncate max-w-[120px]">{doc.file_name}</p>
+                <span className={cn(
+                  "text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
+                  doc.classification === 'confidential' ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
+                )}>
+                  {doc.classification || 'Internal'}
+                </span>
+              </div>
               <p className="text-[9px] text-slate-400">{(doc.file_size / 1024).toFixed(0)} KB</p>
            </div>
         </a>
@@ -53,8 +188,8 @@ const TaskDetailModal = ({ task, onClose }) => {
   if (!task) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 text-slate-900">
-      <Card className="w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in duration-300 border-none flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
+      <Card className="w-full max-w-5xl shadow-2xl animate-in fade-in zoom-in duration-300 border-none flex flex-col max-h-[95vh] overflow-hidden">
         <CardHeader className="flex flex-row items-start sm:items-center justify-between bg-white border-b border-slate-100 py-5 sm:py-6 px-5 sm:px-8 shrink-0">
           <div className="flex items-start sm:items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center">
@@ -68,23 +203,56 @@ const TaskDetailModal = ({ task, onClose }) => {
                 </Badge>
                 <Badge 
                     variant={
-                        task.status === 'Completed' ? 'success' : 
-                        task.status === 'In Progress' ? 'primary' : 
+                        currentStatus === 'Completed' ? 'success' : 
+                        currentStatus === 'In Progress' ? 'primary' : 
                         'default'
                     }
                     className="text-[10px] font-bold uppercase tracking-wider"
                 >
-                    {task.status}
+                    {currentStatus}
                 </Badge>
               </div>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600 group"
-          >
-            <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" />
-          </button>
+          <div className="flex items-center gap-3">
+            {canEdit && !isEditing && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-9 text-[10px] font-bold uppercase border-slate-200"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit Details
+              </Button>
+            )}
+            {isEditing && (
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-9 text-[10px] font-bold uppercase"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  className="h-9 text-[10px] font-bold uppercase"
+                  onClick={handleUpdateTask}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save Changes'}
+                </Button>
+              </div>
+            )}
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600 group"
+            >
+              <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" />
+            </button>
+          </div>
         </CardHeader>
         
         <CardContent className="p-0 overflow-y-auto">
@@ -96,9 +264,17 @@ const TaskDetailModal = ({ task, onClose }) => {
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Description & Details</span>
               </div>
               <div className="prose prose-slate max-w-none mb-8">
-                <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm">
-                  {task.description || "No detailed description provided for this task."}
-                </p>
+                {isEditing ? (
+                  <textarea 
+                    className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[120px]"
+                    value={editData.description}
+                    onChange={(e) => setEditData({...editData, description: e.target.value})}
+                  />
+                ) : (
+                  <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm">
+                    {task.description || "No detailed description provided for this task."}
+                  </p>
+                )}
               </div>
 
               {task.task_references && task.task_references.length > 0 && (
@@ -130,7 +306,7 @@ const TaskDetailModal = ({ task, onClose }) => {
                 </div>
               )}
 
-              {initialDocs.length > 0 && (
+              {(initialDocs.length > 0 || canEdit) && (
                 <div className="space-y-4 mt-8 pt-8 border-t border-slate-50">
                   <div className="flex items-center gap-2 text-slate-400">
                     <FileText className="w-4 h-4" />
@@ -138,6 +314,15 @@ const TaskDetailModal = ({ task, onClose }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {initialDocs.map(renderDoc)}
+                    {canEdit && (
+                      <div className="relative">
+                        <input type="file" id="task-detail-upload" className="hidden" multiple onChange={handleUploadFile} disabled={isUploading} />
+                        <label htmlFor="task-detail-upload" className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 border border-slate-200 border-dashed rounded-xl hover:bg-white hover:border-primary-300 transition-all cursor-pointer h-[60px]">
+                          {isUploading ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Plus className="w-4 h-4 text-slate-400" />}
+                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Add Resource</span>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -190,18 +375,78 @@ const TaskDetailModal = ({ task, onClose }) => {
                   <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
                     <div>
                       <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Priority</p>
-                      <p className={cn(
-                        "text-xs font-black uppercase tracking-wider",
-                        task.priority === 'Urgent' ? "text-rose-600" : 
-                        task.priority === 'High' ? "text-amber-600" : 
-                        "text-slate-600"
-                      )}>{task.priority || 'Medium'}</p>
+                      {isEditing ? (
+                        <select 
+                          className="text-xs font-black uppercase tracking-wider text-slate-900 bg-transparent border-none p-0 focus:ring-0"
+                          value={editData.priority}
+                          onChange={(e) => setEditData({...editData, priority: e.target.value})}
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                          <option value="Urgent">Urgent</option>
+                        </select>
+                      ) : (
+                        <p className={cn(
+                          "text-xs font-black uppercase tracking-wider",
+                          task.priority === 'Urgent' ? "text-rose-600" : 
+                          task.priority === 'High' ? "text-amber-600" : 
+                          "text-slate-600"
+                        )}>{task.priority || 'Medium'}</p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Complexity</p>
                       <p className="text-xs font-black text-slate-900">{task.story_points || 0} Points</p>
                     </div>
                   </div>
+                  
+                  {isAdmin && (
+                    <div className="p-4 bg-primary-50/50 rounded-xl border border-primary-100 mt-4">
+                       <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Update Status
+                       </p>
+                       <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { label: 'Start', value: 'Pending' },
+                            { label: 'In Progress', value: 'In Progress' },
+                            { label: 'Complete', value: 'Completed' },
+                            { label: 'Cancel', value: 'Cancelled' }
+                          ].map((s) => (
+                             <button
+                                key={s.value}
+                                disabled={isUpdating}
+                                onClick={() => handleQuickStatusUpdate(s.value)}
+                                className={cn(
+                                   "px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border",
+                                   currentStatus === s.value
+                                      ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-200"
+                                      : "bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600"
+                                )}
+                             >
+                                {s.label}
+                             </button>
+                          ))}
+                       </div>
+                    </div>
+                  )}
+
+                  {isEditing && !isAdmin && (
+                    <div className="p-3 bg-white rounded-xl border border-slate-100 mt-2">
+                       <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Status</p>
+                       <select 
+                          className="w-full text-xs font-black uppercase tracking-wider text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-100"
+                          value={editData.status}
+                          onChange={(e) => setEditData({...editData, status: e.target.value})}
+                       >
+                          <option value="Pending">Pending</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                       </select>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -254,6 +499,17 @@ const TaskDetailModal = ({ task, onClose }) => {
           onClose={() => setShowResources(false)} 
         />
       )}
+
+      <ProofOfCompletionModal 
+        isOpen={showProofModal}
+        onClose={() => setShowProofModal(false)}
+        onSubmit={submitCompletionProof}
+        isSubmitting={isSubmittingProof}
+        completionNotes={completionNotes}
+        setCompletionNotes={setCompletionNotes}
+        completionFiles={completionFiles}
+        setCompletionFiles={setCompletionFiles}
+      />
     </div>
   );
 };

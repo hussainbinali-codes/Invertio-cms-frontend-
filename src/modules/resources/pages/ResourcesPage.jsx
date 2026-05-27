@@ -24,6 +24,7 @@ import { hasPermission } from '../../../utils/permissionUtils';
 import Skeleton from '../../../components/ui/Skeleton';
 import Switch from '../../../components/ui/Switch';
 import ConfirmationModal from '../../../components/ui/ConfirmationModal';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 
 const ResourcesPage = () => {
@@ -37,6 +38,8 @@ const ResourcesPage = () => {
   const [selectedResource, setSelectedResource] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAssignmentUsers, setSelectedAssignmentUsers] = useState([]); // Array of {id, name}
+
+  useLockBodyScroll(showAddModal);
 
 
 
@@ -168,24 +171,24 @@ const ResourcesPage = () => {
   }
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Resource Center</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage institutional inventory and workforce allocation.</p>
+    <div className="space-y-6 sm:space-y-8 pb-10">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="max-w-2xl">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Asset Center</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage institutional inventory and workforce allocation.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
             <Button 
                 variant={activeTab === 'inventory' ? 'primary' : 'ghost'} 
                 onClick={() => setActiveTab('inventory')}
-                className="h-10 text-xs font-bold uppercase tracking-wider"
+                className="h-9 sm:h-10 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex-1 sm:flex-none"
             >
                 Inventory
             </Button>
             <Button 
                 variant={activeTab === 'utilization' ? 'primary' : 'ghost'} 
                 onClick={() => setActiveTab('utilization')}
-                className="h-10 text-xs font-bold uppercase tracking-wider"
+                className="h-9 sm:h-10 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex-1 sm:flex-none"
             >
                 Workforce
             </Button>
@@ -194,9 +197,9 @@ const ResourcesPage = () => {
                 setSelectedResource(null); 
                 setSelectedAssignmentUsers([]);
                 setShowAddModal(true); 
-              }} className="bg-primary-600 hover:bg-primary-700 h-10 ml-2">
-                <Plus className="w-4 h-4 mr-2" />
-                New Resource
+              }} className="bg-primary-600 hover:bg-primary-700 h-9 sm:h-10 text-[10px] sm:text-xs flex-1 sm:flex-none sm:ml-2">
+                <Plus className="w-4 h-4 mr-1.5 sm:mr-2" />
+                New Asset
               </Button>
             )}
         </div>
@@ -210,10 +213,12 @@ const ResourcesPage = () => {
                 <StatCard title="Available" value={resources.filter(r => !r.assigned_users || r.assigned_users.length === 0).length} icon={AlertCircle} subtext="Ready to deploy" />
             </div>
 
-            <Card>
-                <CardHeader className="py-6">
-                    <CardTitle className="text-xl font-bold">Inventory & Access</CardTitle>
-                    <p className="text-xs text-slate-500 mt-0.5 font-medium">Manage hardware, software licenses, and repository access.</p>
+            <Card className="overflow-hidden">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
+                    <div>
+                        <CardTitle className="text-lg sm:text-xl font-bold">Inventory & Access</CardTitle>
+                        <p className="text-xs text-slate-500 mt-0.5 font-medium">Manage hardware, software licenses, and repository access.</p>
+                    </div>
                 </CardHeader>
 
 
@@ -221,11 +226,11 @@ const ResourcesPage = () => {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="py-4">Resource</TableHead>
+                                <TableHead className="py-4">Asset</TableHead>
                                 <TableHead className="py-4">Type</TableHead>
                                 <TableHead className="py-4">Assigned To</TableHead>
                                 <TableHead className="py-4">Status</TableHead>
-                                <TableHead className="text-right py-4">Action</TableHead>
+                                <TableHead className="py-4">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <tbody>
@@ -266,8 +271,8 @@ const ResourcesPage = () => {
                                         </Badge>
                                     </TableCell>
 
-                                    <TableCell className="text-right py-5">
-                                        <div className="flex justify-end gap-2">
+                                    <TableCell className="py-5">
+                                        <div className="flex justify-start gap-2">
                                             {hasPermission('resources', 'edit') && (
                                                 <Button 
                                                     variant="ghost" 
@@ -426,7 +431,7 @@ const ResourcesPage = () => {
           <Card className="w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[95vh] flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between py-6">
               <div>
-                <CardTitle className="text-xl font-bold">{selectedResource ? 'Edit Resource' : 'Add New Resource'}</CardTitle>
+                <CardTitle className="text-xl font-bold">{selectedResource ? 'Edit Asset' : 'Add New Asset'}</CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">Hardware, software, or digital access.</p>
               </div>
               <button onClick={() => setShowAddModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200">
@@ -468,7 +473,7 @@ const ResourcesPage = () => {
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">Resource Name</label>
+                    <label className="text-sm font-medium text-slate-700">Asset Name</label>
                     <input 
                         name="name" 
                         defaultValue={selectedResource?.name} 
@@ -530,7 +535,7 @@ const ResourcesPage = () => {
                 <div className="flex gap-3 justify-end pt-6">
                   <Button type="button" variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting} className="bg-primary-600 hover:bg-primary-700">
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (selectedResource ? 'Update Resource' : 'Add Resource')}
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (selectedResource ? 'Update Asset' : 'Add Asset')}
                   </Button>
                 </div>
               </form>
@@ -543,10 +548,10 @@ const ResourcesPage = () => {
         isOpen={confirmModal.show}
         onClose={() => setConfirmModal({ show: false, id: null })}
         onConfirm={() => performDeleteResource(confirmModal.id)}
-        title="Delete Resource"
-        message="Are you sure you want to permanently delete this resource? This action cannot be undone."
+        title="Delete Asset"
+        message="Are you sure you want to permanently delete this asset? This action cannot be undone."
         variant="danger"
-        confirmText="Delete Resource"
+        confirmText="Delete Asset"
       />
     </div>
   );

@@ -30,7 +30,9 @@ const RecruitmentTab = ({
   formatDate,
   setSelectedCandidate,
   setShowInterviewModal,
-  openDocs
+  openDocs,
+  searchTerm,
+  setSearchTerm
 }) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -57,15 +59,20 @@ const RecruitmentTab = ({
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 text-slate-900">
-          <CardHeader className="flex flex-row items-center justify-between py-6">
+        <Card className="lg:col-span-2 text-slate-900 overflow-hidden">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
             <div>
-              <CardTitle className="text-xl font-bold">Recruitment Tracker</CardTitle>
+              <CardTitle className="text-lg sm:text-xl font-bold">Recruitment Tracker</CardTitle>
               <p className="text-xs text-slate-500 mt-0.5 font-medium">Monitoring {candidates.length} active applications.</p>
             </div>
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input className="pl-9 h-9 w-64 text-xs" placeholder="Filter candidates..." />
+              <Input 
+                className="pl-9 h-9 w-full sm:w-64 text-xs" 
+                placeholder="Filter candidates..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </CardHeader>
 
@@ -76,11 +83,15 @@ const RecruitmentTab = ({
                   <TableHead className="py-4">Candidate</TableHead>
                   <TableHead className="py-4">Current Stage</TableHead>
                   <TableHead className="py-4">Next Step</TableHead>
-                  <TableHead className="text-right py-4">Action</TableHead>
+                  <TableHead className="py-4">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <tbody>
-                {candidates.map(candidate => (
+                {candidates.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={4} className="py-10 text-center text-slate-400 font-medium italic">No candidates found matching your criteria.</TableCell>
+                    </TableRow>
+                ) : candidates.map(candidate => (
                   <TableRow key={candidate.id} className="group">
                     <TableCell className="py-5">
                       <div className="font-bold text-slate-900">{candidate.name}</div>
@@ -123,7 +134,7 @@ const RecruitmentTab = ({
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider italic">Not Scheduled</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right py-5">
+                    <TableCell className="py-5">
                       {hasPermission('hr', 'recruitment.manage') ? (
                         <Button 
                           variant="ghost" 

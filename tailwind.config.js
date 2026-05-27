@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px',
+      },
       colors: {
         primary: {
           50: '#eff6ff',
@@ -13,13 +16,17 @@ export default {
           200: '#bfdbfe',
           300: '#93c5fd',
           400: '#60a5fa',
-          500: '#3b82f6', // General primary brand, can be customized
+          500: '#3b82f6', 
           600: '#2563eb',
           700: '#1d4ed8',
           800: '#1e40af',
           900: '#1e3a8a',
           950: '#172554',
         }
+      },
+      borderRadius: {
+        '2xl': '1rem',
+        '3xl': '1.5rem',
       },
       keyframes: {
         shimmer: {

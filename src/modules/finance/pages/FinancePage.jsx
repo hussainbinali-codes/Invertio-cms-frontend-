@@ -26,6 +26,7 @@ const PayrollTab = lazy(() => import('../components/PayrollTab'));
 const InvoiceModal = lazy(() => import('../components/InvoiceModal'));
 const ExpenseModal = lazy(() => import('../components/ExpenseModal'));
 const PayrollModal = lazy(() => import('../components/PayrollModal'));
+const PayrollStatusModal = lazy(() => import('../components/PayrollStatusModal'));
 
 const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -61,6 +62,16 @@ const FinancePage = () => {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('All');
+  
+  // Payroll Status Modal State
+  const [payrollStatusModal, setPayrollStatusModal] = useState({
+    isOpen: false,
+    payrollId: null,
+    currentStatus: '',
+    targetStatus: '',
+    employeeName: '',
+    period: ''
+  });
   
   // Invoice Filters
   const [invoiceSearch, setInvoiceSearch] = useState('');
@@ -188,14 +199,25 @@ const FinancePage = () => {
     }
   };
 
-  const updateStatus = async (id, status) => {
+  const updateStatus = async (id, data) => {
     try {
-      await axios.patch(`/finance/invoices/${id}/status`, { status });
-      toast.success('Invoice status updated');
+      const formData = new FormData();
+      formData.append('status', data.status);
+      if (data.notes) formData.append('payment_notes', data.notes);
+      if (data.proof) formData.append('proof', data.proof);
+
+      await axios.patch(`/finance/invoices/${id}/status`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (data.status === 'Cancelled') {
+        toast.success('Invoice cancelled successfully');
+      } else {
+        toast.success('Invoice status updated');
+      }
       fetchInvoices();
       fetchFinanceData();
     } catch (err) {
-      toast.error('Failed to update status');
+      toast.error(err.response?.data?.message || 'Failed to update status');
     }
   };
 
@@ -270,6 +292,53 @@ const FinancePage = () => {
     }
   };
 
+  const updatePayrollStatus = async (id, status) => {
+    // If transitioning to 'Paid', open the confirmation modal instead of direct update
+    if (status === 'Paid') {
+      const payroll = payrollData.find(p => p.id === id);
+      setPayrollStatusModal({
+        isOpen: true,
+        payrollId: id,
+        currentStatus: payroll?.status || 'Pending',
+        targetStatus: 'Paid',
+        employeeName: payroll?.user_name || 'Employee',
+        period: `${payroll?.month}/${payroll?.year}`
+      });
+    } else {
+      try {
+        await axios.patch(`/finance/payroll/${id}`, { status });
+        toast.success('Payroll status updated');
+        if (activeView === 'Payroll') fetchPayrollRecords();
+        fetchFinanceData();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to update payroll status');
+      }
+    }
+  };
+
+  const handlePayrollStatusConfirm = async (data) => {
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('status', data.status);
+      if (data.notes) formData.append('notes', data.notes);
+      if (data.proof) formData.append('proof', data.proof);
+
+      await axios.patch(`/finance/payroll/${payrollStatusModal.payrollId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      toast.success('Payroll status updated with proof');
+      setPayrollStatusModal(prev => ({ ...prev, isOpen: false }));
+      if (activeView === 'Payroll') fetchPayrollRecords();
+      fetchFinanceData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-8 pb-10">
@@ -299,27 +368,27 @@ const FinancePage = () => {
   }
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Financial Hub</h1>
-          <p className="text-sm text-slate-500 mt-1">Institutional liquidity, institutional billing, and performance analytics.</p>
+    <div className="space-y-6 sm:space-y-8 pb-10">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="max-w-2xl">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Financial Hub</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Institutional liquidity, institutional billing, and performance analytics.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasPermission('finance', 'expenses.create') && (
-            <Button variant="secondary" onClick={() => setShowExpenseModal(true)} className="h-10">
+            <Button variant="secondary" onClick={() => setShowExpenseModal(true)} className="h-9 sm:h-10 text-xs sm:text-sm flex-1 sm:flex-none">
               <TrendingDown className="w-4 h-4 mr-2" />
               Add Expense
             </Button>
           )}
           {hasPermission('finance', 'payroll.manage') && (
-            <Button variant="secondary" onClick={() => setShowPayrollModal(true)} className="h-10">
+            <Button variant="secondary" onClick={() => setShowPayrollModal(true)} className="h-9 sm:h-10 text-xs sm:text-sm flex-1 sm:flex-none">
               <Wallet className="w-4 h-4 mr-2" />
               Payroll
             </Button>
           )}
           {hasPermission('finance', 'invoices.create') && (
-            <Button onClick={() => setShowInvoiceModal(true)} className="bg-primary-600 hover:bg-primary-700 h-10">
+            <Button onClick={() => setShowInvoiceModal(true)} className="bg-primary-600 hover:bg-primary-700 h-9 sm:h-10 text-xs sm:text-sm flex-1 sm:flex-none">
               <Plus className="w-4 h-4 mr-2" />
               New Invoice
             </Button>
@@ -327,7 +396,7 @@ const FinancePage = () => {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-1 flex items-center gap-1">
+      <div className="bg-white border border-slate-200 rounded-xl p-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
         {[
           { id: 'Overview', icon: LayoutDashboard },
           { id: 'Invoices', icon: FileText },
@@ -338,13 +407,13 @@ const FinancePage = () => {
             key={tab.id}
             onClick={() => setActiveView(tab.id)}
             className={cn(
-              "flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+              "flex-1 min-w-[100px] py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap",
               activeView === tab.id 
                 ? "bg-primary-50 text-primary-700 shadow-sm" 
                 : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
             )}
           >
-            <tab.icon className="w-4 h-4" />
+            <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             {tab.id}
           </button>
         ))}
@@ -396,6 +465,7 @@ const FinancePage = () => {
             payrollYearFilter={payrollYearFilter}
             setPayrollYearFilter={setPayrollYearFilter}
             currencies={CURRENCIES}
+            updatePayrollStatus={updatePayrollStatus}
           />
         )}
       </Suspense>
@@ -428,6 +498,17 @@ const FinancePage = () => {
           users={users}
           projects={projects}
           currencies={CURRENCIES}
+        />
+
+        <PayrollStatusModal 
+          isOpen={payrollStatusModal.isOpen}
+          onClose={() => setPayrollStatusModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={handlePayrollStatusConfirm}
+          isSubmitting={isSubmitting}
+          currentStatus={payrollStatusModal.currentStatus}
+          targetStatus={payrollStatusModal.targetStatus}
+          employeeName={payrollStatusModal.employeeName}
+          period={payrollStatusModal.period}
         />
       </Suspense>
     </div>

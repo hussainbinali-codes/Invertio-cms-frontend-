@@ -2,10 +2,61 @@
 @config "../tailwind.config.js";
 
 @layer base {
-  body {
-    @apply bg-slate-50 text-slate-900;
+  :root {
+    --sidebar-width: 280px;
+    --header-height: 64px;
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.3);
   }
+
+  body {
+    @apply bg-slate-50 text-slate-900 selection:bg-primary-100 selection:text-primary-900;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   button, select, [role="button"], a {
     cursor: pointer;
   }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply backdrop-blur-md bg-white/70 border border-white/20;
+  }
+  
+  .nav-link-active {
+    @apply bg-primary-50 text-primary-700 shadow-sm shadow-primary-100/50;
+  }
+  
+  .overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
 }

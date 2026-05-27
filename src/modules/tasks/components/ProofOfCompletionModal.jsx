@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui
 import Textarea from '../../../components/ui/Textarea';
 import Button from '../../../components/ui/Button';
 import { X, Loader2, CheckCircle2, UploadCloud, CheckSquare } from 'lucide-react';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 const ProofOfCompletionModal = ({
   isOpen,
@@ -14,12 +15,13 @@ const ProofOfCompletionModal = ({
   completionFiles,
   setCompletionFiles
 }) => {
+  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 text-slate-900">
-      <Card className="w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
-        <CardHeader className="flex flex-row items-center justify-between py-6 border-b border-slate-50">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
+      <Card className="w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[95vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between py-6 border-b border-slate-50 shrink-0">
           <div>
             <CardTitle className="text-xl font-bold flex items-center gap-2">
               <CheckCircle2 className="w-6 h-6 text-emerald-500" />
@@ -31,7 +33,7 @@ const ProofOfCompletionModal = ({
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
-        <CardContent className="p-6 space-y-6">
+        <CardContent className="p-6 space-y-6 overflow-y-auto flex-1">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Completion Notes</label>
             <Textarea 
@@ -44,7 +46,9 @@ const ProofOfCompletionModal = ({
           </div>
 
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Media / Deliverables</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Media / Deliverables</label>
+            </div>
             <div className="flex flex-col gap-3">
               <input 
                 type="file" 

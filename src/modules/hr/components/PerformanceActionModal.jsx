@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { X, Loader2 } from 'lucide-react';
@@ -12,12 +13,13 @@ const PerformanceActionModal = ({
   handlePerfSubmit,
   isSubmitting
 }) => {
+  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
-      <Card className="w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
-        <CardHeader className="flex flex-row items-center justify-between py-6">
+      <Card className="w-full max-w-xl shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[95vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between py-6 shrink-0">
           <div>
             <CardTitle className="text-xl font-bold">
               {perfModalType === 'rating' ? 'Employee Performance Review' : 
@@ -29,7 +31,7 @@ const PerformanceActionModal = ({
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-6 overflow-y-auto flex-1">
           <form onSubmit={handlePerfSubmit} className="space-y-4">
             {perfModalType === 'rating' && (
               <>
@@ -58,7 +60,7 @@ const PerformanceActionModal = ({
 
             {perfModalType === 'bonus' && (
               <>
-                <Input label="Bonus Amount" name="amount" type="number" step="0.01" required placeholder="0.00" />
+                <Input label="Bonus Amount" name="amount" type="number" min="0" step="0.01" required placeholder="0.00" />
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase">Bonus Category</label>
                   <select name="bonus_type" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white">
@@ -87,7 +89,7 @@ const PerformanceActionModal = ({
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Salary</div>
                   <div className="text-lg font-black text-slate-900">₹{parseFloat(selectedUserForPerf?.salary || 0).toLocaleString()}</div>
                 </div>
-                <Input label="New Base Salary" name="new_salary" type="number" step="0.01" required placeholder="Enter new salary amount" />
+                <Input label="New Base Salary" name="new_salary" type="number" min="0" step="0.01" required placeholder="Enter new salary amount" />
                 <Input label="Effective Date" name="effective_date" type="date" required />
                 <Input label="Hike Justification" name="reason" required placeholder="e.g. Annual Appraisal / Promotion" />
               </>

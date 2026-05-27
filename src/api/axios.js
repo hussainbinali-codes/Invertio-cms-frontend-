@@ -39,6 +39,10 @@ instance.interceptors.response.use(
       }
     } else if (error.response && error.response.status === 403) {
       toast.error('Access Denied: You do not have permission for this action.');
+    } else if (error.response && error.response.status === 400) {
+      // Extract the standardized 'message' from our backend responses
+      const message = error.response.data?.message || 'Invalid request. Please check your input.';
+      toast.error(message);
     } else if (error.response && error.response.status >= 500) {
       toast.error('Server connection error. Please try again later.');
     }

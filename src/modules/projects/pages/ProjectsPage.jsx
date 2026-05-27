@@ -9,7 +9,8 @@ import Input from '../../../components/ui/Input';
 import {
   Loader2, Plus, X, FolderPlus, Users, Briefcase, CheckCircle2,
   AlertTriangle, TrendingUp, Link, FolderOpen, ExternalLink,
-  FileText, UploadCloud, Trash2, MessageSquare, Send, Layers
+  FileText, UploadCloud, Trash2, MessageSquare, Send, Layers,
+  Lock, ShieldCheck, Phone, Mail, User, Info, Edit
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProjectTeamModal from '../components/ProjectTeamModal';
@@ -19,6 +20,7 @@ import { cn } from '../../../utils/cn';
 import { hasPermission } from '../../../utils/permissionUtils';
 import Skeleton from '../../../components/ui/Skeleton';
 import { BASE_URL } from '../../../api/baseUrl';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -38,15 +40,24 @@ const ProjectsPage = () => {
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [editingProject, setEditingProject] = useState(null);
+
+  useLockBodyScroll(showAddModal || showEditModal);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectCategory, setProjectCategory] = useState('New Project');
-  const [leadSource, setLeadSource] = useState('Direct');
-  const [refType, setRefType] = useState('client');
+  const [expandedConfidential, setExpandedConfidential] = useState(null); // ID of project with visible confidential info
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  const isAdmin = ['super admin', 'admin', 'administrator'].includes((user.role_name || '').toLowerCase());
 
   useEffect(() => {
-
     // RBAC: Check for module permission
     if (!hasPermission('projects', 'view')) {
       toast.error("Access Denied: You do not have permissions to access the Projects module.");
@@ -95,6 +106,42 @@ const ProjectsPage = () => {
     }
   };
 
+  const handleEditProjectClick = (project) => {
+    setEditingProject(project);
+    setShowEditModal(true);
+  };
+
+  const handleEditProject = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const formData = new FormData(e.target);
+    const payload = Object.fromEntries(formData);
+
+    try {
+      await axios.patch(`/projects/${editingProject.id}`, {
+        ...payload,
+        budget: payload.budget ? parseFloat(payload.budget) : 0,
+      });
+      toast.success('Project updated successfully');
+      setShowEditModal(false);
+      fetchProjects();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update project');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStatusChange = async (projectId, newStatus) => {
+    try {
+      await axios.patch(`/projects/${projectId}`, { status: newStatus });
+      toast.success(`Project status updated to ${newStatus}`);
+      fetchProjects();
+    } catch (err) {
+      toast.error('Failed to update status');
+    }
+  };
+
   const fetchProjectResources = (project) => {
     setSelectedProject(project);
     setShowResourceModal(true);
@@ -107,11 +154,31 @@ const ProjectsPage = () => {
 
   const getStatusBadge = (status) => {
     if (!status) return <Badge>Unknown</Badge>;
-    const baseStyle = "text-[10px] font-bold uppercase tracking-wider";
+    const baseStyle = "text-[10px] font-bold  tracking-wider";
     if (status.includes('Blocked')) return <Badge variant="destructive" className={baseStyle}>{status}</Badge>;
     if (status === 'Completed') return <Badge variant="success" className={baseStyle}>{status}</Badge>;
     if (status === 'In Progress') return <Badge variant="primary" className={baseStyle}>{status}</Badge>;
-    return <Badge variant="secondary" className={baseStyle}>{status}</Badge>; // Planned / On Hold
+    if (status === 'On Hold') return <Badge variant="warning" className={baseStyle}>{status}</Badge>;
+    if (status === 'Cancelled') return <Badge variant="destructive" className={baseStyle}>{status}</Badge>;
+    return <Badge variant="secondary" className={baseStyle}>{status}</Badge>; // Planned
+  };
+
+  const getStatusColorClass = (status) => {
+    switch (status) {
+      case 'Completed':
+        return 'text-emerald-600 border-emerald-200 bg-emerald-50/50';
+      case 'In Progress':
+        return 'text-primary-600 border-primary-200 bg-primary-50/50';
+      case 'On Hold':
+        return 'text-amber-600 border-amber-200 bg-amber-50/50';
+      case 'Planned':
+        return 'text-slate-600 border-slate-200 bg-slate-50';
+      case 'Cancelled':
+        return 'text-rose-600 border-rose-200 bg-rose-50/50';
+      default:
+        if (status?.includes('Blocked')) return 'text-rose-600 border-rose-200 bg-rose-50/50';
+        return 'text-slate-500 border-slate-200 bg-slate-50/50';
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -123,11 +190,58 @@ const ProjectsPage = () => {
     });
   };
 
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (e) {
+      return '';
+    }
+  };
+
   const normalizeUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
     return `https://${url}`;
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch =
+      project.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.tech_stack?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    let matchesStatus = true;
+    if (statusFilter !== 'All') {
+      if (statusFilter === 'Blocked (Payment)') {
+        matchesStatus = project.status?.includes('Blocked');
+      } else {
+        matchesStatus = project.status === statusFilter;
+      }
+    }
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const paginatedProjects = filteredProjects.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+
+  const activeProjects = projects.filter(project =>
+    project.status !== 'Cancelled' && project.status !== 'On Hold' && project.status !== 'On-hold' && project.status !== 'completed'
+  )
+
+  console.log("active projects", activeProjects)
 
   return (
     <div className="space-y-8 pb-10">
@@ -157,9 +271,29 @@ const ProjectsPage = () => {
             <CardTitle className="text-xl font-bold">Active Tracker</CardTitle>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">Monitoring {projects.length} active initiatives.</p>
           </div>
-          <div className="relative w-full sm:w-72">
-            <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-45" />
-            <Input className="pl-10 h-10 text-sm" placeholder="Search projects..." />
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-45" />
+              <Input
+                className="pl-10 h-10 text-sm w-full"
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-10 text-sm border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100/80 px-3 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer transition-colors shadow-sm font-medium text-slate-700"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Planned">Planned</option>
+              <option value="In Progress">In Progress</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Blocked (Payment)">Blocked (Payment)</option>
+            </select>
           </div>
         </CardHeader>
 
@@ -180,8 +314,8 @@ const ProjectsPage = () => {
                 </div>
               ))}
             </div>
-          ) : projects.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">No projects available.</div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">No projects found.</div>
           ) : (
             <Table>
               <TableHeader>
@@ -190,88 +324,264 @@ const ProjectsPage = () => {
                   <TableHead className="py-4">Client</TableHead>
                   <TableHead className="py-4">Timeline</TableHead>
                   <TableHead className="py-4">Status</TableHead>
-                  <TableHead className="text-right py-4">Action</TableHead>
+                  <TableHead className="py-4">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <tbody>
-                {projects.map((project) => (
-                  <TableRow key={project.id} className="group">
-
-
-                    <TableCell className="py-5">
-                      <div className="font-bold text-slate-900">{project.name}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{project.tech_stack || 'Standard Stack'}</span>
-                        <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-tight py-0 px-1.5 border-slate-100">
-                          {project.category || 'New Project'}
-                        </Badge>
-                        {hasPermission('projects', 'budget.view') && (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-[10px] text-primary-600 font-bold uppercase tracking-wider">
-                              {CURRENCIES.find(c => c.code === project.currency)?.symbol || '$'}
-                              {(parseFloat(project.budget) || 0).toLocaleString()}
-                            </span>
-                          </>
+                {paginatedProjects.map((project) => (
+                  <React.Fragment key={project.id}>
+                    <TableRow className="group border-none">
+                      <TableCell className="py-5">
+                        <div className="font-bold text-slate-900">{project.name}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{project.tech_stack || 'Standard Stack'}</span>
+                          <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-tight py-0 px-1.5 border-slate-100">
+                            {project.category || 'New Project'}
+                          </Badge>
+                          {hasPermission('projects', 'budget.view') && (
+                            <>
+                              <span className="text-slate-300">•</span>
+                              <span className="text-[10px] text-primary-600 font-bold uppercase tracking-wider">
+                                {CURRENCIES.find(c => c.code === project.currency)?.symbol || '$'}
+                                {(parseFloat(project.budget) || 0).toLocaleString()}
+                              </span>
+                            </>
+                          )}
+                          {(project.resource_links?.length > 0 || project.documents_count > 0) && (
+                            <>
+                              <span className="text-slate-300">•</span>
+                              <button
+                                onClick={() => fetchProjectResources(project)}
+                                className="text-[10px] text-primary-600 hover:text-primary-700 font-bold uppercase tracking-wider flex items-center gap-1"
+                              >
+                                <FolderOpen className="w-3 h-3" />
+                                {project.resource_links?.length || 0} Links
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-5">
+                        <div className="text-sm font-semibold text-slate-700">{project.client_name || 'Internal'}</div>
+                        {project.reference_name && (
+                          <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3 text-emerald-500" />
+                            Ref: {project.reference_name}
+                          </div>
                         )}
-                        {(project.resource_links?.length > 0 || project.documents_count > 0) && (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <button
-                              onClick={() => fetchProjectResources(project)}
-                              className="text-[10px] text-primary-600 hover:text-primary-700 font-bold uppercase tracking-wider flex items-center gap-1"
+                      </TableCell>
+                      <TableCell className="py-5 text-[10px] text-slate-500 font-bold uppercase">
+                        {project.start_date ? formatDate(project.start_date) : 'N/A'} - {project.end_date ? formatDate(project.end_date) : 'Ongoing'}
+                      </TableCell>
+                      <TableCell className="py-5">
+                        {project.status?.includes('Blocked') ? (
+                          getStatusBadge(project.status)
+                        ) : hasPermission('projects', 'edit') ? (
+                          <select
+                            className={cn(
+                              "text-[10px] font-bold  border rounded-lg px-2 py-1 outline-none",
+                              getStatusColorClass(project.status)
+                            )}
+                            value={project.status}
+                            onChange={(e) => handleStatusChange(project.id, e.target.value)}
+                          >
+                            <option value="Planned">Planned</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        ) : (
+                          getStatusBadge(project.status)
+                        )}
+                      </TableCell>
+                      <TableCell className="py-5">
+                        <div className="flex items-center justify-start gap-2">
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className={cn(
+                                "h-8 w-8 p-0 transition-colors",
+                                expandedConfidential === project.id
+                                  ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
+                                  : "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                              )}
+                              onClick={() => setExpandedConfidential(expandedConfidential === project.id ? null : project.id)}
+                              title="Confidential Info"
                             >
-                              <FolderOpen className="w-3 h-3" />
-                              {project.resource_links?.length || 0} Links
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-5">
-                      <div className="text-sm font-semibold text-slate-700">{project.client_name || 'Internal'}</div>
-                      {project.reference_name && (
-                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3 text-emerald-500" />
-                          Ref: {project.reference_name}
+                              {expandedConfidential === project.id ? <ShieldCheck className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                            </Button>
+                          )}
+                          {hasPermission('projects', 'edit') && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600"
+                              onClick={() => handleEditProjectClick(project)}
+                              title="Edit Project"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {hasPermission('projects', 'team.manage') && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600"
+                                onClick={() => fetchProjectResources(project)}
+                                title="Project Resources"
+                              >
+                                <FolderOpen className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 text-[10px] font-bold uppercase text-primary-600 hover:bg-primary-50 px-3"
+                                onClick={() => handleManageTeam(project)}
+                              >
+                                <Users className="w-3.5 h-3.5 mr-1.5" />
+                                Members
+                              </Button>
+                            </>
+                          )}
+                          {!hasPermission('projects', 'team.manage') && (
+                            <Badge variant="outline" className="text-[10px] font-bold text-slate-400">READ ONLY</Badge>
+                          )}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-5 text-[10px] text-slate-500 font-bold uppercase">
-                      {project.start_date ? formatDate(project.start_date) : 'N/A'} - {project.end_date ? formatDate(project.end_date) : 'Ongoing'}
-                    </TableCell>
-                    <TableCell className="py-5">{getStatusBadge(project.status)}</TableCell>
-                    <TableCell className="text-right py-5">
-                      {hasPermission('projects', 'team.manage') && (
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600"
-                            onClick={() => fetchProjectResources(project)}
-                            title="Project Resources"
-                          >
-                            <FolderOpen className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 text-[10px] font-bold uppercase text-primary-600 hover:bg-primary-50 px-3"
-                            onClick={() => handleManageTeam(project)}
-                          >
-                            <Users className="w-3.5 h-3.5 mr-1.5" />
-                            Members
-                          </Button>
-                        </div>
-                      )}
-                      {!hasPermission('projects', 'team.manage') && (
-                        <Badge variant="outline" className="text-[10px] font-bold text-slate-400">READ ONLY</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Confidential Info Section */}
+                    {isAdmin && expandedConfidential === project.id && (
+                      <TableRow className="bg-amber-50/30 border-none animate-in fade-in slide-in-from-top-1 duration-200">
+                        <TableCell colSpan={5} className="py-4 px-6 border-b border-amber-100">
+                          <div className="flex flex-col md:flex-row gap-8">
+                            {/* Client Confidential */}
+                            <div className="flex-1 space-y-3">
+                              <div className="flex items-center gap-2 text-amber-800">
+                                <User className="w-4 h-4" />
+                                <h4 className="text-xs font-bold uppercase tracking-widest">Client Contact Details</h4>
+                              </div>
+                              {(() => {
+                                const client = clients.find(c => c.id === project.client_id);
+                                return client ? (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
+                                    <div className="flex items-center gap-2">
+                                      <Info className="w-3 h-3 text-amber-500" />
+                                      <span className="text-[11px] font-semibold text-slate-600">Person:</span>
+                                      <span className="text-[11px] text-slate-900">{client.contact_person || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Mail className="w-3 h-3 text-amber-500" />
+                                      <span className="text-[11px] font-semibold text-slate-600">Email:</span>
+                                      <a href={`mailto:${client.email}`} className="text-[11px] text-primary-600 hover:underline">{client.email || 'N/A'}</a>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Phone className="w-3 h-3 text-amber-500" />
+                                      <span className="text-[11px] font-semibold text-slate-600">Phone:</span>
+                                      <span className="text-[11px] text-slate-900">{client.phone || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ExternalLink className="w-3 h-3 text-amber-500" />
+                                      <span className="text-[11px] font-semibold text-slate-600">Website:</span>
+                                      <a href={normalizeUrl(client.website)} target="_blank" rel="noreferrer" className="text-[11px] text-primary-600 hover:underline">{client.website || 'N/A'}</a>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-slate-400 italic">Client details not found.</p>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Partner / Reference Confidential */}
+                            <div className="flex-1 space-y-3 border-l border-amber-100 pl-8">
+                              <div className="flex items-center gap-2 text-amber-800">
+                                <Briefcase className="w-4 h-4" />
+                                <h4 className="text-xs font-bold uppercase tracking-widest">Partner & Commission Info</h4>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-3 h-3 text-amber-500" />
+                                  <span className="text-[11px] font-semibold text-slate-600">Partner/Ref:</span>
+                                  <span className="text-[11px] text-slate-900">{project.reference_name || project.reference_name_other || 'Direct / None'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="w-3 h-3 text-amber-500" />
+                                  <span className="text-[11px] font-semibold text-slate-600">Source:</span>
+                                  <span className="text-[11px] text-slate-900">{project.lead_source || 'Direct'}</span>
+                                </div>
+                                {project.reference_share_value && (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <Layers className="w-3 h-3 text-amber-500" />
+                                      <span className="text-[11px] font-semibold text-slate-600">Share Type:</span>
+                                      <span className="text-[11px] text-slate-900">{project.reference_share_type || 'Percentage'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                                      <span className="text-[11px] font-bold text-slate-600">Commission:</span>
+                                      <span className="text-[11px] font-bold text-emerald-600">
+                                        {project.reference_share_type === 'Fixed'
+                                          ? (CURRENCIES.find(c => c.code === project.currency)?.symbol || '$')
+                                          : ''}
+                                        {project.reference_share_value}
+                                        {project.reference_share_type === 'Percentage' || !project.reference_share_type ? '%' : ''}
+                                      </span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </Table>
+          )}
+
+          {/* Pagination Footer */}
+          {filteredProjects.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4 px-6 border-t border-slate-100 bg-slate-50/30">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredProjects.length)} to {Math.min(currentPage * itemsPerPage, filteredProjects.length)} of {filteredProjects.length} projects
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }).map((_, idx) => (
+                  <Button
+                    key={idx}
+                    variant={currentPage === idx + 1 ? 'primary' : 'outline'}
+                    size="sm"
+                    className="h-8 w-8 p-0 text-xs font-bold"
+                    onClick={() => setCurrentPage(idx + 1)}
+                  >
+                    {idx + 1}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -279,8 +589,8 @@ const ProjectsPage = () => {
       {/* Add Project Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
-          <Card className="w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[95vh] flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between py-6">
+          <Card className="w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-slate-100">
               <div>
                 <CardTitle className="text-xl font-bold">New Project</CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">Initiate a new institutional workflow.</p>
@@ -292,7 +602,7 @@ const ProjectsPage = () => {
                 <X className="w-5 h-5" />
               </button>
             </CardHeader>
-            <CardContent className="p-6 overflow-y-auto">
+            <CardContent className="p-5 overflow-y-auto flex-1">
               <form onSubmit={handleAddProject} className="space-y-4 text-slate-900">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -335,7 +645,7 @@ const ProjectsPage = () => {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Project Budget" name="budget" type="number" placeholder="5000" required />
+                  <Input label="Project Budget" name="budget" type="number" min="0" step="0.01" placeholder="5000" required />
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700">Currency</label>
                     <select name="currency" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
@@ -360,72 +670,89 @@ const ProjectsPage = () => {
                   <Input label="End Date" name="end_date" type="date" required />
                 </div>
 
-                {/* Lead Source & Reference Section */}
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">Lead Source</label>
-                    <select
-                      name="lead_source"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-                      onChange={(e) => setLeadSource(e.target.value)}
-                      value={leadSource}
-                    >
-                      <option value="Direct">Direct</option>
-                      <option value="Reference">Reference</option>
-                      <option value="Social Media">Social Media</option>
-                      <option value="Email Marketing">Email Marketing</option>
-                      <option value="Event">Event</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  {leadSource === 'Reference' && (
-                    <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium text-slate-700">Reference Type</label>
-                        <select
-                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-                          onChange={(e) => setRefType(e.target.value)}
-                          value={refType}
-                        >
-                          <option value="client">Existing Client</option>
-                          <option value="other">Other / New Reference</option>
-                        </select>
-                      </div>
-
-                      {refType === 'client' ? (
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-slate-700">Select Client</label>
-                          <select name="reference_id" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
-                            <option value="">Select a client...</option>
-                            {clients.map(c => (
-                              <option key={c.id} value={c.id}>{c.company_name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ) : (
-                        <Input label="Reference Name / Details" name="reference_name_other" placeholder="Enter reference name..." required />
-                      )}
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-slate-700">Share Type</label>
-                          <select name="reference_share_type" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
-                            <option value="Percentage">Percentage (%)</option>
-                            <option value="Fixed">Fixed Amount</option>
-                          </select>
-                        </div>
-                        <Input label="Share Value" name="reference_share_value" type="number" placeholder="10" />
-                      </div>
-                    </div>
-                  )}
-                </div>
                 <div className="flex gap-3 justify-end pt-6">
                   <Button type="button" variant="secondary" onClick={() => setShowAddModal(false)}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isSubmitting} className="bg-primary-600 hover:bg-primary-700">
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Start Project"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Project Modal */}
+      {showEditModal && editingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
+          <Card className="w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-slate-100">
+              <div>
+                <CardTitle className="text-lg font-bold">Edit Project</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium">Update the institutional project metadata.</p>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </CardHeader>
+            <CardContent className="p-5 overflow-y-auto flex-1">
+              <form onSubmit={handleEditProject} className="space-y-4 text-slate-900">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Project Category</label>
+                    <select
+                      name="category"
+                      defaultValue={editingProject.category}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                      required
+                    >
+                      <option value="New Project">New Project (Lead-based)</option>
+                      <option value="Maintenance">Maintenance / Service</option>
+                    </select>
+                  </div>
+                  <Input label="Project Name" name="name" defaultValue={editingProject.name} placeholder="E-commerce Redesign" required />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Project Budget" name="budget" type="number" min="0" step="0.01" defaultValue={editingProject.budget} placeholder="5000" required />
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Currency</label>
+                    <select name="currency" defaultValue={editingProject.currency} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                      {CURRENCIES.map(c => (
+                        <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Status</label>
+                    <select name="status" defaultValue={editingProject.status} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                      <option value="Planned">Planned</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="On Hold">On Hold</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <Input label="Tech Stack" name="tech_stack" defaultValue={editingProject.tech_stack} placeholder="React, Node.js, PostgreSQL" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Start Date" name="start_date" type="date" defaultValue={formatDateForInput(editingProject.start_date)} required />
+                  <Input label="End Date" name="end_date" type="date" defaultValue={formatDateForInput(editingProject.end_date)} required />
+                </div>
+
+                <div className="flex gap-3 justify-end pt-4">
+                  <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting} className="bg-primary-600 hover:bg-primary-700">
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
                   </Button>
                 </div>
               </form>

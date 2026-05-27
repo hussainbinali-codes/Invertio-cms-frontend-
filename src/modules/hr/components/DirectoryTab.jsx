@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
+import Input from '../../../components/ui/Input';
 import StatCard from '../../../components/ui/StatCard';
 import { 
   Users, 
@@ -12,16 +13,20 @@ import {
   Mail, 
   FileText, 
   ExternalLink,
-  Filter
+  Filter,
+  Search
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { hasPermission } from '../../../utils/permissionUtils';
 
 const DirectoryTab = ({
   employees,
   candidates,
   openDocs,
   setSelectedCandidate,
-  setShowInterviewModal
+  setShowInterviewModal,
+  searchTerm,
+  setSearchTerm
 }) => {
   const [statusFilter, setStatusFilter] = React.useState('All');
 
@@ -42,19 +47,28 @@ const DirectoryTab = ({
         <StatCard title="Avg Tenure" value="2.4y" icon={Clock} subtext="Stability metric" />
       </div>
 
-      <Card className="text-slate-900">
-        <CardHeader className="flex flex-row items-center justify-between py-6">
+      <Card className="text-slate-900 overflow-hidden">
+        <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 py-6">
           <div>
-            <CardTitle className="text-xl font-bold">Employee Directory</CardTitle>
+            <CardTitle className="text-lg sm:text-xl font-bold">Employee Directory</CardTitle>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">Accessing {employees.length} personnel files.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input 
+                className="pl-9 h-9 w-full sm:w-64 text-xs" 
+                placeholder="Search directory..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
             <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
               <Filter className="w-3.5 h-3.5 text-slate-400" />
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-transparent border-none text-[11px] font-bold text-slate-600 focus:ring-0 cursor-pointer"
+                className="bg-transparent border-none text-[11px] font-bold text-slate-600 focus:ring-0 cursor-pointer w-full"
               >
                 <option value="Active">Active Staff</option>
                 <option value="Disabled">Disabled</option>
@@ -75,13 +89,18 @@ const DirectoryTab = ({
               <TableRow>
                 <TableHead className="py-4">Employee</TableHead>
                 <TableHead className="py-4">Designation</TableHead>
-                <TableHead className="py-4">Department</TableHead>
+                <TableHead className="py-4">Joining Date</TableHead>
+                {hasPermission('users', 'salary.view') && <TableHead className="py-4">Salary</TableHead>}
                 <TableHead className="py-4">Status</TableHead>
-                <TableHead className="text-right py-4">Action</TableHead>
+                <TableHead className="py-4">Action</TableHead>
               </TableRow>
             </TableHeader>
             <tbody>
-              {filteredPersonnel.map(person => (
+              {filteredPersonnel.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={hasPermission('users', 'salary.view') ? 6 : 5} className="py-10 text-center text-slate-400 font-medium italic">No personnel records found.</TableCell>
+                </TableRow>
+              ) : filteredPersonnel.map(person => (
                 <TableRow key={`${person.recordType}-${person.id}`} className="group hover:bg-slate-50/50 transition-colors">
                   <TableCell className="py-5">
                     <div className="flex items-center gap-4">
@@ -113,21 +132,34 @@ const DirectoryTab = ({
                       {person.joining_date ? new Date(person.joining_date).toLocaleDateString() : 'Pending'}
                     </div>
                   </TableCell>
+                  {hasPermission('users', 'salary.view') && (
+                    <TableCell className="py-5">
+                      <div className="text-xs font-bold text-slate-900">
+                        {person.salary ? `₹${parseFloat(person.salary).toLocaleString('en-IN')}` : 'N/A'}
+                      </div>
+                      <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">
+                        {person.recordType === 'Employee' ? 'Monthly CTC' : 'Offered Salary'}
+                      </div>
+                    </TableCell>
+                  )}
                   <TableCell className="py-5">
                     <Badge 
                       variant={
-                        person.displayStatus === 'Active' ? 'success' : 
+                        person.displayStatus === 'Active' ? 'default' : 
                         person.displayStatus === 'Hired' ? 'success' :
                         person.displayStatus === 'Rejected' ? 'danger' : 
                         person.displayStatus === 'Interview' ? 'primary' : 'outline'
                       }
-                      className="text-[10px] font-bold uppercase tracking-wider"
+                      className={cn(
+                        "text-[10px] font-bold uppercase tracking-wider",
+                        person.displayStatus === 'Active' && "bg-indigo-50 text-indigo-700 border-indigo-200"
+                      )}
                     >
                       {person.displayStatus}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right py-5">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <TableCell className="py-5">
+                    <div className="flex justify-start gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button 
                         size="sm" 
                         variant="ghost" 

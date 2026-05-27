@@ -12,9 +12,17 @@ import Skeleton from '../../../components/ui/Skeleton';
 import { cn } from '../../../utils/cn';
 import { BASE_URL } from '../../../api/baseUrl';
 import ConfirmationModal from '../../../components/ui/ConfirmationModal';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
+import { hasPermission } from '../../../utils/permissionUtils';
 
 const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
+  useLockBodyScroll(true);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = (user?.role_name || '').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
+  const canManageConfidential = isAdmin || user?.modules?.projects?.['documents.confidential'];
+  const canManageResources = hasPermission('projects', 'resources.manage') || hasPermission('projects', 'edit');
+
   const [projectDocuments, setProjectDocuments] = useState([]);
   const [projectComments, setProjectComments] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -22,15 +30,40 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   const [docLoading, setDocLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadClassification, setUploadClassification] = useState('internal');
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [projectTasks, setProjectTasks] = useState([]);
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [selectedTaskTitle, setSelectedTaskTitle] = useState('');
+  const chatEndRef = React.useRef(null);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [projectComments]);
 
   useEffect(() => {
     if (project) {
       setResourceLinks(project.resource_links || []);
       fetchDocuments();
       fetchComments();
+      fetchTasks();
     }
   }, [project]);
+
+  const fetchTasks = async () => {
+    try {
+      const res = await axios.get(`/projects/${project.id}/tasks`);
+      setProjectTasks(res.data.data || []);
+    } catch (err) {
+      console.error("Fetch tasks error", err);
+    }
+  };
 
   const fetchDocuments = async () => {
     setDocLoading(true);
@@ -67,23 +100,27 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   };
 
   const handleUploadDocument = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+    formData.append('classification', uploadClassification);
 
     try {
       await axios.post(`/projects/${project.id}/documents`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      toast.success('Document uploaded');
+      toast.success(`${files.length} document(s) uploaded`);
       fetchDocuments();
     } catch (err) {
       toast.error('Upload failed');
     } finally {
       setIsUploading(false);
+      e.target.value = ''; // Reset input
     }
   };
 
@@ -109,19 +146,50 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   };
 
   const handlePostComment = async (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
+    if (e) e.preventDefault();
+    if (!newComment.trim() || isPostingComment) return;
 
     setIsPostingComment(true);
     try {
-      await axios.post(`/projects/${project.id}/comments`, { comment: newComment });
+      await axios.post(`/projects/${project.id}/comments`, { 
+        comment: newComment,
+        task_id: selectedTaskId 
+      });
       setNewComment('');
+      setSelectedTaskId(null);
+      setSelectedTaskTitle('');
       fetchComments();
     } catch (err) {
       toast.error('Failed to post comment');
     } finally {
       setIsPostingComment(false);
     }
+  };
+
+  const handleTextChange = (e) => {
+    const value = e.target.value;
+    setNewComment(value);
+
+    const lastAtPos = value.lastIndexOf('@');
+    if (lastAtPos !== -1) {
+      const query = value.substring(lastAtPos + 1).split(/\s/)[0];
+      setMentionFilter(query);
+      setShowMentionList(true);
+    } else {
+      setShowMentionList(false);
+    }
+  };
+
+  const selectTask = (task) => {
+    const lastAtPos = newComment.lastIndexOf('@');
+    const beforeAt = newComment.substring(0, lastAtPos);
+    const afterQuery = newComment.substring(lastAtPos + 1 + mentionFilter.length);
+    
+    setNewComment(`${beforeAt}@${task.title} ${afterQuery}`);
+    setSelectedTaskId(task.id);
+    setSelectedTaskTitle(task.title);
+    setShowMentionList(false);
+    setMentionFilter('');
   };
 
   const normalizeUrl = (url) => {
@@ -132,7 +200,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
-      <Card className="w-full max-w-5xl shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <Card className="w-full max-w-7xl shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[95vh]">
         <CardHeader className="flex flex-row items-center justify-between py-6 border-b border-slate-50">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center">
@@ -155,14 +223,16 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                  <Link className="w-3.5 h-3.5" />
                  Links
                </h3>
-               <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 p-0 text-primary-600 hover:bg-primary-50"
-                onClick={() => setResourceLinks([...resourceLinks, { title: '', url: '' }])}
-               >
-                 <Plus className="w-4 h-4" />
-               </Button>
+               {canManageResources && (
+                 <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 w-6 p-0 text-primary-600 hover:bg-primary-50"
+                  onClick={() => setResourceLinks([...resourceLinks, { title: '', url: '' }])}
+                 >
+                   <Plus className="w-4 h-4" />
+                 </Button>
+               )}
             </div>
             
             <div className="space-y-3">
@@ -173,24 +243,28 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                           className="text-[10px] font-bold text-slate-900 border-none p-0 focus:ring-0 w-full bg-transparent"
                           placeholder="Title (e.g. Figma)"
                           value={link.title}
+                          disabled={!canManageResources}
                           onChange={(e) => {
                             const updated = [...resourceLinks];
                             updated[idx].title = e.target.value;
                             setResourceLinks(updated);
                           }}
                        />
-                       <button 
-                        onClick={() => setResourceLinks(resourceLinks.filter((_, i) => i !== idx))}
-                        className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all"
-                       >
-                         <X className="w-3 h-3" />
-                       </button>
+                       {canManageResources && (
+                         <button 
+                          onClick={() => setResourceLinks(resourceLinks.filter((_, i) => i !== idx))}
+                          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all"
+                         >
+                           <X className="w-3 h-3" />
+                         </button>
+                       )}
                     </div>
                     <div className="flex items-center gap-2">
                        <input 
                           className="text-[9px] text-primary-600 font-medium border-none p-0 focus:ring-0 w-full bg-transparent truncate"
                           placeholder="URL"
                           value={link.url}
+                          disabled={!canManageResources}
                           onChange={(e) => {
                             const updated = [...resourceLinks];
                             updated[idx].url = e.target.value;
@@ -206,13 +280,15 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                  </div>
                ))}
             </div>
-            <Button 
-              className="w-full mt-5 h-8 text-[10px] font-bold uppercase tracking-wider" 
-              variant="outline"
-              onClick={handleUpdateLinks}
-            >
-              Save Resources
-            </Button>
+            {canManageResources && (
+              <Button 
+                className="w-full mt-5 h-8 text-[10px] font-bold uppercase tracking-wider" 
+                variant="outline"
+                onClick={handleUpdateLinks}
+              >
+                Save Resources
+              </Button>
+            )}
           </div>
 
           {/* Middle Column: Files (37.5%) */}
@@ -222,17 +298,29 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Project Files</h3>
                 <p className="text-[10px] text-slate-500 font-medium mt-0.5">Asset storage</p>
               </div>
-              <div className="relative">
-                <input type="file" id="resource-file-upload-comp" className="hidden" onChange={handleUploadDocument} />
-                <Button 
-                  onClick={() => document.getElementById('resource-file-upload-comp').click()}
-                  disabled={isUploading}
-                  className="bg-primary-600 hover:bg-primary-700 h-8 px-3 text-[10px] font-bold uppercase"
-                >
-                   {isUploading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <UploadCloud className="w-3 h-3 mr-2" />}
-                   Upload
-                </Button>
-              </div>
+             {canManageResources && (
+               <div className="flex items-center gap-2">
+                 <select 
+                   className="text-[10px] font-bold border border-slate-200 rounded-md bg-white p-1 focus:ring-primary-500 focus:border-primary-500 outline-none uppercase"
+                   value={uploadClassification}
+                   onChange={(e) => setUploadClassification(e.target.value)}
+                 >
+                   <option value="internal">Internal</option>
+                   {canManageConfidential && <option value="confidential">Confidential</option>}
+                 </select>
+                 <div className="relative">
+                   <input type="file" id="resource-file-upload-comp" className="hidden" multiple onChange={handleUploadDocument} />
+                   <Button 
+                     onClick={() => document.getElementById('resource-file-upload-comp').click()}
+                     disabled={isUploading}
+                     className="bg-primary-600 hover:bg-primary-700 h-8 px-3 text-[10px] font-bold uppercase"
+                   >
+                      {isUploading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <UploadCloud className="w-3 h-3 mr-2" />}
+                      Upload
+                   </Button>
+                 </div>
+               </div>
+             )}
             </div>
 
             <div className="space-y-2">
@@ -254,7 +342,15 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                           <FileText className="w-4 h-4 text-slate-400 group-hover:text-primary-500" />
                         </div>
                         <div className="overflow-hidden">
-                          <p className="text-[10px] font-bold text-slate-900 truncate max-w-[140px]">{doc.file_name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] font-bold text-slate-900 truncate max-w-[120px]">{doc.file_name}</p>
+                            <span className={cn(
+                              "text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
+                              doc.classification === 'confidential' ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
+                            )}>
+                              {doc.classification || 'Internal'}
+                            </span>
+                          </div>
                           <p className="text-[9px] text-slate-500 font-medium">
                             {(doc.file_size / 1024).toFixed(0)}KB • {new Date(doc.created_at).toLocaleDateString()}
                           </p>
@@ -270,12 +366,14 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                           <ExternalLink className="w-3 h-3" />
                         </a>
 
-                        <button 
-                          onClick={() => handleDeleteDocument(doc.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                        {canManageResources && (
+                          <button 
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -291,7 +389,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Project Feed</h3>
              </div>
 
-             <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
+             <div className={cn("flex-1 mb-4 pr-2 custom-scrollbar", projectComments.length > 0 ? "overflow-y-auto space-y-4" : "overflow-hidden flex flex-col justify-center")}>
                 {commentLoading ? (
                    <div className="space-y-4">
                       {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-3/4 rounded-2xl" />)}
@@ -313,7 +411,16 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                               ? "bg-primary-600 text-white border-primary-500 rounded-tr-none" 
                               : "bg-white text-slate-700 border-slate-100 rounded-tl-none"
                          )}>
-                            {comment.comment}
+                            {comment.task_title && (
+                               <div className={cn(
+                                 "mb-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider inline-flex items-center gap-1",
+                                 comment.user_id === user.id ? "bg-white/20 text-white" : "bg-primary-50 text-primary-600"
+                               )}>
+                                 <FileText className="w-2.5 h-2.5" />
+                                 {comment.task_title}
+                               </div>
+                            )}
+                            <div>{comment.comment}</div>
                          </div>
                          <div className="flex items-center gap-2 mt-1 px-1">
                             <span className="text-[8px] font-bold text-slate-400 uppercase">{comment.user_name}</span>
@@ -323,19 +430,59 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                       </div>
                    ))
                 )}
+                <div ref={chatEndRef} />
              </div>
 
              <form onSubmit={handlePostComment} className="relative mt-auto">
+                {showMentionList && projectTasks.length > 0 && (
+                   <div className="absolute bottom-full left-0 mb-2 w-full max-h-40 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-10 p-2 animate-in slide-in-from-bottom-2 duration-200">
+                      <div className="px-2 py-1 mb-1 border-b border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Task</div>
+                      {projectTasks
+                        .filter(t => t.title.toLowerCase().includes(mentionFilter.toLowerCase()))
+                        .map(task => (
+                           <button
+                              key={task.id}
+                              type="button"
+                              onClick={() => selectTask(task)}
+                              className="w-full text-left px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors flex items-center justify-between group"
+                           >
+                              <span className="truncate">{task.title}</span>
+                              <span className="text-[9px] text-slate-300 group-hover:text-primary-300 font-bold uppercase">{task.status}</span>
+                           </button>
+                        ))
+                      }
+                      {projectTasks.filter(t => t.title.toLowerCase().includes(mentionFilter.toLowerCase())).length === 0 && (
+                        <div className="px-3 py-2 text-[10px] text-slate-400 italic">No matching tasks...</div>
+                      )}
+                   </div>
+                )}
+
+                {selectedTaskId && (
+                  <div className="absolute -top-6 left-2 flex items-center gap-1.5 bg-primary-50 text-primary-600 px-2 py-0.5 rounded-t-lg border-t border-x border-primary-100 animate-in slide-in-from-bottom-1">
+                    <FileText className="w-3 h-3" />
+                    <span className="text-[9px] font-black uppercase tracking-wider">{selectedTaskTitle}</span>
+                    <button onClick={() => {setSelectedTaskId(null); setSelectedTaskTitle('');}} className="hover:text-rose-500">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                )}
+
                 <textarea 
-                   placeholder="Post an update or comment..."
-                   className="w-full rounded-2xl border border-slate-200 bg-white p-3 pr-12 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm resize-none"
+                   placeholder="Post an update or comment... (Type @ to link a task)"
+                   className={cn(
+                     "w-full rounded-2xl border border-slate-200 bg-white p-3 pr-12 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm resize-none",
+                     selectedTaskId && "rounded-tl-none border-t-primary-200"
+                   )}
                    rows="2"
                    value={newComment}
-                   onChange={(e) => setNewComment(e.target.value)}
+                   onChange={handleTextChange}
                    onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                          e.preventDefault();
                          handlePostComment(e);
+                      }
+                      if (e.key === 'Escape') {
+                        setShowMentionList(false);
                       }
                    }}
                 />

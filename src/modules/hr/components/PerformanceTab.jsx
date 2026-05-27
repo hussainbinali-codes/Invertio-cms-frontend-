@@ -14,6 +14,18 @@ const PerformanceTab = ({
   setPerfModalType,
   setShowPerfModal
 }) => {
+  const perfEndRef = React.useRef(null);
+
+  const scrollToBottom = () => {
+    perfEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  React.useEffect(() => {
+    if (selectedUserForPerf) {
+      scrollToBottom();
+    }
+  }, [performanceData, selectedUserForPerf]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Left: Employee List */}
@@ -156,10 +168,11 @@ const PerformanceTab = ({
                       </div>
                     ))}
                   </div>
-                </div>
+                <div ref={perfEndRef} />
               </div>
-            </CardContent>
-          </>
+            </div>
+          </CardContent>
+        </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-10">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">

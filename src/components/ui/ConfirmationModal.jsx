@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import Button from './Button';
 import { Shield } from 'lucide-react';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 
 const ConfirmationModal = ({
   isOpen,
@@ -12,10 +13,11 @@ const ConfirmationModal = ({
   confirmText = 'Confirm',
   variant = 'primary'
 }) => {
+  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-slate-900 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 animate-in fade-in duration-200">
       <Card className="w-full max-w-md shadow-2xl animate-in zoom-in duration-200">
         <CardHeader className="pb-2">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
