@@ -296,7 +296,7 @@ const DashboardLayout = () => {
         className="hidden lg:flex fixed w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-primary-600 hover:border-primary-200 shadow-sm transition-all z-[100] group hover:scale-105"
         style={{
           left: isSidebarCollapsed ? "calc(5rem - 12px)" : "calc(16rem - 12px)",
-          top: "5rem",
+          top: "4rem",
           transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

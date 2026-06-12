@@ -1,12 +1,20 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+@theme {
+  --font-sans: 'Inter', sans-serif;
+}
+
 @layer base {
   :root {
     --sidebar-width: 280px;
     --header-height: 64px;
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(255, 255, 255, 0.3);
+  }
+
+  html, body {
+    font-family: 'Inter', sans-serif;
   }
 
   body {
