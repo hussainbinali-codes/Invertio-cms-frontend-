@@ -24,6 +24,8 @@ import NotificationDropdown from "../components/NotificationDropdown";
 import UserDropdown from "../components/UserDropdown";
 import AttendancePunch from "../components/AttendancePunch";
 import { hasPermission } from "../utils/permissionUtils";
+import ConfirmationModal from "../components/ui/ConfirmationModal";
+import toast from "react-hot-toast";
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -32,6 +34,65 @@ const DashboardLayout = () => {
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem("user") || "{}"),
   );
+  const [showPunchOutModal, setShowPunchOutModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [status, setStatus] = useState(null); // 'in', 'out', or null
+  const [attendanceLocation, setAttendanceLocation] = useState("");
+
+  const handlePunch = async (mode = "auto") => {
+    setActionLoading(true);
+    const format = (d) => {
+      const z = (n) => ("0" + n).slice(-2);
+      const istDate = new Date(
+        d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+      );
+      return `${istDate.getFullYear()}-${z(istDate.getMonth() + 1)}-${z(istDate.getDate())}T${z(istDate.getHours())}:${z(istDate.getMinutes())}:${z(istDate.getSeconds())}+05:30`;
+    };
+    const now = format(new Date());
+    const date = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+    }).format(new Date());
+
+    try {
+      if (!status) {
+        let locationString = attendanceLocation || "Location unavailable";
+        if (!attendanceLocation) {
+          try {
+            const pos = await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 3000,
+              });
+            });
+            locationString = `${pos.coords.latitude}, ${pos.coords.longitude}`;
+          } catch (geoErr) {
+            console.warn("Geolocation failed at punch time", geoErr);
+          }
+        }
+
+        await axios.post("/hr/attendance/check-in", {
+          date,
+          check_in: now,
+          status: "Present",
+          location: locationString,
+        });
+        setStatus("in");
+        toast.success("Punched in successfully");
+      } else if (status === "in" && mode === "checkout") {
+        await axios.post("/hr/attendance/check-out", {
+          date,
+          check_out: now,
+        });
+        setStatus("out");
+        setShowPunchOutModal(false);
+        toast.success("Punched out successfully");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to process punch");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     const syncPermissions = async () => {
@@ -215,7 +276,17 @@ const DashboardLayout = () => {
               isSidebarCollapsed ? "lg:items-center lg:px-2 px-4" : "px-4",
             )}
           >
-            {!isSidebarCollapsed && <AttendancePunch />}
+            {!isSidebarCollapsed && (
+              <AttendancePunch
+                setShowPunchOutModal={setShowPunchOutModal}
+                actionLoading={actionLoading}
+                status={status}
+                setStatus={setStatus}
+                handlePunch={handlePunch}
+                location={attendanceLocation}
+                setLocation={setAttendanceLocation}
+              />
+            )}
           </div>
         </div>
       </aside>
@@ -236,6 +307,19 @@ const DashboardLayout = () => {
           <ChevronLeft className="w-3.5 h-3.5 group-hover:scale-110" />
         )}
       </button>
+
+      <ConfirmationModal
+        isOpen={showPunchOutModal}
+        onClose={() => !actionLoading && setShowPunchOutModal(false)}
+        title="Confirm punch out"
+        message="You're about to end your workday attendance. Do you want to punch out now?"
+        confirmText="Punch Out"
+        cancelText="Stay Checked In"
+        variant="danger"
+        isLoading={actionLoading}
+        closeOnConfirm={false}
+        onConfirm={() => handlePunch("checkout")}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
