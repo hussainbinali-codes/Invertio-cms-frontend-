@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -16,60 +16,90 @@ import {
   Monitor,
   Settings,
   ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
-import { cn } from '../utils/cn';
-import axios from '../api/axios';
-import NotificationDropdown from '../components/NotificationDropdown';
-import UserDropdown from '../components/UserDropdown';
-import AttendancePunch from '../components/AttendancePunch';
-import { hasPermission } from '../utils/permissionUtils';
+  ChevronRight,
+} from "lucide-react";
+import { cn } from "../utils/cn";
+import axios from "../api/axios";
+import NotificationDropdown from "../components/NotificationDropdown";
+import UserDropdown from "../components/UserDropdown";
+import AttendancePunch from "../components/AttendancePunch";
+import { hasPermission } from "../utils/permissionUtils";
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const navigate = useNavigate();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user") || "{}"),
+  );
 
   useEffect(() => {
     const syncPermissions = async () => {
       try {
-        const response = await axios.get('/v1/users/me/permissions');
+        const response = await axios.get("/v1/users/me/permissions");
         const { pages, modules, role_name } = response.data.data;
 
         const updatedUser = { ...user, pages, modules, role_name };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        localStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
       } catch (err) {
-        console.error('Failed to sync permissions:', err);
+        console.error("Failed to sync permissions:", err);
       }
     };
     syncPermissions();
   }, []);
 
-  // Scroll handling moved to CSS via overscroll-contain and overflow-y-auto.
   const navItems = [
-
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: 'dashboard' },
-    { label: 'Users', path: '/users', icon: Users, permission: 'users' },
-    { label: 'Clients', path: '/clients', icon: Contact, permission: 'clients' },
-    { label: 'Projects', path: '/projects', icon: FolderKanban, permission: 'projects' },
-    { label: 'Tasks', path: '/tasks', icon: CheckSquare, permission: 'tasks' },
-    { label: 'Finance', path: '/finance', icon: CircleDollarSign, permission: 'finance' },
-    { label: 'HR', path: '/hr', icon: UserPlus, permission: 'hr' },
-    { label: 'Attendance', path: '/attendance', icon: CalendarClock, permission: 'attendance' },
-    { label: 'My Time Off', path: '/leaves', icon: Calendar },
-    { label: 'Assets', path: '/resources', icon: Monitor, permission: 'resources' },
+    {
+      label: "Dashboard",
+      path: "/dashboard",
+      icon: LayoutDashboard,
+      permission: "dashboard",
+    },
+    { label: "Users", path: "/users", icon: Users, permission: "users" },
+    {
+      label: "Clients",
+      path: "/clients",
+      icon: Contact,
+      permission: "clients",
+    },
+    {
+      label: "Projects",
+      path: "/projects",
+      icon: FolderKanban,
+      permission: "projects",
+    },
+    { label: "Tasks", path: "/tasks", icon: CheckSquare, permission: "tasks" },
+    {
+      label: "Finance",
+      path: "/finance",
+      icon: CircleDollarSign,
+      permission: "finance",
+    },
+    { label: "HR", path: "/hr", icon: UserPlus, permission: "hr" },
+    {
+      label: "Attendance",
+      path: "/attendance",
+      icon: CalendarClock,
+      permission: "attendance",
+    },
+    { label: "My Time Off", path: "/leaves", icon: Calendar },
+    {
+      label: "Assets",
+      path: "/resources",
+      icon: Monitor,
+      permission: "resources",
+    },
   ];
 
-  const filteredNavItems = navItems.filter(item => {
+  const filteredNavItems = navItems.filter((item) => {
     if (!item.permission) return true;
     return hasPermission(item.permission);
   });
 
   const handleLogout = () => {
     localStorage.clear();
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
@@ -83,109 +113,129 @@ const DashboardLayout = () => {
       )}
 
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200/60 shadow-xl shadow-slate-200/50 sidebar-transition flex flex-col h-screen h-[100dvh] lg:shadow-none lg:sticky lg:top-0 lg:h-screen overflow-y-auto overscroll-contain",
-        isSidebarOpen ? "translate-x-0 w-[280px]" : "-translate-x-full lg:translate-x-0",
-        isSidebarCollapsed ? "lg:w-20" : "lg:w-64"
-      )}>
-        {/* Sidebar Header */}
-        <div className={cn(
-          "flex items-center justify-between h-20 border-b border-slate-100 bg-white/50 backdrop-blur-md sticky top-0 z-50 overflow-visible transition-all duration-300",
-          isSidebarCollapsed ? "lg:px-3 px-6" : "px-6"
-        )}>
-          <div className={cn(
-            "flex items-center gap-3 overflow-hidden transition-all duration-300",
-            isSidebarCollapsed ? "lg:w-full lg:justify-center" : "w-full justify-center px-4"
-          )}>
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200/60 shadow-xl shadow-slate-200/50 sidebar-transition flex flex-col h-screen h-[100dvh] lg:shadow-none lg:sticky lg:top-0 lg:h-screen",
+          isSidebarOpen
+            ? "translate-x-0 w-[280px]"
+            : "-translate-x-full lg:translate-x-0",
+          isSidebarCollapsed ? "lg:w-20" : "lg:w-64",
+        )}
+      >
+        {/* Sidebar Header - Removed overflow-y-auto from aside and moved it here */}
+        <div
+          className={cn(
+            "flex items-center justify-between h-20 border-b border-slate-100 bg-white/50 backdrop-blur-md sticky top-0 z-50 transition-all duration-300",
+            isSidebarCollapsed ? "lg:px-3 px-6" : "px-6",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-center gap-3 overflow-hidden transition-all duration-300",
+              isSidebarCollapsed
+                ? "lg:w-full lg:justify-center"
+                : "w-full justify-center px-4",
+            )}
+          >
             <img
-              src="/invertio logo.png"
+              src={
+                isSidebarCollapsed
+                  ? "/invertio logo short.png"
+                  : "/invertio logo.png"
+              }
               alt="Logo"
               className={cn(
                 "object-contain transition-all duration-300",
-                isSidebarCollapsed ? "lg:h-12 lg:w-12 h-16 w-48" : "h-16 w-48"
+                isSidebarCollapsed ? "lg:h-12 lg:w-12 h-16 w-48" : "h-16 w-48",
               )}
             />
           </div>
           <button
-            className="lg:hidden p-4 text-slate-400  hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+            className="lg:hidden p-4 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
             onClick={() => setIsSidebarOpen(false)}
           >
             <X className="w-6 h-6" />
           </button>
-
-          {/* Collapse toggle for desktop */}
-          <button
-            className="hidden lg:flex absolute -right-3 top-20 w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-primary-600 hover:border-primary-200 shadow-sm transition-all z-20 group"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          >
-            {isSidebarCollapsed ? <ChevronRight className="w-3.5 h-3.5 group-hover:scale-110 z-2000" /> : <ChevronLeft className="w-3.5 h-3.5 group-hover:scale-110" />}
-          </button>
         </div>
 
-        {/* Sidebar Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-          {filteredNavItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsSidebarOpen(false)}
-              title={isSidebarCollapsed ? item.label : ""}
-              className={({ isActive }) => cn(
-                "flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative",
-                isActive
-                  ? "bg-primary-50 text-primary-700 shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
-                isSidebarCollapsed ? "lg:justify-center lg:px-2 px-3" : "px-3"
-              )}
-            >
-              <item.icon className={cn(
-                "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
-                isSidebarCollapsed ? "lg:mr-0 mr-3" : "mr-3"
-              )} />
-              <span className={cn(
-                "truncate transition-all duration-300",
-                isSidebarCollapsed ? "lg:hidden block" : "block"
-              )}>
-                {item.label}
-              </span>
-              {/* Active Indicator Hook */}
-              {({ isActive }) => isActive && (
-                <div className={cn(
-                  "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
-                  isSidebarCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6"
-                )} />
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* Sidebar Footer */}
-        <div className={cn(
-          "p-4 border-t border-slate-50 mt-auto bg-slate-50/50 transition-all",
-          isSidebarCollapsed ? "lg:items-center lg:px-2 px-4" : "px-4"
-        )}>
-          {(!isSidebarCollapsed) ? (
-            <AttendancePunch />
-          ) : (
-            <>
-              {/* Desktop Collapsed View */}
-              <div className="hidden lg:flex justify-center">
-                <button
-                  onClick={() => navigate('/attendance')}
-                  className="p-2 text-primary-600 bg-primary-50 rounded-xl hover:bg-primary-100 transition-colors"
-                  title="Attendance"
+        {/* Scrollable content container */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {/* Sidebar Navigation */}
+          <nav className="px-3 py-4 space-y-1 custom-scrollbar">
+            {filteredNavItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsSidebarOpen(false)}
+                title={isSidebarCollapsed ? item.label : ""}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative",
+                    isActive
+                      ? "bg-primary-50 text-primary-700 shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                    isSidebarCollapsed
+                      ? "lg:justify-center lg:px-2 px-3"
+                      : "px-3",
+                  )
+                }
+              >
+                <item.icon
+                  className={cn(
+                    "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
+                    isSidebarCollapsed ? "lg:mr-0 mr-3" : "mr-3",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "truncate transition-all duration-300",
+                    isSidebarCollapsed ? "lg:hidden block" : "block",
+                  )}
                 >
-                  <CalendarClock className="w-5 h-5" />
-                </button>
-              </div>
-              {/* Mobile View (Always show full punch widget) */}
-              <div className="lg:hidden">
-                <AttendancePunch />
-              </div>
-            </>
-          )}
+                  {item.label}
+                </span>
+                {({ isActive }) =>
+                  isActive && (
+                    <div
+                      className={cn(
+                        "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
+                        isSidebarCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6",
+                      )}
+                    />
+                  )
+                }
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Sidebar Footer */}
+          <div
+            className={cn(
+              "p-4 border-t border-slate-50 mt-auto bg-slate-50/50 transition-all",
+              isSidebarCollapsed ? "lg:items-center lg:px-2 px-4" : "px-4",
+            )}
+          >
+            {!isSidebarCollapsed && <AttendancePunch />}
+          </div>
         </div>
       </aside>
+
+      {/* Collapse toggle for desktop - MOVED OUTSIDE SIDEBAR */}
+      <button
+        className="hidden lg:flex fixed w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-primary-600 hover:border-primary-200 shadow-sm transition-all z-[100] group hover:scale-105"
+        style={{
+          left: isSidebarCollapsed ? "calc(5rem - 12px)" : "calc(16rem - 12px)",
+          top: "5rem",
+          transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      >
+        {isSidebarCollapsed ? (
+          <ChevronRight className="w-3.5 h-3.5 group-hover:scale-110" />
+        ) : (
+          <ChevronLeft className="w-3.5 h-3.5 group-hover:scale-110" />
+        )}
+      </button>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
