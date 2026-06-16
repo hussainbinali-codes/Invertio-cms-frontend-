@@ -113,9 +113,16 @@ const UsersPage = () => {
       return;
     }
 
-    setIsSubmitting(true);
     const formData = new FormData(e.target);
     const payload = Object.fromEntries(formData);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(payload.email)) {
+      toast.error('Please enter a valid email address (e.g. john@gmail.com).');
+      return;
+    }
+
+    setIsSubmitting(true);
     
     try {
       const finalSkillIds = [];
