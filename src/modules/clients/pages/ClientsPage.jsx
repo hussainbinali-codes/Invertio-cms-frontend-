@@ -365,6 +365,25 @@ const ClientsPage = () => {
       }
     }
 
+    const contactPersonValue = payload.contact_person?.trim();
+    if (!contactPersonValue) {
+      toast.error("Contact person name cannot be empty.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9\s]+$/.test(contactPersonValue)) {
+      toast.error("Contact person name can only contain letters, numbers, and spaces.");
+      return;
+    }
+
+    const emailValue = payload.email?.trim();
+    if (emailValue) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailValue)) {
+        toast.error("Please enter a valid email address (e.g. jane@acme.com).");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -428,6 +447,25 @@ const ClientsPage = () => {
         toast.error(
           "Please enter a valid website URL (e.g. https://invertio.in or http://example.com).",
         );
+        return;
+      }
+    }
+
+    const contactPersonValue = payload.contact_person?.trim();
+    if (!contactPersonValue) {
+      toast.error("Contact person name cannot be empty.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9\s]+$/.test(contactPersonValue)) {
+      toast.error("Contact person name can only contain letters, numbers, and spaces.");
+      return;
+    }
+
+    const emailValue = payload.email?.trim();
+    if (emailValue) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailValue)) {
+        toast.error("Please enter a valid email address (e.g. jane@acme.com).");
         return;
       }
     }

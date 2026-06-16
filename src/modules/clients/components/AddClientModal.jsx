@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { X, Zap, User as UserIcon, Target, Sparkles, Loader2 } from 'lucide-react';
+import { COUNTRIES } from '../../../constants/countries';
 
 const AddClientModal = ({
   isOpen,
@@ -125,7 +126,15 @@ const AddClientModal = ({
                       ))}
                     </select>
                   </div>
-                  <Input label="Country" name="country" placeholder="United States" required />
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Country</label>
+                    <select name="country" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" defaultValue="United States" required>
+                      <option value="">Select Country</option>
+                      {COUNTRIES.map(country => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <Input label="Full Address" name="address" placeholder="123 Business St, Suite 100" required />
               </div>
