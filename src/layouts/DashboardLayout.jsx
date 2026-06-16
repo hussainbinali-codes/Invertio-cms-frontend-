@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
   FolderKanban,
   CheckSquare,
-  LogOut,
   Menu,
   X,
   CircleDollarSign,
@@ -14,7 +13,6 @@ import {
   Contact,
   CalendarClock,
   Monitor,
-  Settings,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -23,9 +21,79 @@ import axios from "../api/axios";
 import NotificationDropdown from "../components/NotificationDropdown";
 import UserDropdown from "../components/UserDropdown";
 import AttendancePunch from "../components/AttendancePunch";
+import {
+  LocationAccessDialog,
+  WorkModeDialog,
+} from "../components/AttendancePunchDialogs";
 import { hasPermission } from "../utils/permissionUtils";
 import ConfirmationModal from "../components/ui/ConfirmationModal";
 import toast from "react-hot-toast";
+
+const LOCATION_REQUIRED_MESSAGE =
+  "Location access is required to punch in. Please enable your device location and try again.";
+const OFFICE_RADIUS_METERS = 1;
+
+const formatAttendanceTimestamp = (date) => {
+  const pad = (value) => String(value).padStart(2, "0");
+  const istDate = new Date(
+    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+  );
+
+  return `${istDate.getFullYear()}-${pad(istDate.getMonth() + 1)}-${pad(istDate.getDate())}T${pad(istDate.getHours())}:${pad(istDate.getMinutes())}:${pad(istDate.getSeconds())}+05:30`;
+};
+
+const formatAttendanceDate = (date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+  }).format(date);
+
+const toLocationString = (latitude, longitude) => `${latitude},${longitude}`;
+
+const getGeolocationPermissionState = async () => {
+  if (!navigator.permissions?.query) {
+    return "unknown";
+  }
+
+  try {
+    const result = await navigator.permissions.query({ name: "geolocation" });
+    return result.state;
+  } catch (error) {
+    console.debug("Unable to read geolocation permission state", error);
+    return "unknown";
+  }
+};
+
+const getLocationErrorCopy = (error, permissionState) => {
+  if (permissionState === "denied" || error?.code === 1) {
+    return {
+      detailMessage:
+        "Location permission was denied. Allow location access in your browser or device settings to continue.",
+      toastMessage: "Location permission denied. Please enable it to punch in.",
+    };
+  }
+
+  if (error?.code === 2) {
+    return {
+      detailMessage:
+        "Your device location is turned off or GPS is currently unavailable. Turn on location services and try again.",
+      toastMessage: "GPS is unavailable. Please enable location and try again.",
+    };
+  }
+
+  if (error?.code === 3) {
+    return {
+      detailMessage:
+        "We could not detect your location in time. Move to an open area, keep GPS enabled, and try again.",
+      toastMessage: "Location detection timed out. Please try again.",
+    };
+  }
+
+  return {
+    detailMessage:
+      "We could not access your current location. Please verify that location services are enabled and try again.",
+    toastMessage: "Unable to fetch your current location.",
+  };
+};
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -36,59 +104,172 @@ const DashboardLayout = () => {
   );
   const [showPunchOutModal, setShowPunchOutModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [status, setStatus] = useState(null); // 'in', 'out', or null
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [status, setStatus] = useState(null);
   const [attendanceLocation, setAttendanceLocation] = useState("");
+  const [isWorkModeDialogOpen, setIsWorkModeDialogOpen] = useState(false);
+  const [selectedWorkMode, setSelectedWorkMode] = useState("");
+  const [workModeError, setWorkModeError] = useState("");
+  const [locationDialog, setLocationDialog] = useState({
+    isOpen: false,
+    detailMessage: "",
+  });
 
-  const handlePunch = async (mode = "auto") => {
-    setActionLoading(true);
-    const format = (d) => {
-      const z = (n) => ("0" + n).slice(-2);
-      const istDate = new Date(
-        d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
-      );
-      return `${istDate.getFullYear()}-${z(istDate.getMonth() + 1)}-${z(istDate.getDate())}T${z(istDate.getHours())}:${z(istDate.getMinutes())}:${z(istDate.getSeconds())}+05:30`;
-    };
-    const now = format(new Date());
-    const date = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-    }).format(new Date());
+  const closeWorkModeDialog = useCallback(() => {
+    setIsWorkModeDialogOpen(false);
+    setSelectedWorkMode("");
+    setWorkModeError("");
+  }, []);
+
+  const requestCurrentLocation = useCallback(async () => {
+    if (!("geolocation" in navigator)) {
+      setLocationDialog({
+        isOpen: true,
+        detailMessage:
+          "This device or browser does not support location access for attendance.",
+      });
+      toast.error("Location access is not supported on this device.");
+      return null;
+    }
+
+    const permissionState = await getGeolocationPermissionState();
+    if (permissionState === "denied") {
+      setLocationDialog({
+        isOpen: true,
+        detailMessage:
+          "Location permission was denied. Allow location access in your browser or device settings to continue.",
+      });
+      toast.error("Location permission denied. Please enable it to punch in.");
+      return null;
+    }
+
+    setIsDetectingLocation(true);
 
     try {
-      if (!status) {
-        let locationString = attendanceLocation || "Location unavailable";
-        if (!attendanceLocation) {
-          try {
-            const pos = await new Promise((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true,
-                timeout: 3000,
-              });
-            });
-            locationString = `${pos.coords.latitude}, ${pos.coords.longitude}`;
-          } catch (geoErr) {
-            console.warn("Geolocation failed at punch time", geoErr);
-          }
-        }
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        });
+      });
 
-        await axios.post("/hr/attendance/check-in", {
-          date,
-          check_in: now,
-          status: "Present",
-          location: locationString,
-        });
-        setStatus("in");
-        toast.success("Punched in successfully");
-      } else if (status === "in" && mode === "checkout") {
-        await axios.post("/hr/attendance/check-out", {
-          date,
-          check_out: now,
-        });
-        setStatus("out");
-        setShowPunchOutModal(false);
-        toast.success("Punched out successfully");
+      const locationString = toLocationString(
+        position.coords.latitude,
+        position.coords.longitude,
+      );
+
+      setAttendanceLocation(locationString);
+      setLocationDialog({ isOpen: false, detailMessage: "" });
+      return locationString;
+    } catch (error) {
+      const locationError = getLocationErrorCopy(error, permissionState);
+      console.warn("Geolocation failed during punch flow", error);
+      setLocationDialog({
+        isOpen: true,
+        detailMessage: locationError.detailMessage,
+      });
+      toast.error(locationError.toastMessage);
+      return null;
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  }, []);
+
+  const handlePunchInRequest = useCallback(async () => {
+    setSelectedWorkMode("");
+    setWorkModeError("");
+
+    const locationString = await requestCurrentLocation();
+    if (!locationString) {
+      return;
+    }
+
+    setIsWorkModeDialogOpen(true);
+  }, [requestCurrentLocation]);
+
+  const handleRetryLocationAccess = useCallback(async () => {
+    const locationString = await requestCurrentLocation();
+    if (!locationString) {
+      return;
+    }
+
+    setSelectedWorkMode("");
+    setWorkModeError("");
+    setIsWorkModeDialogOpen(true);
+  }, [requestCurrentLocation]);
+
+  const handleWorkModeConfirm = useCallback(async () => {
+    if (!selectedWorkMode) {
+      setWorkModeError(
+        "Please select where you are working today to continue.",
+      );
+      return;
+    }
+
+    if (!attendanceLocation) {
+      closeWorkModeDialog();
+      await handlePunchInRequest();
+      return;
+    }
+
+    setActionLoading(true);
+    setWorkModeError("");
+
+    try {
+      const response = await axios.post("/hr/attendance/check-in", {
+        date: formatAttendanceDate(new Date()),
+        check_in: formatAttendanceTimestamp(new Date()),
+        status: "Present",
+        location: attendanceLocation,
+        mode: selectedWorkMode,
+      });
+
+      const responseMessage = response.data?.message;
+      const isFailureResponse = response.data?.success === false;
+
+      if (isFailureResponse) {
+        const message = responseMessage || "Failed to process punch";
+        setWorkModeError(message);
+        toast.error(message);
+        return;
       }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to process punch");
+
+      setStatus("in");
+      closeWorkModeDialog();
+      toast.success("Punched in successfully");
+    } catch (error) {
+      const serverMessage = error.response?.data?.message;
+      const message = serverMessage || "Failed to process punch";
+      setWorkModeError(message);
+      toast.error(message);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [
+    attendanceLocation,
+    closeWorkModeDialog,
+    handlePunchInRequest,
+    selectedWorkMode,
+  ]);
+
+  const handlePunch = async (mode = "auto") => {
+    if (status !== "in" || mode !== "checkout") {
+      return;
+    }
+
+    setActionLoading(true);
+
+    try {
+      await axios.post("/hr/attendance/check-out", {
+        date: formatAttendanceDate(new Date()),
+        check_out: formatAttendanceTimestamp(new Date()),
+      });
+      setStatus("out");
+      setShowPunchOutModal(false);
+      toast.success("Punched out successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to process punch");
     } finally {
       setActionLoading(false);
     }
@@ -100,13 +281,16 @@ const DashboardLayout = () => {
         const response = await axios.get("/v1/users/me/permissions");
         const { pages, modules, role_name } = response.data.data;
 
-        const updatedUser = { ...user, pages, modules, role_name };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-        setUser(updatedUser);
-      } catch (err) {
-        console.error("Failed to sync permissions:", err);
+        setUser((currentUser) => {
+          const updatedUser = { ...currentUser, pages, modules, role_name };
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+          return updatedUser;
+        });
+      } catch (error) {
+        console.error("Failed to sync permissions:", error);
       }
     };
+
     syncPermissions();
   }, []);
 
@@ -165,7 +349,6 @@ const DashboardLayout = () => {
 
   return (
     <div className="flex bg-slate-50 min-h-screen font-sans selection:bg-primary-100 selection:text-primary-900">
-      {/* Mobile sidebar overlay */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
@@ -173,7 +356,6 @@ const DashboardLayout = () => {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200/60 shadow-xl shadow-slate-200/50 sidebar-transition flex flex-col h-screen h-[100dvh] lg:shadow-none lg:sticky lg:top-0 lg:h-screen",
@@ -183,7 +365,6 @@ const DashboardLayout = () => {
           isSidebarCollapsed ? "lg:w-20" : "lg:w-64",
         )}
       >
-        {/* Sidebar Header - Removed overflow-y-auto from aside and moved it here */}
         <div
           className={cn(
             "flex items-center justify-between h-20 border-b border-slate-100 bg-white/50 backdrop-blur-md sticky top-0 z-50 transition-all duration-300",
@@ -219,9 +400,7 @@ const DashboardLayout = () => {
           </button>
         </div>
 
-        {/* Scrollable content container */}
         <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between">
-          {/* Sidebar Navigation */}
           <nav className="px-3 py-4 space-y-1 custom-scrollbar">
             {filteredNavItems.map((item) => (
               <NavLink
@@ -269,7 +448,6 @@ const DashboardLayout = () => {
             ))}
           </nav>
 
-          {/* Sidebar Footer */}
           <div
             className={cn(
               isSidebarCollapsed ? "lg:items-center lg:px-2 px-4" : "px-4",
@@ -279,18 +457,17 @@ const DashboardLayout = () => {
               <AttendancePunch
                 setShowPunchOutModal={setShowPunchOutModal}
                 actionLoading={actionLoading}
+                isDetectingLocation={isDetectingLocation}
                 status={status}
                 setStatus={setStatus}
-                handlePunch={handlePunch}
+                handlePunchInRequest={handlePunchInRequest}
                 location={attendanceLocation}
-                setLocation={setAttendanceLocation}
               />
             )}
           </div>
         </div>
       </aside>
 
-      {/* Collapse toggle for desktop - MOVED OUTSIDE SIDEBAR */}
       <button
         className="hidden lg:flex fixed w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-primary-600 hover:border-primary-200 shadow-sm transition-all z-50 group hover:scale-105"
         style={{
@@ -320,9 +497,33 @@ const DashboardLayout = () => {
         onConfirm={() => handlePunch("checkout")}
       />
 
-      {/* Main Content Area */}
+      <LocationAccessDialog
+        isOpen={locationDialog.isOpen}
+        onClose={() =>
+          !isDetectingLocation &&
+          setLocationDialog({ isOpen: false, detailMessage: "" })
+        }
+        onRetry={handleRetryLocationAccess}
+        isLoading={isDetectingLocation}
+        detailMessage={
+          locationDialog.detailMessage || LOCATION_REQUIRED_MESSAGE
+        }
+      />
+
+      <WorkModeDialog
+        isOpen={isWorkModeDialogOpen}
+        onClose={() => !actionLoading && closeWorkModeDialog()}
+        selectedMode={selectedWorkMode}
+        onSelect={(mode) => {
+          setSelectedWorkMode(mode);
+          setWorkModeError("");
+        }}
+        onConfirm={handleWorkModeConfirm}
+        isLoading={actionLoading}
+        errorMessage={workModeError}
+      />
+
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header / Topbar */}
         <header className="h-16 glass-effect sticky top-0 flex items-center justify-between px-4 sm:px-8 z-30 shadow-sm shadow-slate-200/20">
           <div className="flex items-center gap-4">
             <button
@@ -348,7 +549,6 @@ const DashboardLayout = () => {
           </div>
         </header>
 
-        {/* Page Content with scroll container */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50">
           <div className="p-4 sm:p-6 lg:p-10 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />

@@ -7,24 +7,14 @@ import Button from "./ui/Button";
 const AttendancePunch = ({
   setShowPunchOutModal,
   actionLoading,
+  isDetectingLocation,
   status,
   setStatus,
-  handlePunch,
+  handlePunchInRequest,
   location,
-  setLocation,
 }) => {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  const preFetchLocation = useCallback(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setLocation(`${pos.coords.latitude}, ${pos.coords.longitude}`),
-        (err) => console.debug("Pre-fetch location failed", err),
-        { enableHighAccuracy: true, timeout: 5000 },
-      );
-    }
-  }, [setLocation]);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -50,20 +40,19 @@ const AttendancePunch = ({
       return;
     }
 
-    handlePunch();
+    handlePunchInRequest();
   };
 
   useEffect(() => {
     const initTimer = window.setTimeout(() => {
       fetchStatus();
-      preFetchLocation();
     }, 0);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => {
       window.clearTimeout(initTimer);
       clearInterval(timer);
     };
-  }, [fetchStatus, preFetchLocation]);
+  }, [fetchStatus]);
 
   if (loading)
     return (
@@ -100,7 +89,7 @@ const AttendancePunch = ({
       <div className="space-y-2">
         <Button
           onClick={handlePunchButtonClick}
-          disabled={actionLoading || status === "out"}
+          disabled={actionLoading || isDetectingLocation || status === "out"}
           className={cn(
             "w-full h-9 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-sm active:scale-[0.98]",
             status === "in"
@@ -110,7 +99,12 @@ const AttendancePunch = ({
                 : "bg-primary-600 hover:bg-primary-700 shadow-primary-100",
           )}
         >
-          {actionLoading ? (
+          {isDetectingLocation ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+              Detecting Location
+            </>
+          ) : actionLoading ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : status === "in" ? (
             <>
@@ -134,7 +128,13 @@ const AttendancePunch = ({
               location ? "text-emerald-500" : "text-slate-300",
             )}
           />
-          <span>{location ? "Geo-Targeted" : "location will be used"}</span>
+          <span>
+            {isDetectingLocation
+              ? "detecting current location"
+              : location
+                ? "location verified"
+                : "location will be required"}
+          </span>
         </div>
       </div>
     </div>
