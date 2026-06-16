@@ -78,7 +78,7 @@ const EditClientModal = ({
                 <Input label="Contact Person" name="contact_person" defaultValue={editingClient.contact_person} placeholder="Jane Doe" required />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input label="Email Address" name="email" type="email" defaultValue={editingClient.email} placeholder="jane@acme.com" required />
-                  <Input label="Phone Number" name="phone" type="tel" pattern="\+[0-9]{1,4}[0-9]{10}" defaultValue={editingClient.phone} placeholder="+919876543210" title="Please enter a valid phone number with country code (e.g., +919876543210)" required />
+                  <Input label="Phone Number" name="phone" type="tel" pattern="\+?[0-9]{7,15}" defaultValue={editingClient.phone} placeholder="+15550192834" title="Please enter a valid phone number with country code (e.g., +15550192834 or +919876543210)" required />
                 </div>
               </div>
 

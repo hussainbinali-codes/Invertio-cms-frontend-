@@ -56,9 +56,9 @@ const InterviewModal = ({
                 label="Candidate Phone"
                 name="candidate_phone"
                 type="tel"
-                pattern="\+[0-9]{1,4}[0-9]{10}"
-                placeholder="+919876543210"
-                title="Please enter a valid phone number with country code (e.g., +919876543210)"
+                pattern="\+?[0-9]{7,15}"
+                placeholder="+15550192834"
+                title="Please enter a valid phone number with country code (e.g., +15550192834 or +919876543210)"
                 defaultValue={selectedCandidate?.phone || ''}
                 disabled={!!selectedCandidate}
                 required
