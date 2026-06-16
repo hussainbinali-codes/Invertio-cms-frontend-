@@ -40,7 +40,9 @@ instance.interceptors.response.use(
     } else if (error.response && error.response.status === 403) {
       toast.error('Access Denied: You do not have permission for this action.');
     } else if (error.response && error.response.status >= 500) {
-      toast.error('Server connection error. Please try again later.');
+      if (!error.response.data?.message) {
+        toast.error('Server connection error. Please try again later.');
+      }
     }
     return Promise.reject(error);
   }
