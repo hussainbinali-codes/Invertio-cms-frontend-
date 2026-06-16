@@ -408,6 +408,9 @@ const ClientsPage = () => {
         fetchAllClients(),
       ]);
     } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        return;
+      }
       if (err.response?.data?.message) {
         toast.error(err.response.data.message);
       } else if (!err.response || err.response.status < 500) {
@@ -492,6 +495,9 @@ const ClientsPage = () => {
         fetchAllClients(),
       ]);
     } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        return;
+      }
       if (err.response?.data?.message) {
         toast.error(err.response.data.message);
       } else if (!err.response || err.response.status < 500) {

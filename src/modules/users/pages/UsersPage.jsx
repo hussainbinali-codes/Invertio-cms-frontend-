@@ -156,6 +156,9 @@ const UsersPage = () => {
       resetForm();
       fetchUsers();
     } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        return;
+      }
       toast.error(err.response?.data?.message || 'Operation failed');
     } finally {
       setIsSubmitting(false);
@@ -168,6 +171,9 @@ const UsersPage = () => {
       toast.success(`User status updated to ${newStatus}`);
       fetchUsers();
     } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        return;
+      }
       toast.error(err.response?.data?.message || 'Failed to update status');
     }
   };
