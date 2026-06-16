@@ -302,7 +302,7 @@ const UserModal = ({
                 >
                   <option value="Active">Active</option>
                   <option value="Disabled">Disabled</option>
-                  <option value="Pending">Pending</option>
+                  {/* <option value="Pending">Pending</option> */}
                 </select>
               </div>
             </div>
