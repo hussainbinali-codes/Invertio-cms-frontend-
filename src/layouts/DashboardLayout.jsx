@@ -220,7 +220,7 @@ const DashboardLayout = () => {
         </div>
 
         {/* Scrollable content container */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between">
           {/* Sidebar Navigation */}
           <nav className="px-3 py-4 space-y-1 custom-scrollbar">
             {filteredNavItems.map((item) => (
