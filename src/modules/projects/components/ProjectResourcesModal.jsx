@@ -32,6 +32,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadClassification, setUploadClassification] = useState('internal');
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [isSavingLinks, setIsSavingLinks] = useState(false);
   const [projectTasks, setProjectTasks] = useState([]);
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
@@ -90,12 +91,45 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   };
 
   const handleUpdateLinks = async () => {
+    if (resourceLinks.length === 0) {
+      toast.error('Please add at least one link before saving.');
+      return;
+    }
+
+    for (let i = 0; i < resourceLinks.length; i++) {
+      const link = resourceLinks[i];
+      const title = link.title?.trim();
+      const url = link.url?.trim();
+
+      if (!title && !url) {
+        toast.error(`Link #${i + 1} is empty. Please enter a title and URL, or remove it.`);
+        return;
+      }
+      if (!title) {
+        toast.error(`Please enter a title for Link #${i + 1}.`);
+        return;
+      }
+      if (!url) {
+        toast.error(`Please enter a URL for "${title}".`);
+        return;
+      }
+
+      const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+      if (!urlRegex.test(url)) {
+        toast.error(`Please enter a valid URL for "${title}".`);
+        return;
+      }
+    }
+
+    setIsSavingLinks(true);
     try {
       await axios.patch(`/projects/${project.id}/github`, { resource_links: resourceLinks });
-      toast.success('Links updated');
+      toast.success('Links updated successfully');
       if (onUpdate) onUpdate();
     } catch (err) {
       toast.error('Failed to update links');
+    } finally {
+      setIsSavingLinks(false);
     }
   };
 
@@ -237,10 +271,10 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
             
             <div className="space-y-3">
                {resourceLinks.map((link, idx) => (
-                 <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-2 group">
-                    <div className="flex items-center justify-between">
+                 <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 border-l-4 border-l-primary-500 shadow-sm space-y-2 group hover:border-slate-300 transition-all">
+                    <div className="flex items-center justify-between gap-2">
                        <input 
-                          className="text-[10px] font-bold text-slate-900 border-none p-0 focus:ring-0 w-full bg-transparent"
+                          className="text-xs font-bold text-slate-800 border border-slate-100 rounded px-1.5 py-0.5 focus:border-primary-300 focus:outline-none w-full bg-slate-50/50"
                           placeholder="Title (e.g. Figma)"
                           value={link.title}
                           disabled={!canManageResources}
@@ -253,15 +287,15 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                        {canManageResources && (
                          <button 
                           onClick={() => setResourceLinks(resourceLinks.filter((_, i) => i !== idx))}
-                          className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all"
+                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all p-1 hover:bg-rose-50 rounded"
                          >
-                           <X className="w-3 h-3" />
+                           <X className="w-3.5 h-3.5" />
                          </button>
                        )}
                     </div>
                     <div className="flex items-center gap-2">
                        <input 
-                          className="text-[9px] text-primary-600 font-medium border-none p-0 focus:ring-0 w-full bg-transparent truncate"
+                          className="text-[11px] text-primary-600 font-medium border border-slate-100 rounded px-1.5 py-0.5 focus:border-primary-300 focus:outline-none w-full bg-slate-50/50 truncate"
                           placeholder="URL"
                           value={link.url}
                           disabled={!canManageResources}
@@ -272,23 +306,24 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                           }}
                        />
                        {link.url && (
-                         <a href={normalizeUrl(link.url)} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-primary-600">
-                           <ExternalLink className="w-3 h-3" />
+                         <a href={normalizeUrl(link.url)} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-primary-600 p-1 hover:bg-primary-50 rounded shrink-0">
+                           <ExternalLink className="w-3.5 h-3.5" />
                          </a>
                        )}
                     </div>
                  </div>
                ))}
-            </div>
-            {canManageResources && (
-              <Button 
-                className="w-full mt-5 h-8 text-[10px] font-bold uppercase tracking-wider" 
-                variant="outline"
-                onClick={handleUpdateLinks}
-              >
-                Save Resources
-              </Button>
-            )}
+             </div>
+             {canManageResources && (
+               <Button 
+                 className="w-full mt-5 h-9 text-xs font-bold uppercase tracking-wider bg-primary-600 text-white hover:bg-primary-700 shadow-sm flex items-center justify-center gap-1.5" 
+                 onClick={handleUpdateLinks}
+                 disabled={isSavingLinks}
+               >
+                 {isSavingLinks ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link className="w-3.5 h-3.5" />}
+                 Save Resources
+               </Button>
+             )}
           </div>
 
           {/* Middle Column: Files (37.5%) */}
