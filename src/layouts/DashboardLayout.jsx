@@ -272,7 +272,6 @@ const DashboardLayout = () => {
           {/* Sidebar Footer */}
           <div
             className={cn(
-              "p-4 border-t border-slate-50 mt-auto bg-slate-50/50 transition-all",
               isSidebarCollapsed ? "lg:items-center lg:px-2 px-4" : "px-4",
             )}
           >
