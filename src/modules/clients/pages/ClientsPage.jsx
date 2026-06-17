@@ -708,15 +708,18 @@ const ClientsPage = () => {
             Manage your customer pipeline and track interactions.
           </p>
         </div>
-        {hasPermission("clients", "create") && (
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="bg-primary-600 hover:bg-primary-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add {activeTab}
-          </Button>
-        )}
+         {/* active tabs other thn leads o side of button shows 0 */}
+        {hasPermission("clients", "create") & activeTab === 'Lead' ? (
+          
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-primary-600 hover:bg-primary-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add {activeTab}
+            </Button>
+          ): ''}
+
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
