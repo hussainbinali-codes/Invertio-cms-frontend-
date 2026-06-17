@@ -112,7 +112,6 @@ const UsersTable = ({
                   >
                     <option value="Active">Active</option>
                     <option value="Disabled">Disabled</option>
-                    <option value="Pending">Pending</option>
                   </select>
                 )}
                 {hasPermission('users', 'permissions.edit') && (

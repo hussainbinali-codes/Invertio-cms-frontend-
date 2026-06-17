@@ -133,13 +133,13 @@ const TasksPage = () => {
       });
 
       if (completionFiles.length > 0) {
+        const formData = new FormData();
         for (const file of completionFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          await axios.post(`/projects/tasks/${taskToComplete.id}/documents`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          formData.append('files', file);
         }
+        await axios.post(`/projects/tasks/${taskToComplete.id}/documents`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
       toast.success('Task completed with proof of work');
@@ -198,13 +198,13 @@ const TasksPage = () => {
       const newTask = taskRes.data.data;
 
       if (selectedFiles.length > 0) {
+        const formData = new FormData();
         for (const file of selectedFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          await axios.post(`/projects/tasks/${newTask.id}/documents`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          formData.append('files', file);
         }
+        await axios.post(`/projects/tasks/${newTask.id}/documents`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
       toast.success('Task successfully created and assigned');
