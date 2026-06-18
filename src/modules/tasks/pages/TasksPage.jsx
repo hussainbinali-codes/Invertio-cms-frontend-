@@ -99,6 +99,17 @@ const TasksPage = () => {
     }
   };
 
+  const handleTaskDetailUpdate = (updatedTask) => {
+    if (!updatedTask?.id) return;
+
+    setMyTasks((prevTasks) => prevTasks.map((task) => (
+      task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+    )));
+    setSelectedTaskDetail((prevTask) => (
+      prevTask?.id === updatedTask.id ? { ...prevTask, ...updatedTask } : prevTask
+    ));
+  };
+
   const handleUpdateTask = async (taskId, updates) => {
     if (updates.status === 'Completed') {
       setTaskToComplete({ id: taskId, ...updates });
@@ -364,6 +375,7 @@ const TasksPage = () => {
           <TaskDetailModal
             task={selectedTaskDetail}
             onClose={() => setSelectedTaskDetail(null)}
+            onUpdate={handleTaskDetailUpdate}
           />
         )}
       </Suspense>
