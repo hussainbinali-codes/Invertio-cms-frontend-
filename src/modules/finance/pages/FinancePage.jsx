@@ -230,8 +230,10 @@ const FinancePage = () => {
       await axios.post('/finance/invoices', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+
       toast.success('Invoice created');
       setShowInvoiceModal(false);
+
       fetchInvoices();
       fetchFinanceData();
     } catch (err) {
