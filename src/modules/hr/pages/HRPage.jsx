@@ -139,7 +139,7 @@ const HRPage = () => {
     try {
       if (activeTab === 'recruitment') {
         const [pipeRes, userRes, rolesRes] = await Promise.all([
-          axios.get(`/hr/recruitment/pipeline?includeAll=${showAll}`),
+          axios.get('/hr/recruitment/pipeline?includeAll=true'),
           axios.get('/users/selection'),
           axios.get('/users/roles')
         ]);
@@ -413,6 +413,12 @@ const HRPage = () => {
     h.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const recruitmentStats = {
+    totalCandidates: candidates.length,
+    interviews: candidates.filter((candidate) => candidate.stage === 'Interview').length,
+    hired: candidates.filter((candidate) => candidate.stage === 'Hired').length,
+  };
+
   if (loading) {
     return (
       <div className="space-y-8 pb-10">
@@ -487,6 +493,7 @@ const HRPage = () => {
           <RecruitmentTab
             candidates={filteredCandidates}
             pipeline={pipeline}
+            recruitmentStats={recruitmentStats}
             updateStage={updateStage}
             formatDate={formatDate}
             setSelectedCandidate={setSelectedCandidate}

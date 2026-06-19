@@ -26,6 +26,7 @@ import { hasPermission } from '../../../utils/permissionUtils';
 const RecruitmentTab = ({
   candidates,
   pipeline,
+  recruitmentStats,
   updateStage,
   formatDate,
   setSelectedCandidate,
@@ -37,9 +38,9 @@ const RecruitmentTab = ({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total Candidates" value={candidates.length} icon={Users} subtext="Active pipeline" />
-        <StatCard title="Interviews" value={candidates.filter(c => c.stage === 'Interview').length} icon={Calendar} subtext="This week" />
-        <StatCard title="Hired" value={candidates.filter(c => c.stage === 'Hired').length} icon={UserCheck} subtext="Month-to-date" />
+        <StatCard title="Total Candidates" value={recruitmentStats.totalCandidates} icon={Users} subtext="Active pipeline" />
+        <StatCard title="Interviews" value={recruitmentStats.interviews} icon={Calendar} subtext="This week" />
+        <StatCard title="Hired" value={recruitmentStats.hired} icon={UserCheck} subtext="Recruitment pipeline" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
