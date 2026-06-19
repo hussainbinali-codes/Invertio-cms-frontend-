@@ -272,23 +272,22 @@ const FinancePage = () => {
     const formData = new FormData(e.target);
     const payload = {
       user_id: formData.get('user_id'),
-      amount: parseFloat(formData.get('amount')),
       month: parseInt(formData.get('month')),
-      year: parseInt(formData.get('year')),
-      project_id: formData.get('project_id') || null
+      year: parseInt(formData.get('year'))
     };
 
     try {
-      await axios.post('/finance/payroll', {
-        ...payload,
-        currency: formData.get('currency') || 'USD'
-      });
-      toast.success('Payroll processed successfully');
+      await axios.post('/finance/payroll/generate', payload);
+      toast.success('Payroll generation initiated successfully in background.');
       setShowPayrollModal(false);
-      fetchFinanceData();
-      if (activeView === 'Payroll') fetchPayrollRecords();
+      
+      // Refresh historical list after a short delay (so the worker can finish & save the record)
+      setTimeout(() => {
+        if (activeView === 'Payroll') fetchPayrollRecords();
+        fetchFinanceData();
+      }, 1500);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to process payroll');
+      toast.error(err.response?.data?.message || 'Failed to generate payroll');
     } finally {
       setIsSubmitting(false);
     }
