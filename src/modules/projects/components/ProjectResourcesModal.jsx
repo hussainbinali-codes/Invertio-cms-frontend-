@@ -40,6 +40,29 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   const [selectedTaskTitle, setSelectedTaskTitle] = useState('');
   const chatEndRef = React.useRef(null);
 
+  const normalizeResourceLinks = (links) => {
+    if (!links) return [];
+
+    let parsedLinks = links;
+
+    if (typeof parsedLinks === 'string') {
+      try {
+        parsedLinks = JSON.parse(parsedLinks);
+      } catch {
+        return [];
+      }
+    }
+
+    if (!Array.isArray(parsedLinks)) return [];
+
+    return parsedLinks
+      .map((link) => ({
+        title: link?.title || link?.name || '',
+        url: link?.url || link?.link || '',
+      }))
+      .filter((link) => link.title || link.url);
+  };
+
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -50,12 +73,27 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
 
   useEffect(() => {
     if (project) {
-      setResourceLinks(project.resource_links || []);
+      setResourceLinks(normalizeResourceLinks(project.resource_links));
       fetchDocuments();
       fetchComments();
       fetchTasks();
+      fetchProjectLinks();
     }
   }, [project]);
+
+  const fetchProjectLinks = async () => {
+    try {
+      const res = await axios.get('/projects');
+      const projects = Array.isArray(res.data.data) ? res.data.data : (res.data.data || []);
+      const currentProject = projects.find((item) => item.id === project.id);
+
+      if (currentProject) {
+        setResourceLinks(normalizeResourceLinks(currentProject.resource_links));
+      }
+    } catch (err) {
+      console.error('Fetch project links error', err);
+    }
+  };
 
   const fetchTasks = async () => {
     try {
@@ -125,6 +163,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
     try {
       await axios.patch(`/projects/${project.id}/github`, { resource_links: resourceLinks });
       toast.success('Links updated successfully');
+      fetchProjectLinks();
       if (onUpdate) onUpdate();
     } catch (err) {
       toast.error('Failed to update links');
