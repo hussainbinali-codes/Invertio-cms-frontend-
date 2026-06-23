@@ -5,21 +5,20 @@ import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Input from '../../../components/ui/Input';
 import StatCard from '../../../components/ui/StatCard';
-import { 
-  Users, 
-  Calendar, 
-  UserCheck, 
-  Search, 
-  Clock, 
-  FileText,
-  UserPlus
+import {
+  Users,
+  Calendar,
+  UserCheck,
+  Search,
+  Clock,
+  FileText
 } from 'lucide-react';
-import { 
-  FunnelChart, 
-  Funnel, 
-  LabelList, 
-  ResponsiveContainer, 
-  Tooltip 
+import {
+  FunnelChart,
+  Funnel,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip
 } from 'recharts';
 import { hasPermission } from '../../../utils/permissionUtils';
 
@@ -68,9 +67,9 @@ const RecruitmentTab = ({
             </div>
             <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input 
-                className="pl-9 h-9 w-full sm:w-64 text-xs" 
-                placeholder="Filter candidates..." 
+              <Input
+                className="pl-9 h-9 w-full sm:w-64 text-xs"
+                placeholder="Filter candidates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -82,6 +81,7 @@ const RecruitmentTab = ({
               <TableHeader>
                 <TableRow>
                   <TableHead className="py-4">Candidate</TableHead>
+                  <TableHead className="py-4">Employee ID</TableHead>
                   <TableHead className="py-4">Current Stage</TableHead>
                   <TableHead className="py-4">Next Step</TableHead>
                   <TableHead className="py-4">Action</TableHead>
@@ -89,9 +89,9 @@ const RecruitmentTab = ({
               </TableHeader>
               <tbody>
                 {candidates.length === 0 ? (
-                    <TableRow>
-                        <TableCell colSpan={4} className="py-10 text-center text-slate-400 font-medium italic">No candidates found matching your criteria.</TableCell>
-                    </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-10 text-center text-slate-400 font-medium italic">No candidates found matching your criteria.</TableCell>
+                  </TableRow>
                 ) : candidates.map(candidate => (
                   <TableRow key={candidate.id} className="group">
                     <TableCell className="py-5">
@@ -99,15 +99,22 @@ const RecruitmentTab = ({
                       <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{candidate.email}</div>
                     </TableCell>
                     <TableCell className="py-5">
+                      {candidate.employee_id ? (
+                        <div className="text-xs font-bold text-slate-800">{candidate.employee_id}</div>
+                      ) : (
+                        <div className="text-[10px] font-medium text-slate-400">Employee ID not assigned yet</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-5">
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={candidate.stage === 'Hired' ? 'success' : candidate.stage === 'Rejected' ? 'danger' : 'primary'} 
+                        <Badge
+                          variant={candidate.stage === 'Hired' ? 'success' : candidate.stage === 'Rejected' ? 'danger' : 'primary'}
                           className="text-[10px] font-bold uppercase tracking-wider"
                         >
                           {candidate.stage}
                         </Badge>
                         {hasPermission('hr', 'recruitment.manage') ? (
-                          <select 
+                          <select
                             className="bg-transparent border-none text-[10px] font-bold text-slate-400 focus:ring-0 cursor-pointer hover:text-primary-600 transition-colors"
                             value={candidate.stage}
                             onChange={(e) => updateStage(candidate.id, e.target.value)}
@@ -137,9 +144,9 @@ const RecruitmentTab = ({
                     </TableCell>
                     <TableCell className="py-5">
                       {hasPermission('hr', 'recruitment.manage') ? (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 text-[10px] font-bold uppercase text-primary-600 hover:bg-primary-50 px-3"
                           onClick={() => {
                             setSelectedCandidate(candidate);
@@ -151,9 +158,9 @@ const RecruitmentTab = ({
                       ) : (
                         <Badge variant="outline" className="text-[10px] font-bold text-slate-400">READ ONLY</Badge>
                       )}
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-8 text-[10px] font-bold uppercase text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 ml-1 px-2"
                         onClick={() => openDocs(candidate, 'candidate')}
                         title="Manage Documents"

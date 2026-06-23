@@ -180,7 +180,8 @@ const UsersPage = () => {
 
   const filteredUsers = users.filter((u) => 
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.employee_id?.toLowerCase?.().includes(searchTerm.toLowerCase())
   );
 
   function resetForm() {

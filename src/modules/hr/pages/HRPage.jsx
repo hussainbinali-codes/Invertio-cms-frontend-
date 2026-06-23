@@ -16,14 +16,12 @@ import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
 import { hasPermission } from '../../../utils/permissionUtils';
 
-// Modular Components (Lazy Loaded)
 const RecruitmentTab = lazy(() => import('../components/RecruitmentTab'));
 const DirectoryTab = lazy(() => import('../components/DirectoryTab'));
 const LeavesTab = lazy(() => import('../components/LeavesTab'));
 const PerformanceTab = lazy(() => import('../components/PerformanceTab'));
 const HolidaysTab = lazy(() => import('../components/HolidaysTab'));
 
-// Modals (Lazy Loaded)
 const InterviewModal = lazy(() => import('../components/InterviewModal'));
 const HolidayModal = lazy(() => import('../components/HolidayModal'));
 const PerformanceActionModal = lazy(() => import('../components/PerformanceActionModal'));
@@ -38,7 +36,7 @@ const TabLoader = () => (
 );
 
 const HRPage = () => {
-  const [activeTab, setActiveTab] = useState('recruitment'); // 'recruitment', 'directory', 'leaves', 'performance', 'holidays'
+  const [activeTab, setActiveTab] = useState('recruitment');
 
   const [pipeline, setPipeline] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -51,16 +49,14 @@ const HRPage = () => {
   const [showAll, setShowAll] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Document Management
   const [showDocsModal, setShowDocsModal] = useState(false);
-  const [docsTarget, setDocsTarget] = useState(null); // { id, name, type: 'user' | 'candidate' }
+  const [docsTarget, setDocsTarget] = useState(null);
   const [docsList, setDocsList] = useState([]);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
-  // Performance State
   const [performanceData, setPerformanceData] = useState({ reviews: [], bonuses: [], hikes: [] });
   const [selectedUserForPerf, setSelectedUserForPerf] = useState(null);
-  const [showPerfModal, setShowPerfModal] = useState(false); // Type: 'rating' | 'bonus' | 'hike'
+  const [showPerfModal, setShowPerfModal] = useState(false);
   const [perfModalType, setPerfModalType] = useState('rating');
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -73,7 +69,6 @@ const HRPage = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Hiring confirmation states
   const [showHiredModal, setShowHiredModal] = useState(false);
   const [hiredCandidateId, setHiredCandidateId] = useState(null);
   const [joiningDate, setJoiningDate] = useState('');
@@ -122,7 +117,7 @@ const HRPage = () => {
       toast.success(`${perfModalType.charAt(0).toUpperCase() + perfModalType.slice(1)} logged successfully`);
       setShowPerfModal(false);
       fetchPerfData(selectedUserForPerf.id);
-      fetchHRData(); // Refresh directory to see updated salary
+      fetchHRData();
     } catch (err) {
       toast.error('Operation failed');
     } finally {
@@ -174,7 +169,7 @@ const HRPage = () => {
         setHolidays(res.data.data || []);
       }
     } catch (err) {
-      console.error("HR fetch error", err);
+      console.error('HR fetch error', err);
     } finally {
       setLoading(false);
     }
@@ -192,7 +187,6 @@ const HRPage = () => {
       setShowHolidayModal(false);
       fetchHRData();
     } catch (err) {
-      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
@@ -312,7 +306,6 @@ const HRPage = () => {
       setSelectedCandidate(null);
       fetchHRData();
     } catch (err) {
-      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
@@ -388,11 +381,11 @@ const HRPage = () => {
     });
   };
 
-  // Filtered Data based on SearchTerm
   const filteredCandidates = candidates.filter(c =>
     c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.designation?.toLowerCase().includes(searchTerm.toLowerCase())
+    c.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.employee_id?.toLowerCase?.().includes(searchTerm.toLowerCase())
   );
 
   const filteredEmployees = employees.filter(e =>
@@ -462,8 +455,8 @@ const HRPage = () => {
                 variant={activeTab === tab ? 'primary' : 'ghost'}
                 onClick={() => setActiveTab(tab)}
                 className={cn(
-                  "h-8 px-3 sm:px-4 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap",
-                  activeTab === tab ? "bg-white text-primary-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
+                  'h-8 px-3 sm:px-4 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap',
+                  activeTab === tab ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
                 )}
               >
                 {tab}
@@ -549,7 +542,6 @@ const HRPage = () => {
         )}
       </Suspense>
 
-      {/* Modals (Lazy Loaded) */}
       <Suspense fallback={null}>
         <InterviewModal
           isOpen={showInterviewModal}

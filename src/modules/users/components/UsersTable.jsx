@@ -39,9 +39,7 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
   }
 
   if (users.length === 0) {
-    return (
-      <div className="p-8 text-center text-slate-500">No users found.</div>
-    );
+    return <div className="p-8 text-center text-slate-500">No users found.</div>;
   }
 
   return (
@@ -49,10 +47,9 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
       <TableHeader>
         <TableRow>
           <TableHead className="py-4">Member</TableHead>
+          <TableHead className="py-4">Employee ID</TableHead>
           <TableHead className="py-4">Role</TableHead>
-          {hasPermission("users", "salary.view") && (
-            <TableHead className="py-4">Salary</TableHead>
-          )}
+          {hasPermission("users", "salary.view") && <TableHead className="py-4">Salary</TableHead>}
           <TableHead className="py-4">Skills</TableHead>
           <TableHead className="py-4">Status</TableHead>
           <TableHead className="py-4">Actions</TableHead>
@@ -68,39 +65,34 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
                 </div>
                 <div>
                   <div className="font-bold text-slate-900">{user.name}</div>
-                  <div className="text-xs text-slate-500 font-medium">
-                    {user.email}
-                  </div>
+                  <div className="text-xs text-slate-500 font-medium">{user.email}</div>
                 </div>
               </div>
             </TableCell>
             <TableCell className="py-5">
+              <div className="text-xs font-bold text-slate-900">{user.employee_id || "N/A"}</div>
+            </TableCell>
+            <TableCell className="py-5">
               <div className="flex flex-col gap-1">
-                <Badge
-                  variant="primary"
-                  className="text-[10px] font-bold uppercase tracking-wider w-fit"
-                >
+                <Badge variant="primary" className="text-[10px] font-bold uppercase tracking-wider w-fit">
                   {user.role_name || "User"}
                 </Badge>
-                {user.module_permissions &&
-                  Object.keys(user.module_permissions).length > 0 && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <ShieldCheck className="w-3 h-3 text-amber-500" />
-                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tighter">
-                        Custom Access
-                      </span>
-                    </div>
-                  )}
+                {user.module_permissions && Object.keys(user.module_permissions).length > 0 && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <ShieldCheck className="w-3 h-3 text-amber-500" />
+                    <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tighter">
+                      Custom Access
+                    </span>
+                  </div>
+                )}
               </div>
             </TableCell>
             {hasPermission("users", "salary.view") && (
               <TableCell className="py-5">
                 <div className="text-xs font-bold text-slate-900">
-                  {user.salary ? `₹${user.salary.toLocaleString()}` : "N/A"}
+                  {user.salary ? `\u20B9${user.salary.toLocaleString()}` : "N/A"}
                 </div>
-                <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">
-                  Monthly CTC
-                </div>
+                <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">Monthly CTC</div>
               </TableCell>
             )}
             <TableCell className="py-5">
@@ -134,9 +126,7 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
                   <select
                     className="text-[10px] font-bold uppercase bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
                     value={user.status || "Pending"}
-                    onChange={(e) =>
-                      handleStatusChange(user.id, e.target.value)
-                    }
+                    onChange={(e) => handleStatusChange(user.id, e.target.value)}
                   >
                     <option value="Active">Active</option>
                     <option value="Disabled">Disabled</option>
@@ -153,15 +143,11 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
                     <Edit className="w-4 h-4" />
                   </Button>
                 )}
-                {!hasPermission("users", "permissions.edit") &&
-                  !hasPermission("users", "status.edit") && (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] font-bold text-slate-400"
-                    >
-                      READ ONLY
-                    </Badge>
-                  )}
+                {!hasPermission("users", "permissions.edit") && !hasPermission("users", "status.edit") && (
+                  <Badge variant="outline" className="text-[10px] font-bold text-slate-400">
+                    READ ONLY
+                  </Badge>
+                )}
               </div>
             </TableCell>
           </TableRow>

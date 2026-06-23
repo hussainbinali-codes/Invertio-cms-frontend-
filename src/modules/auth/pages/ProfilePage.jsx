@@ -61,6 +61,10 @@ const ProfilePage = () => {
                   <Building className="w-4 h-4 text-slate-400" />
                   {profile.department || 'General'}
                 </div>
+                <div className="flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-slate-400" />
+                  {profile.employee_id || 'No Employee ID'}
+                </div>
               </div>
             </div>
             <div className="pb-2">
@@ -92,6 +96,10 @@ const ProfilePage = () => {
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Email Address</p>
                     <p className="text-sm font-bold text-slate-700">{profile.email}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Employee ID</p>
+                    <p className="text-sm font-bold text-slate-700">{profile.employee_id || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="p-6 space-y-6 bg-slate-50/30">

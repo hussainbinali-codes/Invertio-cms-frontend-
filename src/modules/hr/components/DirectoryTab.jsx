@@ -5,13 +5,13 @@ import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Input from '../../../components/ui/Input';
 import StatCard from '../../../components/ui/StatCard';
-import { 
-  Users, 
-  Briefcase, 
-  UserCheck, 
-  Clock, 
-  Mail, 
-  FileText, 
+import {
+  Users,
+  Briefcase,
+  UserCheck,
+  Clock,
+  Mail,
+  FileText,
   ExternalLink,
   Filter,
   Search
@@ -31,9 +31,14 @@ const DirectoryTab = ({
   const [statusFilter, setStatusFilter] = React.useState('All');
 
   const filteredPersonnel = [
-    ...employees.map(e => ({ ...e, id: e.user_id, employee_id: e.id, recordType: 'Employee', displayStatus: e.status || 'Active' })),
-    ...candidates.map(c => ({ ...c, recordType: 'Candidate', displayStatus: c.stage || 'Applied' }))
-  ].filter(person => {
+    ...employees.map((e) => ({
+      ...e,
+      id: e.user_id || e.id,
+      recordType: 'Employee',
+      displayStatus: e.status || 'Active'
+    })),
+    ...candidates.map((c) => ({ ...c, recordType: 'Candidate', displayStatus: c.stage || 'Applied' }))
+  ].filter((person) => {
     if (statusFilter === 'All') return true;
     return person.displayStatus === statusFilter;
   }).sort((a, b) => a.recordType.localeCompare(b.recordType));
@@ -56,16 +61,16 @@ const DirectoryTab = ({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input 
-                className="pl-9 h-9 w-full sm:w-64 text-xs" 
-                placeholder="Search directory..." 
+              <Input
+                className="pl-9 h-9 w-full sm:w-64 text-xs"
+                placeholder="Search directory..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
               <Filter className="w-3.5 h-3.5 text-slate-400" />
-              <select 
+              <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="bg-transparent border-none text-[11px] font-bold text-slate-600 focus:ring-0 cursor-pointer w-full"
@@ -88,6 +93,7 @@ const DirectoryTab = ({
             <TableHeader>
               <TableRow>
                 <TableHead className="py-4">Employee</TableHead>
+                <TableHead className="py-4">Employee ID</TableHead>
                 <TableHead className="py-4">Designation</TableHead>
                 <TableHead className="py-4">Joining Date</TableHead>
                 {hasPermission('users', 'salary.view') && <TableHead className="py-4">Salary</TableHead>}
@@ -98,16 +104,20 @@ const DirectoryTab = ({
             <tbody>
               {filteredPersonnel.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={hasPermission('users', 'salary.view') ? 6 : 5} className="py-10 text-center text-slate-400 font-medium italic">No personnel records found.</TableCell>
+                  <TableCell colSpan={hasPermission('users', 'salary.view') ? 7 : 6} className="py-10 text-center text-slate-400 font-medium italic">
+                    No personnel records found.
+                  </TableCell>
                 </TableRow>
-              ) : filteredPersonnel.map(person => (
+              ) : filteredPersonnel.map((person) => (
                 <TableRow key={`${person.recordType}-${person.id}`} className="group hover:bg-slate-50/50 transition-colors">
                   <TableCell className="py-5">
                     <div className="flex items-center gap-4">
-                      <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm",
-                        person.recordType === 'Employee' ? "bg-primary-100 text-primary-700" : "bg-amber-100 text-amber-700"
-                      )}>
+                      <div
+                        className={cn(
+                          'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm',
+                          person.recordType === 'Employee' ? 'bg-primary-100 text-primary-700' : 'bg-amber-100 text-amber-700'
+                        )}
+                      >
                         {person.name?.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -124,6 +134,9 @@ const DirectoryTab = ({
                     </div>
                   </TableCell>
                   <TableCell className="py-5">
+                    <div className="text-xs font-bold text-slate-800">{person.employee_id || 'N/A'}</div>
+                  </TableCell>
+                  <TableCell className="py-5">
                     <div className="text-xs font-bold text-slate-800">{person.designation || 'N/A'}</div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{person.department || 'General'}</div>
                   </TableCell>
@@ -135,7 +148,7 @@ const DirectoryTab = ({
                   {hasPermission('users', 'salary.view') && (
                     <TableCell className="py-5">
                       <div className="text-xs font-bold text-slate-900">
-                        {person.salary ? `₹${parseFloat(person.salary).toLocaleString('en-IN')}` : 'N/A'}
+                        {person.salary ? `\u20B9${parseFloat(person.salary).toLocaleString('en-IN')}` : 'N/A'}
                       </div>
                       <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">
                         {person.recordType === 'Employee' ? 'Monthly CTC' : 'Offered Salary'}
@@ -143,16 +156,21 @@ const DirectoryTab = ({
                     </TableCell>
                   )}
                   <TableCell className="py-5">
-                    <Badge 
+                    <Badge
                       variant={
-                        person.displayStatus === 'Active' ? 'default' : 
-                        person.displayStatus === 'Hired' ? 'success' :
-                        person.displayStatus === 'Rejected' ? 'danger' : 
-                        person.displayStatus === 'Interview' ? 'primary' : 'outline'
+                        person.displayStatus === 'Active'
+                          ? 'default'
+                          : person.displayStatus === 'Hired'
+                            ? 'success'
+                            : person.displayStatus === 'Rejected'
+                              ? 'danger'
+                              : person.displayStatus === 'Interview'
+                                ? 'primary'
+                                : 'outline'
                       }
                       className={cn(
-                        "text-[10px] font-bold uppercase tracking-wider",
-                        person.displayStatus === 'Active' && "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        'text-[10px] font-bold uppercase tracking-wider',
+                        person.displayStatus === 'Active' && 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       )}
                     >
                       {person.displayStatus}
@@ -160,26 +178,25 @@ const DirectoryTab = ({
                   </TableCell>
                   <TableCell className="py-5">
                     <div className="flex justify-start gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600 hover:bg-primary-50"
                         onClick={() => openDocs(person, person.recordType === 'Employee' ? 'user' : 'candidate')}
                         title="Personnel Records"
                       >
                         <FileText className="w-4 h-4" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600 hover:bg-primary-50"
                         onClick={() => {
                           if (person.recordType === 'Employee') {
-                            // Future: Open Employee Edit
-                          } else {
-                            setSelectedCandidate(person);
-                            setShowInterviewModal(true);
+                            return;
                           }
+                          setSelectedCandidate(person);
+                          setShowInterviewModal(true);
                         }}
                       >
                         <ExternalLink className="w-4 h-4" />
