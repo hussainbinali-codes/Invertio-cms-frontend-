@@ -22,12 +22,18 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
   const [showResources, setShowResources] = React.useState(false);
   const [documents, setDocuments] = React.useState([]);
+  const [activities, setActivities] = React.useState([]);
+  const [assignableUsers, setAssignableUsers] = React.useState([]);
   const [loadingDocs, setLoadingDocs] = React.useState(false);
+  const [loadingActivities, setLoadingActivities] = React.useState(false);
+  const [loadingUsers, setLoadingUsers] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editData, setEditData] = React.useState({
     status: task?.status || 'Pending',
     description: task?.description || '',
-    priority: task?.priority || 'Medium'
+    priority: task?.priority || 'Medium',
+    assigned_to: task?.assigned_to || '',
+    progress_note: ''
   });
   const [currentStatus, setCurrentStatus] = React.useState(task?.status || 'Pending');
   const [isUpdating, setIsUpdating] = React.useState(false);
@@ -44,8 +50,18 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     if (task && task.id) {
         setTaskData(task);
         fetchTaskDocuments();
+        fetchTaskActivities();
+        if (isAdmin) {
+          fetchAssignableUsers();
+        }
         setCurrentStatus(task.status);
-        setEditData(prev => ({ ...prev, status: task.status, description: task.description, priority: task.priority }));
+        setEditData({
+          status: task.status || 'Pending',
+          description: task.description || '',
+          priority: task.priority || 'Medium',
+          assigned_to: task.assigned_to || '',
+          progress_note: ''
+        });
     }
   }, [task]);
 
@@ -62,23 +78,54 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     }
   };
 
+  const fetchTaskActivities = async () => {
+    if (!taskId) return;
+    setLoadingActivities(true);
+    try {
+      const res = await axios.get(`/projects/tasks/${taskId}/activities`);
+      setActivities(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch task activities', err);
+    } finally {
+      setLoadingActivities(false);
+    }
+  };
+
+  const fetchAssignableUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await axios.get('/users/selection');
+      setAssignableUsers(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch assignable users', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   const handleUpdateTask = async () => {
     setIsUpdating(true);
     try {
-        await axios.patch(`/projects/tasks/${taskId}`, editData);
-        const updatedTask = {
-          ...taskData,
+        const payload = {
           ...editData,
+          assigned_to: editData.assigned_to || null
+        };
+        const res = await axios.patch(`/projects/tasks/${taskId}`, payload);
+        const updatedTask = res.data.data || {
+          ...taskData,
+          ...payload,
           updated_at: new Date().toISOString()
         };
         setTaskData(updatedTask);
-        setCurrentStatus(editData.status);
+        setCurrentStatus(updatedTask.status || editData.status);
         setIsEditing(false);
+        setEditData((prev) => ({ ...prev, progress_note: '', assigned_to: updatedTask.assigned_to || '' }));
+        fetchTaskActivities();
         toast.success('Task details updated');
         if (onUpdate) onUpdate(updatedTask);
     } catch (err) {
         console.error("Failed to update task", err);
-        toast.error("Failed to update task");
+        toast.error(err?.response?.data?.message || 'Failed to update task');
     } finally {
         setIsUpdating(false);
     }
@@ -116,20 +163,21 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
     setIsUpdating(true);
     try {
-        await axios.patch(`/projects/tasks/${taskId}`, { status: newStatus });
-        setCurrentStatus(newStatus);
-        setEditData(prev => ({ ...prev, status: newStatus }));
-        const updatedTask = {
+        const res = await axios.patch(`/projects/tasks/${taskId}`, { status: newStatus });
+        const updatedTask = res.data.data || {
           ...taskData,
           status: newStatus,
           updated_at: new Date().toISOString()
         };
+        setCurrentStatus(newStatus);
+        setEditData(prev => ({ ...prev, status: newStatus, progress_note: '' }));
         setTaskData(updatedTask);
+        fetchTaskActivities();
         toast.success(`Task status updated to ${newStatus}`);
         if (onUpdate) onUpdate(updatedTask);
     } catch (err) {
         console.error("Failed to update status", err);
-        toast.error("Failed to update status");
+        toast.error(err?.response?.data?.message || 'Failed to update status');
     } finally {
         setIsUpdating(false);
     }
@@ -143,10 +191,11 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
     setIsSubmittingProof(true);
     try {
-      await axios.patch(`/projects/tasks/${taskId}`, {
+      const res = await axios.patch(`/projects/tasks/${taskId}`, {
         status: 'Completed',
         completion_notes: completionNotes,
-        completion_date: new Date().toISOString()
+        completion_date: new Date().toISOString(),
+        progress_note: completionNotes
       });
 
       if (completionFiles.length > 0) {
@@ -165,7 +214,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
       setCompletionFiles([]);
       setCurrentStatus('Completed');
       setEditData(prev => ({ ...prev, status: 'Completed' }));
-      const updatedTask = {
+      const updatedTask = res.data.data || {
         ...taskData,
         status: 'Completed',
         completion_notes: completionNotes,
@@ -174,9 +223,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
       };
       setTaskData(updatedTask);
       fetchTaskDocuments();
+      fetchTaskActivities();
       if (onUpdate) onUpdate(updatedTask);
     } catch (err) {
-      toast.error('Failed to submit completion proof');
+      toast.error(err?.response?.data?.message || 'Failed to submit completion proof');
     } finally {
       setIsSubmittingProof(false);
     }
@@ -186,6 +236,26 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const initialDocs = documents.filter(d => !completionTime || new Date(d.created_at).getTime() < completionTime);
   const proofDocs = documents.filter(d => completionTime && new Date(d.created_at).getTime() >= completionTime);
   const showCompletionSection = taskData.status === 'Completed' && (Boolean(taskData.completion_notes) || proofDocs.length > 0);
+  const latestActivity = activities[0] || null;
+
+  const getActivityLabel = (activity) => {
+    switch (activity.activity_type) {
+      case 'created':
+        return `created the task and assigned ${activity.new_label || 'it'}`;
+      case 'reassigned':
+        return `reassigned this task from ${activity.previous_label || 'Unassigned'} to ${activity.new_label || 'Unassigned'}`;
+      case 'status_changed':
+        return `changed status from ${activity.previous_label || activity.previous_value} to ${activity.new_label || activity.new_value}`;
+      case 'hours_logged':
+        return `logged time on the task (${activity.new_label || activity.new_value})`;
+      case 'progress_submitted':
+        return 'submitted a progress update';
+      case 'updated':
+        return `updated ${String(activity.field_name || 'task').replaceAll('_', ' ')}`;
+      default:
+        return activity.field_name ? `updated ${String(activity.field_name).replaceAll('_', ' ')}` : 'updated this task';
+    }
+  };
 
   const renderDoc = (doc) => {
     const fileUrl = doc.file_url || `${BASE_URL.replace('/api', '')}/${doc.file_key}`;
@@ -290,11 +360,25 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               </div>
               <div className="prose prose-slate max-w-none mb-8">
                 {isEditing ? (
-                  <textarea 
-                    className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[120px]"
-                    value={editData.description}
-                    onChange={(e) => setEditData({...editData, description: e.target.value})}
-                  />
+                  <div className="space-y-4">
+                    <textarea 
+                      className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[120px]"
+                      value={editData.description}
+                      onChange={(e) => setEditData({...editData, description: e.target.value})}
+                    />
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Progress Update</p>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[96px]"
+                        value={editData.progress_note}
+                        onChange={(e) => setEditData({ ...editData, progress_note: e.target.value })}
+                        placeholder={isAdmin ? 'Add an optional activity note for this change.' : 'Briefly describe what changed or what progress you made.'}
+                      />
+                      {!isAdmin && (
+                        <p className="mt-2 text-[11px] text-slate-500">A short progress note is required when team members update a task.</p>
+                      )}
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm">
                      {taskData.description || "No detailed description provided for this task."}
@@ -397,14 +481,34 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   <span className="text-[10px] font-black uppercase tracking-[0.2em]">Assignment & Impact</span>
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-primary-700 text-xs font-black">
-                       {(taskData.assigned_to_name || taskData.user_name || 'NA').substring(0, 2).toUpperCase()}
-                      </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-primary-700 text-xs font-black">
+                         {(taskData.assigned_to_name || taskData.user_name || 'NA').substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                         <div className="text-sm font-bold text-slate-900">{taskData.assigned_to_name || taskData.user_name || "Unassigned"}</div>
+                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Primary Lead</div>
+                        </div>
+                    </div>
+                    {isAdmin && isEditing && (
                       <div>
-                       <div className="text-sm font-bold text-slate-900">{taskData.assigned_to_name || taskData.user_name || "Unassigned"}</div>
-                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Primary Lead</div>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Reassign Task</p>
+                        <select
+                          className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-200"
+                          value={editData.assigned_to}
+                          onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
+                          disabled={loadingUsers}
+                        >
+                          <option value="">Unassigned</option>
+                          {assignableUsers.map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {member.name} {member.designation ? `(${member.designation})` : ''}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
                     <div>
@@ -500,9 +604,45 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   <div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Last Activity</div>
                     <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                      {taskData.updated_at ? new Date(taskData.updated_at).toLocaleDateString() : "N/A"}
+                      {latestActivity?.created_at ? new Date(latestActivity.created_at).toLocaleString() : (taskData.updated_at ? new Date(taskData.updated_at).toLocaleDateString() : 'N/A')}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-slate-400">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Task Activity</span>
+                </div>
+                <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                  {loadingActivities && (
+                    <>
+                      <Skeleton className="h-20 rounded-xl" />
+                      <Skeleton className="h-20 rounded-xl" />
+                    </>
+                  )}
+                  {!loadingActivities && activities.length === 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+                      No task activity recorded yet.
+                    </div>
+                  )}
+                  {!loadingActivities && activities.map((activity) => (
+                    <div key={activity.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">{activity.actor_name || 'System'}</p>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">{getActivityLabel(activity)}</p>
+                        </div>
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap">{activity.created_at ? new Date(activity.created_at).toLocaleString() : ''}</span>
+                      </div>
+                      {activity.progress_note && (
+                        <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-700 whitespace-pre-wrap">
+                          {activity.progress_note}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
