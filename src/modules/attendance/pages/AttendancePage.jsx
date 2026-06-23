@@ -14,6 +14,7 @@ import Table, {
 } from "../../../components/ui/Table";
 import Badge from "../../../components/ui/Badge";
 import Button from "../../../components/ui/Button";
+import PaginationControls from "../../../components/ui/PaginationControls";
 import {
   CalendarClock,
   Clock,
@@ -21,9 +22,7 @@ import {
   MapPin,
   CheckCircle2,
   XCircle,
-  TrendingUp,
   User as UserIcon,
-  Download,
   FileSpreadsheet,
 } from "lucide-react";
 import StatCard from "../../../components/ui/StatCard";
@@ -31,14 +30,25 @@ import Skeleton from "../../../components/ui/Skeleton";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../../utils/permissionUtils";
 
+const PAGE_LIMIT = 10;
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: PAGE_LIMIT,
+  total: 0,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
+
 const AttendancePage = () => {
   const [attendance, setAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetchingLogs, setFetchingLogs] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
 
-  // Monthly Filtering States
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -81,12 +91,11 @@ const AttendancePage = () => {
     init();
   }, []);
 
-  // Refetch when month/year changes
   useEffect(() => {
     if (!loading) {
-      fetchAttendance(selectedEmployee?.user_id);
+      fetchAttendance(selectedEmployee?.user_id, currentPage);
     }
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, currentPage, selectedEmployee?.user_id]);
 
   const fetchEmployees = async () => {
     try {
@@ -97,21 +106,32 @@ const AttendancePage = () => {
     }
   };
 
-  const fetchAttendance = async (userId = null) => {
+  const fetchAttendance = async (userId = null, page = 1) => {
     setFetchingLogs(true);
     try {
-      // Include month and year in query
-      const url = userId
+      const baseUrl = userId
         ? `/hr/attendance/my?userId=${userId}&month=${selectedMonth + 1}&year=${selectedYear}`
         : `/hr/attendance/my?month=${selectedMonth + 1}&year=${selectedYear}`;
 
-      const res = await axios.get(url);
-      const data = res.data.data || [];
-      setAttendance(data);
-      calculateStats(data);
+      const res = await axios.get(`${baseUrl}&page=${page}&limit=${PAGE_LIMIT}`);
+      const payload = res.data.data || {};
+      const items = payload.items || [];
+      const nextPagination = payload.pagination || {
+        ...DEFAULT_PAGINATION,
+        page,
+        total: items.length,
+        totalPages: 1,
+      };
+
+      setAttendance(items);
+      setPagination(nextPagination);
+      calculateStats(items);
     } catch (err) {
       console.error("Failed to fetch attendance", err);
       toast.error("Failed to load attendance history");
+      setAttendance([]);
+      setPagination(DEFAULT_PAGINATION);
+      calculateStats([]);
     } finally {
       setFetchingLogs(false);
     }
@@ -120,7 +140,7 @@ const AttendancePage = () => {
   const handleEmployeeChange = (userId) => {
     const emp = employees.find((e) => e.user_id === userId);
     setSelectedEmployee(emp || null);
-    fetchAttendance(userId);
+    setCurrentPage(1);
   };
 
   const calculateStats = (data) => {
@@ -131,7 +151,6 @@ const AttendancePage = () => {
 
     const present = data.filter((a) => a.status === "Present").length;
 
-    // Calculate Avg Check-in
     const checkInTimes = data
       .filter((a) => a.check_in)
       .map((a) => {
@@ -164,7 +183,6 @@ const AttendancePage = () => {
     const displayHours = hours % 12 || 12;
     const avgStr = `${displayHours}:${mins < 10 ? "0" : ""}${mins} ${period}`;
 
-    // Calculate On-Time Rate (9:00 AM threshold)
     const totalPresent = data.filter((a) => a.status === "Present").length;
     const onTimeCount = data
       .filter((a) => a.check_in)
@@ -184,7 +202,7 @@ const AttendancePage = () => {
           }).format(d),
         );
         const totalMinutes = hours * 60 + minutes;
-        return totalMinutes <= 9 * 60 + 15; // 9:15 AM
+        return totalMinutes <= 9 * 60 + 15;
       }).length;
 
     const onTimeRateValue =
@@ -301,7 +319,10 @@ const AttendancePage = () => {
             <select
               className="bg-transparent border-none text-xs font-bold text-slate-600 px-3 py-2 outline-none cursor-pointer"
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              onChange={(e) => {
+                setSelectedMonth(parseInt(e.target.value));
+                setCurrentPage(1);
+              }}
             >
               {months.map((m, i) => (
                 <option key={m} value={i}>
@@ -312,7 +333,10 @@ const AttendancePage = () => {
             <select
               className="bg-transparent border-none text-xs font-bold text-slate-600 px-3 py-2 outline-none cursor-pointer border-l border-slate-200"
               value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              onChange={(e) => {
+                setSelectedYear(parseInt(e.target.value));
+                setCurrentPage(1);
+              }}
             >
               {years.map((y) => (
                 <option key={y} value={y}>
@@ -363,14 +387,8 @@ const AttendancePage = () => {
           title="Avg. Check-in"
           value={stats.avgCheckIn}
           icon={Clock}
-          subtext="Monthly punctuality"
+          subtext="This page"
         />
-        {/* <StatCard
-                    title="On-Time Rate"
-                    value={stats.onTimeRate}
-                    icon={TrendingUp}
-                    subtext="Policy compliance"
-                /> */}
       </div>
 
       <Card
@@ -475,13 +493,19 @@ const AttendancePage = () => {
                   <TableCell colSpan={5} className="py-20 text-center">
                     <XCircle className="w-10 h-10 text-slate-100 mx-auto mb-4" />
                     <p className="text-sm font-medium text-slate-400 italic">
-                      No attendance records found for this period.
+                      No data found.
                     </p>
                   </TableCell>
                 </TableRow>
               )}
             </tbody>
           </Table>
+          <PaginationControls
+            pagination={pagination}
+            itemCount={attendance.length}
+            onPrevious={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            onNext={() => setCurrentPage((prev) => Math.min(prev + 1, pagination.totalPages || 1))}
+          />
         </CardContent>
       </Card>
     </div>

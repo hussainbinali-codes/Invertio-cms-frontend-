@@ -1,16 +1,11 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react';
 import axios from '../../../api/axios';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import Skeleton from '../../../components/ui/Skeleton';
 import {
-  Users,
   Calendar,
   UserPlus,
-  Loader2,
-  Filter,
-  Search
+  Loader2
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
@@ -28,6 +23,16 @@ const PerformanceActionModal = lazy(() => import('../components/PerformanceActio
 const DocsModal = lazy(() => import('../components/DocsModal'));
 const ConfirmationModal = lazy(() => import('../../../components/ui/ConfirmationModal'));
 const HiredModal = lazy(() => import('../components/HiredModal'));
+
+const PAGE_LIMIT = 10;
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: PAGE_LIMIT,
+  total: 0,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false
+};
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-20">
@@ -48,6 +53,11 @@ const HRPage = () => {
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [recruitmentPage, setRecruitmentPage] = useState(1);
+  const [directoryPage, setDirectoryPage] = useState(1);
+  const [recruitmentPagination, setRecruitmentPagination] = useState(DEFAULT_PAGINATION);
+  const [directoryPagination, setDirectoryPagination] = useState(DEFAULT_PAGINATION);
+  const [activatingUserId, setActivatingUserId] = useState(null);
 
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [docsTarget, setDocsTarget] = useState(null);
@@ -127,19 +137,29 @@ const HRPage = () => {
 
   useEffect(() => {
     fetchHRData();
-  }, [activeTab, showAll]);
+  }, [activeTab, showAll, recruitmentPage, directoryPage]);
 
   const fetchHRData = async () => {
     setLoading(true);
     try {
       if (activeTab === 'recruitment') {
         const [pipeRes, userRes, rolesRes] = await Promise.all([
-          axios.get('/hr/recruitment/pipeline?includeAll=true'),
+          axios.get(`/hr/recruitment/pipeline?includeAll=true&page=${recruitmentPage}&limit=${PAGE_LIMIT}`),
           axios.get('/users/selection'),
           axios.get('/users/roles')
         ]);
-        const candidatesList = pipeRes.data.data || [];
+
+        const pipePayload = pipeRes.data.data || {};
+        const candidatesList = pipePayload.items || [];
+        const nextPagination = pipePayload.pagination || {
+          ...DEFAULT_PAGINATION,
+          page: recruitmentPage,
+          total: candidatesList.length,
+          totalPages: 1
+        };
+
         setCandidates(candidatesList);
+        setRecruitmentPagination(nextPagination);
         setUsers(userRes.data.data || []);
         setRoles(rolesRes.data.data || []);
 
@@ -152,12 +172,18 @@ const HRPage = () => {
 
         setPipeline(chartMap.length > 0 ? chartMap : [{ value: 1, name: 'Applied', fill: '#3b82f6' }]);
       } else if (activeTab === 'directory') {
-        const [empRes, candRes] = await Promise.all([
-          axios.get(`/hr/employees?includeAll=true`),
-          axios.get(`/hr/recruitment/pipeline?includeAll=true`)
-        ]);
-        setEmployees(empRes.data.data || []);
-        setCandidates(candRes.data.data || []);
+        const empRes = await axios.get(`/hr/employees?includeAll=true&page=${directoryPage}&limit=${PAGE_LIMIT}`);
+        const empPayload = empRes.data.data || {};
+        const employeeItems = empPayload.items || [];
+        const nextPagination = empPayload.pagination || {
+          ...DEFAULT_PAGINATION,
+          page: directoryPage,
+          total: employeeItems.length,
+          totalPages: 1
+        };
+
+        setEmployees(employeeItems);
+        setDirectoryPagination(nextPagination);
       } else if (activeTab === 'performance') {
         const res = await axios.get(`/hr/employees?includeAll=${showAll}`);
         setEmployees(res.data.data || []);
@@ -244,6 +270,21 @@ const HRPage = () => {
       fetchHRData();
     } catch (err) {
       toast.error('Failed to update stage');
+    }
+  };
+
+  const activateLinkedUser = async (userId) => {
+    if (!userId) return;
+
+    setActivatingUserId(userId);
+    try {
+      await axios.patch(`/users/${userId}/status`, { status: 'Active' });
+      toast.success('Employee activated successfully');
+      fetchHRData();
+    } catch (err) {
+      toast.error('Failed to activate employee');
+    } finally {
+      setActivatingUserId(null);
     }
   };
 
@@ -392,7 +433,8 @@ const HRPage = () => {
     e.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    e.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.employee_id?.toLowerCase?.().includes(searchTerm.toLowerCase())
   );
 
   const filteredLeaves = leaves.filter(l =>
@@ -407,7 +449,7 @@ const HRPage = () => {
   );
 
   const recruitmentStats = {
-    totalCandidates: candidates.length,
+    totalCandidates: recruitmentPagination.total || candidates.length,
     interviews: candidates.filter((candidate) => candidate.stage === 'Interview').length,
     hired: candidates.filter((candidate) => candidate.stage === 'Hired').length,
   };
@@ -453,7 +495,10 @@ const HRPage = () => {
               <Button
                 key={tab}
                 variant={activeTab === tab ? 'primary' : 'ghost'}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setSearchTerm('');
+                }}
                 className={cn(
                   'h-8 px-3 sm:px-4 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap',
                   activeTab === tab ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
@@ -487,25 +532,38 @@ const HRPage = () => {
             candidates={filteredCandidates}
             pipeline={pipeline}
             recruitmentStats={recruitmentStats}
+            recruitmentPagination={recruitmentPagination}
             updateStage={updateStage}
+            activateLinkedUser={activateLinkedUser}
+            activatingUserId={activatingUserId}
             formatDate={formatDate}
             setSelectedCandidate={setSelectedCandidate}
             setShowInterviewModal={setShowInterviewModal}
             openDocs={openDocs}
             searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
+            onSearchTermChange={(value) => {
+              setSearchTerm(value);
+              setRecruitmentPage(1);
+            }}
+            onPreviousPage={() => setRecruitmentPage((prev) => Math.max(prev - 1, 1))}
+            onNextPage={() => setRecruitmentPage((prev) => Math.min(prev + 1, recruitmentPagination.totalPages || 1))}
           />
         )}
 
         {activeTab === 'directory' && (
           <DirectoryTab
             employees={filteredEmployees}
-            candidates={filteredCandidates}
+            directoryPagination={directoryPagination}
             openDocs={openDocs}
             setSelectedCandidate={setSelectedCandidate}
             setShowInterviewModal={setShowInterviewModal}
             searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
+            onSearchTermChange={(value) => {
+              setSearchTerm(value);
+              setDirectoryPage(1);
+            }}
+            onPreviousPage={() => setDirectoryPage((prev) => Math.max(prev - 1, 1))}
+            onNextPage={() => setDirectoryPage((prev) => Math.min(prev + 1, directoryPagination.totalPages || 1))}
           />
         )}
 

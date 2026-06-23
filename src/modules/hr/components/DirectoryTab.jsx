@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Input from '../../../components/ui/Input';
 import StatCard from '../../../components/ui/StatCard';
+import PaginationControls from '../../../components/ui/PaginationControls';
 import {
   Users,
   Briefcase,
@@ -21,32 +22,26 @@ import { hasPermission } from '../../../utils/permissionUtils';
 
 const DirectoryTab = ({
   employees,
-  candidates,
+  directoryPagination,
   openDocs,
   setSelectedCandidate,
   setShowInterviewModal,
   searchTerm,
-  setSearchTerm
+  onSearchTermChange,
+  onPreviousPage,
+  onNextPage
 }) => {
   const [statusFilter, setStatusFilter] = React.useState('All');
 
-  const filteredPersonnel = [
-    ...employees.map((e) => ({
-      ...e,
-      id: e.user_id || e.id,
-      recordType: 'Employee',
-      displayStatus: e.status || 'Active'
-    })),
-    ...candidates.map((c) => ({ ...c, recordType: 'Candidate', displayStatus: c.stage || 'Applied' }))
-  ].filter((person) => {
+  const filteredPersonnel = employees.filter((person) => {
     if (statusFilter === 'All') return true;
-    return person.displayStatus === statusFilter;
-  }).sort((a, b) => a.recordType.localeCompare(b.recordType));
+    return (person.status || 'Active') === statusFilter;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard title="Active Staff" value={employees.length} icon={Users} subtext="Full-time equivalent" />
+        <StatCard title="Active Staff" value={directoryPagination?.total || employees.length} icon={Users} subtext="Personnel records" />
         <StatCard title="Departments" value="4" icon={Briefcase} subtext="Org structure" />
         <StatCard title="Retention" value="98%" icon={UserCheck} subtext="Annual score" />
         <StatCard title="Avg Tenure" value="2.4y" icon={Clock} subtext="Stability metric" />
@@ -56,7 +51,7 @@ const DirectoryTab = ({
         <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 py-6">
           <div>
             <CardTitle className="text-lg sm:text-xl font-bold">Employee Directory</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">Accessing {employees.length} personnel files.</p>
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">Accessing {directoryPagination?.total || employees.length} personnel files.</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative w-full sm:w-auto">
@@ -65,7 +60,7 @@ const DirectoryTab = ({
                 className="pl-9 h-9 w-full sm:w-64 text-xs"
                 placeholder="Search directory..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => onSearchTermChange(e.target.value)}
               />
             </div>
             <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
@@ -77,11 +72,6 @@ const DirectoryTab = ({
               >
                 <option value="Active">Active Staff</option>
                 <option value="Disabled">Disabled</option>
-                <option value="Applied">Applied</option>
-                <option value="Interview">Interview</option>
-                <option value="Offer">Offer</option>
-                <option value="Hired">Hired Candidates</option>
-                <option value="Rejected">Rejected</option>
                 <option value="All">Show All</option>
               </select>
             </div>
@@ -105,28 +95,22 @@ const DirectoryTab = ({
               {filteredPersonnel.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={hasPermission('users', 'salary.view') ? 7 : 6} className="py-10 text-center text-slate-400 font-medium italic">
-                    No personnel records found.
+                    No data found.
                   </TableCell>
                 </TableRow>
               ) : filteredPersonnel.map((person) => (
-                <TableRow key={`${person.recordType}-${person.id}`} className="group hover:bg-slate-50/50 transition-colors">
+                <TableRow key={person.user_id || person.id} className="group hover:bg-slate-50/50 transition-colors">
                   <TableCell className="py-5">
                     <div className="flex items-center gap-4">
                       <div
                         className={cn(
-                          'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm',
-                          person.recordType === 'Employee' ? 'bg-primary-100 text-primary-700' : 'bg-amber-100 text-amber-700'
+                          'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm bg-primary-100 text-primary-700'
                         )}
                       >
                         {person.name?.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900 flex items-center gap-2">
-                          {person.name}
-                          <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter h-4 px-1">
-                            {person.recordType}
-                          </Badge>
-                        </div>
+                        <div className="font-bold text-slate-900">{person.name}</div>
                         <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
                           <Mail className="w-3 h-3" /> {person.email}
                         </div>
@@ -150,30 +134,18 @@ const DirectoryTab = ({
                       <div className="text-xs font-bold text-slate-900">
                         {person.salary ? `\u20B9${parseFloat(person.salary).toLocaleString('en-IN')}` : 'N/A'}
                       </div>
-                      <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">
-                        {person.recordType === 'Employee' ? 'Monthly CTC' : 'Offered Salary'}
-                      </div>
+                      <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">Monthly CTC</div>
                     </TableCell>
                   )}
                   <TableCell className="py-5">
                     <Badge
-                      variant={
-                        person.displayStatus === 'Active'
-                          ? 'default'
-                          : person.displayStatus === 'Hired'
-                            ? 'success'
-                            : person.displayStatus === 'Rejected'
-                              ? 'danger'
-                              : person.displayStatus === 'Interview'
-                                ? 'primary'
-                                : 'outline'
-                      }
+                      variant={person.status === 'Active' ? 'default' : 'outline'}
                       className={cn(
                         'text-[10px] font-bold uppercase tracking-wider',
-                        person.displayStatus === 'Active' && 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        person.status === 'Active' && 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       )}
                     >
-                      {person.displayStatus}
+                      {person.status || 'Active'}
                     </Badge>
                   </TableCell>
                   <TableCell className="py-5">
@@ -182,7 +154,7 @@ const DirectoryTab = ({
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600 hover:bg-primary-50"
-                        onClick={() => openDocs(person, person.recordType === 'Employee' ? 'user' : 'candidate')}
+                        onClick={() => openDocs(person, 'user')}
                         title="Personnel Records"
                       >
                         <FileText className="w-4 h-4" />
@@ -192,11 +164,7 @@ const DirectoryTab = ({
                         variant="ghost"
                         className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600 hover:bg-primary-50"
                         onClick={() => {
-                          if (person.recordType === 'Employee') {
-                            return;
-                          }
-                          setSelectedCandidate(person);
-                          setShowInterviewModal(true);
+                          return;
                         }}
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -207,6 +175,12 @@ const DirectoryTab = ({
               ))}
             </tbody>
           </Table>
+          <PaginationControls
+            pagination={directoryPagination}
+            itemCount={employees.length}
+            onPrevious={onPreviousPage}
+            onNext={onNextPage}
+          />
         </CardContent>
       </Card>
     </div>
