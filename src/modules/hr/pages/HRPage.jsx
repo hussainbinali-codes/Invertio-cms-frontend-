@@ -58,6 +58,7 @@ const HRPage = () => {
   const [recruitmentPagination, setRecruitmentPagination] = useState(DEFAULT_PAGINATION);
   const [directoryPagination, setDirectoryPagination] = useState(DEFAULT_PAGINATION);
   const [activatingUserId, setActivatingUserId] = useState(null);
+  const [backendStats, setBackendStats] = useState(null);
 
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [docsTarget, setDocsTarget] = useState(null);
@@ -160,15 +161,25 @@ const HRPage = () => {
 
         setCandidates(candidatesList);
         setRecruitmentPagination(nextPagination);
+        setBackendStats(pipePayload.stats || null);
         setUsers(userRes.data.data || []);
         setRoles(rolesRes.data.data || []);
 
         const stages = ['Applied', 'Interview', 'Offer', 'Hired', 'Rejected'];
-        const chartMap = stages.map((stage, i) => ({
-          value: candidatesList.filter(c => c.stage === stage).length,
-          name: stage,
-          fill: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e'][i]
-        })).filter(s => s.value > 0);
+        let chartMap;
+        if (pipePayload.stats && pipePayload.stats.stages) {
+          chartMap = stages.map((stage, i) => ({
+            value: pipePayload.stats.stages[stage] || 0,
+            name: stage,
+            fill: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e'][i]
+          })).filter(s => s.value > 0);
+        } else {
+          chartMap = stages.map((stage, i) => ({
+            value: candidatesList.filter(c => c.stage === stage).length,
+            name: stage,
+            fill: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e'][i]
+          })).filter(s => s.value > 0);
+        }
 
         setPipeline(chartMap.length > 0 ? chartMap : [{ value: 1, name: 'Applied', fill: '#3b82f6' }]);
       } else if (activeTab === 'directory') {
@@ -285,6 +296,18 @@ const HRPage = () => {
       toast.error('Failed to activate employee');
     } finally {
       setActivatingUserId(null);
+    }
+  };
+
+  const updateUserStatus = async (userId, newStatus) => {
+    if (!userId) return;
+
+    try {
+      await axios.patch(`/users/${userId}/status`, { status: newStatus });
+      toast.success(`User status updated to ${newStatus}`);
+      fetchHRData();
+    } catch (err) {
+      toast.error('Failed to update user status');
     }
   };
 
@@ -448,7 +471,7 @@ const HRPage = () => {
     h.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const recruitmentStats = {
+  const recruitmentStats = backendStats || {
     totalCandidates: recruitmentPagination.total || candidates.length,
     interviews: candidates.filter((candidate) => candidate.stage === 'Interview').length,
     hired: candidates.filter((candidate) => candidate.stage === 'Hired').length,
@@ -564,6 +587,7 @@ const HRPage = () => {
             }}
             onPreviousPage={() => setDirectoryPage((prev) => Math.max(prev - 1, 1))}
             onNextPage={() => setDirectoryPage((prev) => Math.min(prev + 1, directoryPagination.totalPages || 1))}
+            updateUserStatus={updateUserStatus}
           />
         )}
 

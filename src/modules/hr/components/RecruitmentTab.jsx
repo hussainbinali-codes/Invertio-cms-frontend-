@@ -44,9 +44,9 @@ const RecruitmentTab = ({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total Candidates" value={recruitmentPagination?.total || recruitmentStats.totalCandidates} icon={Users} subtext="Active pipeline" />
-        <StatCard title="Interviews" value={recruitmentStats.interviews} icon={Calendar} subtext="This page" />
-        <StatCard title="Hired" value={recruitmentStats.hired} icon={UserCheck} subtext="This page" />
+        <StatCard title="Total Candidates" value={recruitmentStats.totalCandidates} icon={Users} subtext="Active pipeline" />
+        <StatCard title="Interviews" value={recruitmentStats.interviews} icon={Calendar} subtext="Active interviews" />
+        <StatCard title="Hired" value={recruitmentStats.hired} icon={UserCheck} subtext="Total hired" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

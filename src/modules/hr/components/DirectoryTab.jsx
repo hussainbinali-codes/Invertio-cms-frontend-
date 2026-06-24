@@ -29,7 +29,8 @@ const DirectoryTab = ({
   searchTerm,
   onSearchTermChange,
   onPreviousPage,
-  onNextPage
+  onNextPage,
+  updateUserStatus
 }) => {
   const [statusFilter, setStatusFilter] = React.useState('All');
 
@@ -138,15 +139,25 @@ const DirectoryTab = ({
                     </TableCell>
                   )}
                   <TableCell className="py-5">
-                    <Badge
-                      variant={person.status === 'Active' ? 'default' : 'outline'}
-                      className={cn(
-                        'text-[10px] font-bold uppercase tracking-wider',
-                        person.status === 'Active' && 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                      )}
-                    >
-                      {person.status || 'Active'}
-                    </Badge>
+                    {person.status === 'Pending' && hasPermission('users', 'status.edit') ? (
+                      <button
+                        onClick={() => updateUserStatus(person.user_id || person.id, 'Active')}
+                        className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-pointer"
+                      >
+                        Pending — Activate
+                      </button>
+                    ) : (
+                      <Badge
+                        variant={person.status === 'Active' ? 'default' : 'outline'}
+                        className={cn(
+                          'text-[10px] font-bold uppercase tracking-wider',
+                          person.status === 'Active' && 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                          person.status === 'Disabled' && 'bg-slate-50 text-slate-500 border-slate-200'
+                        )}
+                      >
+                        {person.status || 'Active'}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="py-5">
                     <div className="flex justify-start gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -154,7 +165,7 @@ const DirectoryTab = ({
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0 text-slate-400 hover:text-primary-600 hover:bg-primary-50"
-                        onClick={() => openDocs(person, 'user')}
+                        onClick={() => openDocs({ ...person, id: person.user_id }, 'user')}
                         title="Personnel Records"
                       >
                         <FileText className="w-4 h-4" />
