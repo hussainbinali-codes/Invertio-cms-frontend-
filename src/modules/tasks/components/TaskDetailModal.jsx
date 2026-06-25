@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui
 import { BASE_URL } from '../../../api/baseUrl';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
-import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus } from 'lucide-react';
+import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import Button from '../../../components/ui/Button';
@@ -18,15 +18,22 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const role = (user?.role_name || '').toLowerCase();
   const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
   const canEdit = isAdmin || user?.modules?.tasks?.edit;
+  const [taskData, setTaskData] = React.useState(task);
 
   const [showResources, setShowResources] = React.useState(false);
   const [documents, setDocuments] = React.useState([]);
+  const [activities, setActivities] = React.useState([]);
+  const [assignableUsers, setAssignableUsers] = React.useState([]);
   const [loadingDocs, setLoadingDocs] = React.useState(false);
+  const [loadingActivities, setLoadingActivities] = React.useState(false);
+  const [loadingUsers, setLoadingUsers] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editData, setEditData] = React.useState({
     status: task?.status || 'Pending',
     description: task?.description || '',
-    priority: task?.priority || 'Medium'
+    priority: task?.priority || 'Medium',
+    assigned_to: task?.assigned_to || '',
+    progress_note: ''
   });
   const [currentStatus, setCurrentStatus] = React.useState(task?.status || 'Pending');
   const [isUpdating, setIsUpdating] = React.useState(false);
@@ -37,19 +44,32 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const [completionNotes, setCompletionNotes] = React.useState('');
   const [completionFiles, setCompletionFiles] = React.useState([]);
   const [isSubmittingProof, setIsSubmittingProof] = React.useState(false);
+  const taskId = taskData?.id || task?.id;
 
   React.useEffect(() => {
     if (task && task.id) {
+        setTaskData(task);
         fetchTaskDocuments();
+        fetchTaskActivities();
+        if (isAdmin) {
+          fetchAssignableUsers();
+        }
         setCurrentStatus(task.status);
-        setEditData(prev => ({ ...prev, status: task.status, description: task.description, priority: task.priority }));
+        setEditData({
+          status: task.status || 'Pending',
+          description: task.description || '',
+          priority: task.priority || 'Medium',
+          assigned_to: task.assigned_to || '',
+          progress_note: ''
+        });
     }
   }, [task]);
 
   const fetchTaskDocuments = async () => {
+    if (!taskId) return;
     setLoadingDocs(true);
     try {
-        const res = await axios.get(`/projects/tasks/${task.id}/documents`);
+        const res = await axios.get(`/projects/tasks/${taskId}/documents`);
         setDocuments(res.data.data || []);
     } catch (err) {
         console.error("Failed to fetch task documents", err);
@@ -58,17 +78,54 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     }
   };
 
+  const fetchTaskActivities = async () => {
+    if (!taskId) return;
+    setLoadingActivities(true);
+    try {
+      const res = await axios.get(`/projects/tasks/${taskId}/activities`);
+      setActivities(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch task activities', err);
+    } finally {
+      setLoadingActivities(false);
+    }
+  };
+
+  const fetchAssignableUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await axios.get('/users/selection');
+      setAssignableUsers(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch assignable users', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   const handleUpdateTask = async () => {
     setIsUpdating(true);
     try {
-        await axios.patch(`/projects/tasks/${task.id}`, editData);
+        const payload = {
+          ...editData,
+          assigned_to: editData.assigned_to || null
+        };
+        const res = await axios.patch(`/projects/tasks/${taskId}`, payload);
+        const updatedTask = res.data.data || {
+          ...taskData,
+          ...payload,
+          updated_at: new Date().toISOString()
+        };
+        setTaskData(updatedTask);
+        setCurrentStatus(updatedTask.status || editData.status);
         setIsEditing(false);
-        if (onUpdate) onUpdate();
-        // Since we don't have a direct way to update the parent's task object easily here 
-        // without a full refresh, we'll just show success and hope the parent re-fetches.
-        // Actually, TaskDetailModal should ideally be passed an onUpdate callback.
+        setEditData((prev) => ({ ...prev, progress_note: '', assigned_to: updatedTask.assigned_to || '' }));
+        fetchTaskActivities();
+        toast.success('Task details updated');
+        if (onUpdate) onUpdate(updatedTask);
     } catch (err) {
         console.error("Failed to update task", err);
+        toast.error(err?.response?.data?.message || 'Failed to update task');
     } finally {
         setIsUpdating(false);
     }
@@ -84,7 +141,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
         formData.append('files', files[i]);
     }
     try {
-        await axios.post(`/projects/tasks/${task.id}/documents`, formData, {
+        await axios.post(`/projects/tasks/${taskId}/documents`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         toast.success(`${files.length} document(s) uploaded`);
@@ -106,14 +163,21 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
     setIsUpdating(true);
     try {
-        await axios.patch(`/projects/tasks/${task.id}`, { status: newStatus });
+        const res = await axios.patch(`/projects/tasks/${taskId}`, { status: newStatus });
+        const updatedTask = res.data.data || {
+          ...taskData,
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        };
         setCurrentStatus(newStatus);
-        setEditData(prev => ({ ...prev, status: newStatus }));
+        setEditData(prev => ({ ...prev, status: newStatus, progress_note: '' }));
+        setTaskData(updatedTask);
+        fetchTaskActivities();
         toast.success(`Task status updated to ${newStatus}`);
-        if (onUpdate) onUpdate();
+        if (onUpdate) onUpdate(updatedTask);
     } catch (err) {
         console.error("Failed to update status", err);
-        toast.error("Failed to update status");
+        toast.error(err?.response?.data?.message || 'Failed to update status');
     } finally {
         setIsUpdating(false);
     }
@@ -127,10 +191,11 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
     setIsSubmittingProof(true);
     try {
-      await axios.patch(`/projects/tasks/${task.id}`, {
+      const res = await axios.patch(`/projects/tasks/${taskId}`, {
         status: 'Completed',
         completion_notes: completionNotes,
-        completion_date: new Date().toISOString()
+        completion_date: new Date().toISOString(),
+        progress_note: completionNotes
       });
 
       if (completionFiles.length > 0) {
@@ -138,7 +203,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
         for (const file of completionFiles) {
           formData.append('files', file);
         }
-        await axios.post(`/projects/tasks/${task.id}/documents`, formData, {
+        await axios.post(`/projects/tasks/${taskId}/documents`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }
@@ -149,18 +214,48 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
       setCompletionFiles([]);
       setCurrentStatus('Completed');
       setEditData(prev => ({ ...prev, status: 'Completed' }));
+      const updatedTask = res.data.data || {
+        ...taskData,
+        status: 'Completed',
+        completion_notes: completionNotes,
+        completion_date: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setTaskData(updatedTask);
       fetchTaskDocuments();
-      if (onUpdate) onUpdate();
+      fetchTaskActivities();
+      if (onUpdate) onUpdate(updatedTask);
     } catch (err) {
-      toast.error('Failed to submit completion proof');
+      toast.error(err?.response?.data?.message || 'Failed to submit completion proof');
     } finally {
       setIsSubmittingProof(false);
     }
   };
 
-  const completionTime = task?.completion_date ? new Date(task.completion_date).getTime() - 60000 : null;
+  const completionTime = taskData?.completion_date ? new Date(taskData.completion_date).getTime() - 60000 : null;
   const initialDocs = documents.filter(d => !completionTime || new Date(d.created_at).getTime() < completionTime);
   const proofDocs = documents.filter(d => completionTime && new Date(d.created_at).getTime() >= completionTime);
+  const showCompletionSection = taskData.status === 'Completed' && (Boolean(taskData.completion_notes) || proofDocs.length > 0);
+  const latestActivity = activities[0] || null;
+
+  const getActivityLabel = (activity) => {
+    switch (activity.activity_type) {
+      case 'created':
+        return `created the task and assigned ${activity.new_label || 'it'}`;
+      case 'reassigned':
+        return `reassigned this task from ${activity.previous_label || 'Unassigned'} to ${activity.new_label || 'Unassigned'}`;
+      case 'status_changed':
+        return `changed status from ${activity.previous_label || activity.previous_value} to ${activity.new_label || activity.new_value}`;
+      case 'hours_logged':
+        return `logged time on the task (${activity.new_label || activity.new_value})`;
+      case 'progress_submitted':
+        return 'submitted a progress update';
+      case 'updated':
+        return `updated ${String(activity.field_name || 'task').replaceAll('_', ' ')}`;
+      default:
+        return activity.field_name ? `updated ${String(activity.field_name).replaceAll('_', ' ')}` : 'updated this task';
+    }
+  };
 
   const renderDoc = (doc) => {
     const fileUrl = doc.file_url || `${BASE_URL.replace('/api', '')}/${doc.file_key}`;
@@ -185,7 +280,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     );
   };
 
-  if (!task) return null;
+  if (!taskData) return null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900">
@@ -196,10 +291,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <ClipboardList className="w-6 h-6 text-primary-600" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-black tracking-tight text-slate-900">{task.title}</CardTitle>
+              <CardTitle className="text-2xl font-black tracking-tight text-slate-900">{taskData.title}</CardTitle>
               <div className="flex items-center gap-3 mt-1">
                 <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider">
-                  {task.project_name || 'Individual Task'}
+                  {taskData.project_name || 'Individual Task'}
                 </Badge>
                 <Badge 
                     variant={
@@ -265,26 +360,40 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               </div>
               <div className="prose prose-slate max-w-none mb-8">
                 {isEditing ? (
-                  <textarea 
-                    className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[120px]"
-                    value={editData.description}
-                    onChange={(e) => setEditData({...editData, description: e.target.value})}
-                  />
+                  <div className="space-y-4">
+                    <textarea 
+                      className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[120px]"
+                      value={editData.description}
+                      onChange={(e) => setEditData({...editData, description: e.target.value})}
+                    />
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Progress Update</p>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[96px]"
+                        value={editData.progress_note}
+                        onChange={(e) => setEditData({ ...editData, progress_note: e.target.value })}
+                        placeholder={isAdmin ? 'Add an optional activity note for this change.' : 'Briefly describe what changed or what progress you made.'}
+                      />
+                      {!isAdmin && (
+                        <p className="mt-2 text-[11px] text-slate-500">A short progress note is required when team members update a task.</p>
+                      )}
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm">
-                    {task.description || "No detailed description provided for this task."}
-                  </p>
-                )}
-              </div>
+                     {taskData.description || "No detailed description provided for this task."}
+                   </p>
+                 )}
+               </div>
 
-              {task.task_references && task.task_references.length > 0 && (
+              {taskData.task_references && taskData.task_references.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-slate-400">
                     <Link className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">References & Examples</span>
                   </div>
                   <div className="grid grid-cols-1 gap-2">
-                    {task.task_references.map((ref, i) => (
+                    {taskData.task_references.map((ref, i) => (
                       <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{ref.title || 'Note'}</p>
@@ -306,14 +415,21 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 </div>
               )}
 
-              {(initialDocs.length > 0 || canEdit) && (
+              {(loadingDocs || initialDocs.length > 0 || canEdit) && (
                 <div className="space-y-4 mt-8 pt-8 border-t border-slate-50">
                   <div className="flex items-center gap-2 text-slate-400">
                     <FileText className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">Initial Media & Assets</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {initialDocs.map(renderDoc)}
+                    {loadingDocs && (
+                      <>
+                        <Skeleton className="h-[60px] rounded-xl" />
+                        <Skeleton className="h-[60px] rounded-xl" />
+                      </>
+                    )}
+                    {/* {initialDocs.map(renderDoc)} */}
+                    {documents.map(renderDoc)}
                     {canEdit && (
                       <div className="relative">
                         <input type="file" id="task-detail-upload" className="hidden" multiple onChange={handleUploadFile} disabled={isUploading} />
@@ -327,15 +443,17 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 </div>
               )}
 
-              {task.status === 'Completed' && task.completion_notes && (
+              {showCompletionSection && (
                 <div className="space-y-4 mt-8 pt-8 border-t border-emerald-100 bg-emerald-50/20 -mx-5 sm:-mx-8 px-5 sm:px-8 pb-8">
                   <div className="flex items-center gap-2 text-emerald-600">
                     <CheckCircle2 className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">Proof of Completion</span>
                   </div>
                   <div className="bg-white p-5 rounded-xl border border-emerald-100 shadow-sm space-y-4">
-                    <p className="text-sm text-slate-700 leading-relaxed italic border-l-2 border-emerald-200 pl-3">"{task.completion_notes}"</p>
-                    
+                    {taskData.completion_notes && (
+                      <p className="text-sm text-slate-700 leading-relaxed italic border-l-2 border-emerald-200 pl-3">"{taskData.completion_notes}"</p>
+                    )}
+                     
                     {proofDocs.length > 0 && (
                       <div className="pt-2">
                         <div className="grid grid-cols-2 gap-3">
@@ -344,10 +462,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       </div>
                     )}
 
-                    {task.completion_date && (
+                    {taskData.completion_date && (
                       <div className="pt-2 flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
                         <Clock className="w-3 h-3" />
-                        Completed on {new Date(task.completion_date).toLocaleString()}
+                        Completed on {new Date(taskData.completion_date).toLocaleString()}
                       </div>
                     )}
                   </div>
@@ -363,14 +481,34 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   <span className="text-[10px] font-black uppercase tracking-[0.2em]">Assignment & Impact</span>
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-primary-700 text-xs font-black">
-                      {(task.assigned_to_name || task.user_name || 'NA').substring(0, 2).toUpperCase()}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-primary-700 text-xs font-black">
+                         {(taskData.assigned_to_name || taskData.user_name || 'NA').substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                         <div className="text-sm font-bold text-slate-900">{taskData.assigned_to_name || taskData.user_name || "Unassigned"}</div>
+                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Primary Lead</div>
+                        </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-900">{task.assigned_to_name || task.user_name || "Unassigned"}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Primary Lead</div>
-                    </div>
+                    {isAdmin && isEditing && (
+                      <div>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Reassign Task</p>
+                        <select
+                          className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-200"
+                          value={editData.assigned_to}
+                          onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
+                          disabled={loadingUsers}
+                        >
+                          <option value="">Unassigned</option>
+                          {assignableUsers.map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {member.name} {member.designation ? `(${member.designation})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
                     <div>
@@ -389,17 +527,17 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       ) : (
                         <p className={cn(
                           "text-xs font-black uppercase tracking-wider",
-                          task.priority === 'Urgent' ? "text-rose-600" : 
-                          task.priority === 'High' ? "text-amber-600" : 
-                          "text-slate-600"
-                        )}>{task.priority || 'Medium'}</p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Complexity</p>
-                      <p className="text-xs font-black text-slate-900">{task.story_points || 0} Points</p>
-                    </div>
-                  </div>
+                           taskData.priority === 'Urgent' ? "text-rose-600" : 
+                           taskData.priority === 'High' ? "text-amber-600" : 
+                           "text-slate-600"
+                         )}>{taskData.priority || 'Medium'}</p>
+                       )}
+                     </div>
+                     <div className="text-right">
+                       <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Complexity</p>
+                       <p className="text-xs font-black text-slate-900">{taskData.story_points || 0} Points</p>
+                     </div>
+                   </div>
                   
                   {isAdmin && (
                     <div className="p-4 bg-primary-50/50 rounded-xl border border-primary-100 mt-4">
@@ -460,15 +598,51 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                     <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Due Date</div>
                     <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
                       <Calendar className="w-4 h-4 text-rose-400" />
-                      {task.due_date ? new Date(task.due_date).toLocaleDateString() : "Flexible"}
+                      {taskData.due_date ? new Date(taskData.due_date).toLocaleDateString() : "Flexible"}
                     </div>
                   </div>
                   <div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Last Activity</div>
                     <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                      {task.updated_at ? new Date(task.updated_at).toLocaleDateString() : "N/A"}
+                      {latestActivity?.created_at ? new Date(latestActivity.created_at).toLocaleString() : (taskData.updated_at ? new Date(taskData.updated_at).toLocaleDateString() : 'N/A')}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-slate-400">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Task Activity</span>
+                </div>
+                <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                  {loadingActivities && (
+                    <>
+                      <Skeleton className="h-20 rounded-xl" />
+                      <Skeleton className="h-20 rounded-xl" />
+                    </>
+                  )}
+                  {!loadingActivities && activities.length === 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+                      No task activity recorded yet.
+                    </div>
+                  )}
+                  {!loadingActivities && activities.map((activity) => (
+                    <div key={activity.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">{activity.actor_name || 'System'}</p>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">{getActivityLabel(activity)}</p>
+                        </div>
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap">{activity.created_at ? new Date(activity.created_at).toLocaleString() : ''}</span>
+                      </div>
+                      {activity.progress_note && (
+                        <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-700 whitespace-pre-wrap">
+                          {activity.progress_note}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -495,7 +669,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
       {showResources && (
         <ProjectResourcesModal 
-          project={{ id: task.project_id, name: task.project_name }} 
+          project={{ id: taskData.project_id, name: taskData.project_name }} 
           onClose={() => setShowResources(false)} 
         />
       )}

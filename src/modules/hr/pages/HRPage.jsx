@@ -1,35 +1,38 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react';
 import axios from '../../../api/axios';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import Skeleton from '../../../components/ui/Skeleton';
 import {
-  Users,
   Calendar,
   UserPlus,
-  Loader2,
-  Filter,
-  Search
+  Loader2
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
 import { hasPermission } from '../../../utils/permissionUtils';
 
-// Modular Components (Lazy Loaded)
 const RecruitmentTab = lazy(() => import('../components/RecruitmentTab'));
 const DirectoryTab = lazy(() => import('../components/DirectoryTab'));
 const LeavesTab = lazy(() => import('../components/LeavesTab'));
 const PerformanceTab = lazy(() => import('../components/PerformanceTab'));
 const HolidaysTab = lazy(() => import('../components/HolidaysTab'));
 
-// Modals (Lazy Loaded)
 const InterviewModal = lazy(() => import('../components/InterviewModal'));
 const HolidayModal = lazy(() => import('../components/HolidayModal'));
 const PerformanceActionModal = lazy(() => import('../components/PerformanceActionModal'));
 const DocsModal = lazy(() => import('../components/DocsModal'));
 const ConfirmationModal = lazy(() => import('../../../components/ui/ConfirmationModal'));
 const HiredModal = lazy(() => import('../components/HiredModal'));
+
+const PAGE_LIMIT = 10;
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: PAGE_LIMIT,
+  total: 0,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false
+};
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-20">
@@ -38,7 +41,7 @@ const TabLoader = () => (
 );
 
 const HRPage = () => {
-  const [activeTab, setActiveTab] = useState('recruitment'); // 'recruitment', 'directory', 'leaves', 'performance', 'holidays'
+  const [activeTab, setActiveTab] = useState('recruitment');
 
   const [pipeline, setPipeline] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -50,17 +53,21 @@ const HRPage = () => {
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [recruitmentPage, setRecruitmentPage] = useState(1);
+  const [directoryPage, setDirectoryPage] = useState(1);
+  const [recruitmentPagination, setRecruitmentPagination] = useState(DEFAULT_PAGINATION);
+  const [directoryPagination, setDirectoryPagination] = useState(DEFAULT_PAGINATION);
+  const [activatingUserId, setActivatingUserId] = useState(null);
+  const [backendStats, setBackendStats] = useState(null);
 
-  // Document Management
   const [showDocsModal, setShowDocsModal] = useState(false);
-  const [docsTarget, setDocsTarget] = useState(null); // { id, name, type: 'user' | 'candidate' }
+  const [docsTarget, setDocsTarget] = useState(null);
   const [docsList, setDocsList] = useState([]);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
-  // Performance State
   const [performanceData, setPerformanceData] = useState({ reviews: [], bonuses: [], hikes: [] });
   const [selectedUserForPerf, setSelectedUserForPerf] = useState(null);
-  const [showPerfModal, setShowPerfModal] = useState(false); // Type: 'rating' | 'bonus' | 'hike'
+  const [showPerfModal, setShowPerfModal] = useState(false);
   const [perfModalType, setPerfModalType] = useState('rating');
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -73,7 +80,6 @@ const HRPage = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Hiring confirmation states
   const [showHiredModal, setShowHiredModal] = useState(false);
   const [hiredCandidateId, setHiredCandidateId] = useState(null);
   const [joiningDate, setJoiningDate] = useState('');
@@ -122,7 +128,7 @@ const HRPage = () => {
       toast.success(`${perfModalType.charAt(0).toUpperCase() + perfModalType.slice(1)} logged successfully`);
       setShowPerfModal(false);
       fetchPerfData(selectedUserForPerf.id);
-      fetchHRData(); // Refresh directory to see updated salary
+      fetchHRData();
     } catch (err) {
       toast.error('Operation failed');
     } finally {
@@ -132,37 +138,63 @@ const HRPage = () => {
 
   useEffect(() => {
     fetchHRData();
-  }, [activeTab, showAll]);
+  }, [activeTab, showAll, recruitmentPage, directoryPage]);
 
   const fetchHRData = async () => {
     setLoading(true);
     try {
       if (activeTab === 'recruitment') {
         const [pipeRes, userRes, rolesRes] = await Promise.all([
-          axios.get(`/hr/recruitment/pipeline?includeAll=${showAll}`),
+          axios.get(`/hr/recruitment/pipeline?includeAll=true&page=${recruitmentPage}&limit=${PAGE_LIMIT}`),
           axios.get('/users/selection'),
           axios.get('/users/roles')
         ]);
-        const candidatesList = pipeRes.data.data || [];
+
+        const pipePayload = pipeRes.data.data || {};
+        const candidatesList = pipePayload.items || [];
+        const nextPagination = pipePayload.pagination || {
+          ...DEFAULT_PAGINATION,
+          page: recruitmentPage,
+          total: candidatesList.length,
+          totalPages: 1
+        };
+
         setCandidates(candidatesList);
+        setRecruitmentPagination(nextPagination);
+        setBackendStats(pipePayload.stats || null);
         setUsers(userRes.data.data || []);
         setRoles(rolesRes.data.data || []);
 
         const stages = ['Applied', 'Interview', 'Offer', 'Hired', 'Rejected'];
-        const chartMap = stages.map((stage, i) => ({
-          value: candidatesList.filter(c => c.stage === stage).length,
-          name: stage,
-          fill: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e'][i]
-        })).filter(s => s.value > 0);
+        let chartMap;
+        if (pipePayload.stats && pipePayload.stats.stages) {
+          chartMap = stages.map((stage, i) => ({
+            value: pipePayload.stats.stages[stage] || 0,
+            name: stage,
+            fill: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e'][i]
+          })).filter(s => s.value > 0);
+        } else {
+          chartMap = stages.map((stage, i) => ({
+            value: candidatesList.filter(c => c.stage === stage).length,
+            name: stage,
+            fill: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e'][i]
+          })).filter(s => s.value > 0);
+        }
 
         setPipeline(chartMap.length > 0 ? chartMap : [{ value: 1, name: 'Applied', fill: '#3b82f6' }]);
       } else if (activeTab === 'directory') {
-        const [empRes, candRes] = await Promise.all([
-          axios.get(`/hr/employees?includeAll=true`),
-          axios.get(`/hr/recruitment/pipeline?includeAll=true`)
-        ]);
-        setEmployees(empRes.data.data || []);
-        setCandidates(candRes.data.data || []);
+        const empRes = await axios.get(`/hr/employees?includeAll=true&page=${directoryPage}&limit=${PAGE_LIMIT}`);
+        const empPayload = empRes.data.data || {};
+        const employeeItems = empPayload.items || [];
+        const nextPagination = empPayload.pagination || {
+          ...DEFAULT_PAGINATION,
+          page: directoryPage,
+          total: employeeItems.length,
+          totalPages: 1
+        };
+
+        setEmployees(employeeItems);
+        setDirectoryPagination(nextPagination);
       } else if (activeTab === 'performance') {
         const res = await axios.get(`/hr/employees?includeAll=${showAll}`);
         setEmployees(res.data.data || []);
@@ -174,7 +206,7 @@ const HRPage = () => {
         setHolidays(res.data.data || []);
       }
     } catch (err) {
-      console.error("HR fetch error", err);
+      console.error('HR fetch error', err);
     } finally {
       setLoading(false);
     }
@@ -192,7 +224,6 @@ const HRPage = () => {
       setShowHolidayModal(false);
       fetchHRData();
     } catch (err) {
-      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
@@ -250,6 +281,33 @@ const HRPage = () => {
       fetchHRData();
     } catch (err) {
       toast.error('Failed to update stage');
+    }
+  };
+
+  const activateLinkedUser = async (userId) => {
+    if (!userId) return;
+
+    setActivatingUserId(userId);
+    try {
+      await axios.patch(`/users/${userId}/status`, { status: 'Active' });
+      toast.success('Employee activated successfully');
+      fetchHRData();
+    } catch (err) {
+      toast.error('Failed to activate employee');
+    } finally {
+      setActivatingUserId(null);
+    }
+  };
+
+  const updateUserStatus = async (userId, newStatus) => {
+    if (!userId) return;
+
+    try {
+      await axios.patch(`/users/${userId}/status`, { status: newStatus });
+      toast.success(`User status updated to ${newStatus}`);
+      fetchHRData();
+    } catch (err) {
+      toast.error('Failed to update user status');
     }
   };
 
@@ -312,7 +370,6 @@ const HRPage = () => {
       setSelectedCandidate(null);
       fetchHRData();
     } catch (err) {
-      // Handled by global interceptor
     } finally {
       setIsSubmitting(false);
     }
@@ -388,18 +445,19 @@ const HRPage = () => {
     });
   };
 
-  // Filtered Data based on SearchTerm
   const filteredCandidates = candidates.filter(c =>
     c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.designation?.toLowerCase().includes(searchTerm.toLowerCase())
+    c.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.employee_id?.toLowerCase?.().includes(searchTerm.toLowerCase())
   );
 
   const filteredEmployees = employees.filter(e =>
     e.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    e.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.employee_id?.toLowerCase?.().includes(searchTerm.toLowerCase())
   );
 
   const filteredLeaves = leaves.filter(l =>
@@ -412,6 +470,12 @@ const HRPage = () => {
     h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     h.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const recruitmentStats = backendStats || {
+    totalCandidates: recruitmentPagination.total || candidates.length,
+    interviews: candidates.filter((candidate) => candidate.stage === 'Interview').length,
+    hired: candidates.filter((candidate) => candidate.stage === 'Hired').length,
+  };
 
   if (loading) {
     return (
@@ -454,10 +518,13 @@ const HRPage = () => {
               <Button
                 key={tab}
                 variant={activeTab === tab ? 'primary' : 'ghost'}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setSearchTerm('');
+                }}
                 className={cn(
-                  "h-8 px-3 sm:px-4 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap",
-                  activeTab === tab ? "bg-white text-primary-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
+                  'h-8 px-3 sm:px-4 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap',
+                  activeTab === tab ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
                 )}
               >
                 {tab}
@@ -487,25 +554,40 @@ const HRPage = () => {
           <RecruitmentTab
             candidates={filteredCandidates}
             pipeline={pipeline}
+            recruitmentStats={recruitmentStats}
+            recruitmentPagination={recruitmentPagination}
             updateStage={updateStage}
+            activateLinkedUser={activateLinkedUser}
+            activatingUserId={activatingUserId}
             formatDate={formatDate}
             setSelectedCandidate={setSelectedCandidate}
             setShowInterviewModal={setShowInterviewModal}
             openDocs={openDocs}
             searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
+            onSearchTermChange={(value) => {
+              setSearchTerm(value);
+              setRecruitmentPage(1);
+            }}
+            onPreviousPage={() => setRecruitmentPage((prev) => Math.max(prev - 1, 1))}
+            onNextPage={() => setRecruitmentPage((prev) => Math.min(prev + 1, recruitmentPagination.totalPages || 1))}
           />
         )}
 
         {activeTab === 'directory' && (
           <DirectoryTab
             employees={filteredEmployees}
-            candidates={filteredCandidates}
+            directoryPagination={directoryPagination}
             openDocs={openDocs}
             setSelectedCandidate={setSelectedCandidate}
             setShowInterviewModal={setShowInterviewModal}
             searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
+            onSearchTermChange={(value) => {
+              setSearchTerm(value);
+              setDirectoryPage(1);
+            }}
+            onPreviousPage={() => setDirectoryPage((prev) => Math.max(prev - 1, 1))}
+            onNextPage={() => setDirectoryPage((prev) => Math.min(prev + 1, directoryPagination.totalPages || 1))}
+            updateUserStatus={updateUserStatus}
           />
         )}
 
@@ -542,7 +624,6 @@ const HRPage = () => {
         )}
       </Suspense>
 
-      {/* Modals (Lazy Loaded) */}
       <Suspense fallback={null}>
         <InterviewModal
           isOpen={showInterviewModal}

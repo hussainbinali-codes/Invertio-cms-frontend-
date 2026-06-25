@@ -3,7 +3,7 @@ import { Card, CardTitle, CardContent } from '../../../components/ui/Card';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
-import { Search, FileText, CheckCircle2 } from 'lucide-react';
+import { Search, FileText, CheckCircle2, Download } from 'lucide-react';
 import { hasPermission } from '../../../utils/permissionUtils';
 import InvoiceStatusModal from './InvoiceStatusModal';
 
@@ -33,6 +33,11 @@ const InvoicesTab = ({
     const matchesType = invoiceTypeFilter === 'All' || inv.type === invoiceTypeFilter;
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  const resolveFileUrl = (url) => {
+    if (!url) return null;
+    return url.startsWith('http') ? url : `${fileBaseUrl}${url}`;
+  };
 
   return (
     <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -122,7 +127,7 @@ const InvoicesTab = ({
                       <div className="font-mono text-[10px] font-bold text-slate-400 uppercase">{inv.invoice_number}</div>
                       {inv.document_url && (
                         <a
-                          href={inv.document_url.startsWith('http') ? inv.document_url : `${fileBaseUrl}${inv.document_url}`}
+                          href={resolveFileUrl(inv.document_url)}
                           target="_blank"
                           rel="noreferrer"
                           className="text-[10px] font-bold text-primary-600 hover:underline flex items-center gap-1 mt-1"
@@ -132,7 +137,7 @@ const InvoicesTab = ({
                       )}
                       {inv.payment_proof_url && (
                         <a
-                          href={inv.payment_proof_url.startsWith('http') ? inv.payment_proof_url : `${fileBaseUrl}${inv.payment_proof_url}`}
+                          href={resolveFileUrl(inv.payment_proof_url)}
                           target="_blank"
                           rel="noreferrer"
                           className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 mt-1"
@@ -163,37 +168,55 @@ const InvoicesTab = ({
                       )}
                     </TableCell>
                     <TableCell className="py-5">
-                      {inv.status === 'Cancelled' ? (
-                        <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Cancelled</Badge>
-                      ) : hasPermission('finance', 'invoices.edit') ? (
-                        <select
-                          className="bg-transparent border-none text-[10px] font-bold text-slate-400 focus:ring-0 cursor-pointer hover:text-primary-600 transition-colors uppercase tracking-wider"
-                          value={inv.status}
-                          onChange={(e) => {
-                            const newStatus = e.target.value;
-                            if (newStatus === 'Unpaid') {
-                              updateStatus(inv.id, { status: 'Unpaid', notes: '', proof: null });
-                            } else if (newStatus === 'Cancelled') {
-                              if (window.confirm('Are you sure you want to cancel this invoice? This action cannot be undone.')) {
-                                updateStatus(inv.id, { status: 'Cancelled', notes: 'Invoice cancelled', proof: null });
+                      <div className="flex flex-col items-start gap-2">
+                        {inv.generated_pdf_url ? (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
+                            onClick={() => window.open(resolveFileUrl(inv.generated_pdf_url), '_blank', 'noopener,noreferrer')}
+                          >
+                            <Download className="w-3 h-3" />
+                            Download Invoice
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <Download className="w-3 h-3" />
+                            Generating...
+                          </span>
+                        )}
+
+                        {inv.status === 'Cancelled' ? (
+                          <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Cancelled</Badge>
+                        ) : hasPermission('finance', 'invoices.edit') ? (
+                          <select
+                            className="bg-transparent border-none text-[10px] font-bold text-slate-400 focus:ring-0 cursor-pointer hover:text-primary-600 transition-colors uppercase tracking-wider"
+                            value={inv.status}
+                            onChange={(e) => {
+                              const newStatus = e.target.value;
+                              if (newStatus === 'Unpaid') {
+                                updateStatus(inv.id, { status: 'Unpaid', notes: '', proof: null });
+                              } else if (newStatus === 'Cancelled') {
+                                if (window.confirm('Are you sure you want to cancel this invoice? This action cannot be undone.')) {
+                                  updateStatus(inv.id, { status: 'Cancelled', notes: 'Invoice cancelled', proof: null });
+                                }
+                              } else {
+                                setStatusModal({
+                                  isOpen: true,
+                                  invoice: inv,
+                                  targetStatus: newStatus
+                                });
                               }
-                            } else {
-                              setStatusModal({
-                                isOpen: true,
-                                invoice: inv,
-                                targetStatus: newStatus
-                              });
-                            }
-                          }}
-                        >
-                          <option value="Unpaid">Unpaid</option>
-                          <option value="Paid">Paid</option>
-                          <option value="Overdue">Overdue</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] font-bold text-slate-400 uppercase">LOCKED</Badge>
-                      )}
+                            }}
+                          >
+                            <option value="Unpaid">Unpaid</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overdue">Overdue</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] font-bold text-slate-400 uppercase">LOCKED</Badge>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

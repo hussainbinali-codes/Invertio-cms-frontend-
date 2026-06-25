@@ -99,6 +99,17 @@ const TasksPage = () => {
     }
   };
 
+  const handleTaskDetailUpdate = (updatedTask) => {
+    if (!updatedTask?.id) return;
+
+    setMyTasks((prevTasks) => prevTasks.map((task) => (
+      task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+    )));
+    setSelectedTaskDetail((prevTask) => (
+      prevTask?.id === updatedTask.id ? { ...prevTask, ...updatedTask } : prevTask
+    ));
+  };
+
   const handleUpdateTask = async (taskId, updates) => {
     if (updates.status === 'Completed') {
       setTaskToComplete({ id: taskId, ...updates });
@@ -133,13 +144,13 @@ const TasksPage = () => {
       });
 
       if (completionFiles.length > 0) {
+        const formData = new FormData();
         for (const file of completionFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          await axios.post(`/projects/tasks/${taskToComplete.id}/documents`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          formData.append('files', file);
         }
+        await axios.post(`/projects/tasks/${taskToComplete.id}/documents`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
       toast.success('Task completed with proof of work');
@@ -198,13 +209,13 @@ const TasksPage = () => {
       const newTask = taskRes.data.data;
 
       if (selectedFiles.length > 0) {
+        const formData = new FormData();
         for (const file of selectedFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          await axios.post(`/projects/tasks/${newTask.id}/documents`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          formData.append('files', file);
         }
+        await axios.post(`/projects/tasks/${newTask.id}/documents`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
       toast.success('Task successfully created and assigned');
@@ -364,6 +375,7 @@ const TasksPage = () => {
           <TaskDetailModal
             task={selectedTaskDetail}
             onClose={() => setSelectedTaskDetail(null)}
+            onUpdate={handleTaskDetailUpdate}
           />
         )}
       </Suspense>

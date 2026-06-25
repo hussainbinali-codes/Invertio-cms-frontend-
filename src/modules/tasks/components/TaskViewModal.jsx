@@ -34,6 +34,17 @@ const TaskViewModal = ({ project, onClose }) => {
     }
   };
 
+  const handleTaskUpdate = (updatedTask) => {
+    if (!updatedTask?.id) return;
+
+    setTasks((prevTasks) => prevTasks.map((task) => (
+      task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+    )));
+    setSelectedTask((prevTask) => (
+      prevTask?.id === updatedTask.id ? { ...prevTask, ...updatedTask } : prevTask
+    ));
+  };
+
   if (!project) return null;
 
   return (
@@ -190,6 +201,7 @@ const TaskViewModal = ({ project, onClose }) => {
         <TaskDetailModal 
           task={{...selectedTask, project_name: project.name}} 
           onClose={() => setSelectedTask(null)} 
+          onUpdate={handleTaskUpdate}
         />
       )}
     </div>

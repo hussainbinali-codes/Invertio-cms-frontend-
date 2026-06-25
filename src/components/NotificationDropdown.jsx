@@ -142,12 +142,6 @@ const NotificationDropdown = () => {
                             </div>
                         )}
                     </div>
-
-                    <div className="p-3 border-t border-slate-100 bg-slate-50/30 text-center">
-                        <button className="text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-wider">
-                            View All Activity
-                        </button>
-                    </div>
                 </div>
             )}
         </div>

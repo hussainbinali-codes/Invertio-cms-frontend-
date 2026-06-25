@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { X, Zap, User as UserIcon, Target, Sparkles, Loader2 } from 'lucide-react';
+import { COUNTRIES } from '../../../constants/countries';
 
 const AddClientModal = ({
   isOpen,
@@ -98,7 +99,7 @@ const AddClientModal = ({
                 <Input label="Contact Person" name="contact_person" placeholder="Jane Doe" required />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input label="Email Address" name="email" type="email" placeholder="jane@acme.com" required />
-                  <Input label="Phone Number" name="phone" type="tel" pattern="\+[0-9]{1,4}[0-9]{10}" placeholder="+919876543210" title="Please enter a valid phone number with country code (e.g., +919876543210)" required />
+                  <Input label="Phone Number" name="phone" type="tel" pattern="\+?[0-9]{7,15}" placeholder="+15550192834" title="Please enter a valid phone number with country code (e.g., +15550192834 or +919876543210)" required />
                 </div>
               </div>
 
@@ -125,7 +126,15 @@ const AddClientModal = ({
                       ))}
                     </select>
                   </div>
-                  <Input label="Country" name="country" placeholder="United States" required />
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Country</label>
+                    <select name="country" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" defaultValue="United States" required>
+                      <option value="">Select Country</option>
+                      {COUNTRIES.map(country => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <Input label="Full Address" name="address" placeholder="123 Business St, Suite 100" required />
               </div>
