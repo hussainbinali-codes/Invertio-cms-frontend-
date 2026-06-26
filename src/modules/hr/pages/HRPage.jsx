@@ -34,6 +34,12 @@ const DEFAULT_PAGINATION = {
   hasPreviousPage: false
 };
 
+const getEmployeeItems = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
+
 const TabLoader = () => (
   <div className="flex items-center justify-center py-20">
     <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
@@ -185,7 +191,7 @@ const HRPage = () => {
       } else if (activeTab === 'directory') {
         const empRes = await axios.get(`/hr/employees?includeAll=true&page=${directoryPage}&limit=${PAGE_LIMIT}`);
         const empPayload = empRes.data.data || {};
-        const employeeItems = empPayload.items || [];
+        const employeeItems = getEmployeeItems(empPayload);
         const nextPagination = empPayload.pagination || {
           ...DEFAULT_PAGINATION,
           page: directoryPage,
@@ -197,7 +203,7 @@ const HRPage = () => {
         setDirectoryPagination(nextPagination);
       } else if (activeTab === 'performance') {
         const res = await axios.get(`/hr/employees?includeAll=${showAll}`);
-        setEmployees(res.data.data || []);
+        setEmployees(getEmployeeItems(res.data.data));
       } else if (activeTab === 'leaves') {
         const res = await axios.get('/hr/leaves');
         setLeaves(res.data.data || []);
@@ -452,7 +458,7 @@ const HRPage = () => {
     c.employee_id?.toLowerCase?.().includes(searchTerm.toLowerCase())
   );
 
-  const filteredEmployees = employees.filter(e =>
+  const filteredEmployees = (Array.isArray(employees) ? employees : []).filter(e =>
     e.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
