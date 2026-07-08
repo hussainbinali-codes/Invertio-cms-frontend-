@@ -7,7 +7,7 @@ const AuthLayout = () => {
       <div className="max-w-md w-full space-y-8 bg-white/80 backdrop-blur-xl p-10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/20">
         <div className="flex flex-col items-center">
           <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-50 mb-6">
-            <img src="/invertio logo.png" alt="Invertio Logo" className="h-16 w-auto object-contain" />
+            <img src="/invertio_logo.png" alt="Invertio Logo" className="h-16 w-auto object-contain" />
           </div>
           <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900">
             Welcome Back

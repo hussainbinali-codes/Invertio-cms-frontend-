@@ -78,15 +78,7 @@ const AddClientModal = ({
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Project Maintenance</label>
-                    <select name="maintenance_status" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
-                      {MAINTENANCE_STATUSES.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
+                  </div>                  
                 </div>
               </div>
 

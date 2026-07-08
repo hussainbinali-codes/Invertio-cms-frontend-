@@ -382,8 +382,8 @@ const DashboardLayout = () => {
             <img
               src={
                 isSidebarCollapsed
-                  ? "/invertio logo short.png"
-                  : "/invertio logo.png"
+                  ? "/invertio_logo_short.png"
+                  : "/invertio_logo.png"
               }
               alt="Logo"
               className={cn(
