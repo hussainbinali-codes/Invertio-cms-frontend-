@@ -240,7 +240,7 @@ const ResourcesPage = () => {
 
                                     <TableCell className="py-5">
                                         <div className="font-bold text-slate-900">{item.name}</div>
-                                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{item.details || 'No details'}</div>
+                                        {/* <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{item.details || 'No details'}</div> */}
                                     </TableCell>
                                     <TableCell className="py-5">
                                         <Badge variant="outline" className="text-[10px] font-bold uppercase">{item.type}</Badge>

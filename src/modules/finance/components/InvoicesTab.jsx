@@ -169,21 +169,32 @@ const InvoicesTab = ({
                     </TableCell>
                     <TableCell className="py-5">
                       <div className="flex flex-col items-start gap-2">
-                        {inv.generated_pdf_url ? (
+                        {inv.type === 'Outbound' ? (
+                          inv.generated_pdf_url ? (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
+                              onClick={() => window.open(resolveFileUrl(inv.generated_pdf_url), '_blank', 'noopener,noreferrer')}
+                            >
+                              <Download className="w-3 h-3" />
+                              Download Invoice
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              <Download className="w-3 h-3" />
+                              Generating...
+                            </span>
+                          )
+                        ) : inv.document_url ? (
                           <button
                             type="button"
                             className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
-                            onClick={() => window.open(resolveFileUrl(inv.generated_pdf_url), '_blank', 'noopener,noreferrer')}
+                            onClick={() => window.open(resolveFileUrl(inv.document_url), '_blank', 'noopener,noreferrer')}
                           >
-                            <Download className="w-3 h-3" />
-                            Download Invoice
+                            <FileText className="w-3 h-3" />
+                            View Document
                           </button>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            <Download className="w-3 h-3" />
-                            Generating...
-                          </span>
-                        )}
+                        ) : null}
 
                         {inv.status === 'Cancelled' ? (
                           <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Cancelled</Badge>
