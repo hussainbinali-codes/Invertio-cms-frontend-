@@ -11,6 +11,7 @@ import Skeleton from '../../../components/ui/Skeleton';
 // Lazy Load Modular Components
 const MyPipelineTab = lazy(() => import('../components/MyPipelineTab'));
 const GlobalBoardsTab = lazy(() => import('../components/GlobalBoardsTab'));
+const TaskAssigneesTab = lazy(() => import('../components/TaskAssigneesTab'));
 const AddTaskModal = lazy(() => import('../components/AddTaskModal'));
 const ProofOfCompletionModal = lazy(() => import('../components/ProofOfCompletionModal'));
 
@@ -31,6 +32,7 @@ const TasksPage = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
   const [myTasks, setMyTasks] = useState([]);
+  const [allTasks, setAllTasks] = useState([]);
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
@@ -78,8 +80,16 @@ const TasksPage = () => {
         axios.get('/users/selection').catch(() => ({ data: { data: [] } }))
       ];
 
+      let projectsResIndex = -1;
       if (showBoardsTab) {
+        projectsResIndex = requests.length;
         requests.push(axios.get('/projects').catch(() => ({ data: { data: [] } })));
+      }
+
+      let allTasksResIndex = -1;
+      if (canViewAll) {
+        allTasksResIndex = requests.length;
+        requests.push(axios.get('/projects/tasks/all').catch(() => ({ data: { data: [] } })));
       }
 
       const results = await Promise.all(requests);
@@ -87,8 +97,12 @@ const TasksPage = () => {
       setStats(results[0].data.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
       setMyTasks(results[1].data.data || []);
 
-      if (showBoardsTab && results[3]) {
-        setProjects(Array.isArray(results[3].data.data) ? results[3].data.data : []);
+      if (projectsResIndex > -1) {
+        setProjects(Array.isArray(results[projectsResIndex].data.data) ? results[projectsResIndex].data.data : []);
+      }
+
+      if (allTasksResIndex > -1) {
+        setAllTasks(results[allTasksResIndex].data.data || []);
       }
 
       setLoading(false);
@@ -277,13 +291,13 @@ const TasksPage = () => {
           >
             MY PIPELINE
           </button>
-          <button onClick={() => setActiveTab('my')}
+          <button onClick={() => setActiveTab('assignees')}
             className={cn(
               "px-6 py-2 rounded-lg text-xs font-bold transition-all",
-              activeTab === 'my' ? "bg-white text-primary-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              activeTab === 'assignees' ? "bg-white text-primary-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            Task Assignees
+            Manage Task Assignees
           </button>
         </div>
       )}
@@ -292,11 +306,13 @@ const TasksPage = () => {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-6">
           <div>
             <CardTitle className="text-xl font-bold">
-              {activeTab === 'boards' ? 'Institutional Boards' : 'Personal Pipeline'}
+              {activeTab === 'boards' ? 'Institutional Boards' : activeTab === 'assignees' ? 'Manage Task Assignees' : 'Personal Pipeline'}
             </CardTitle>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">
               {activeTab === 'boards'
                 ? `Managing tasks across ${projects.length} project pipelines.`
+                : activeTab === 'assignees'
+                ? `Viewing all ${allTasks.length} task assignments across the company.`
                 : `Tracking ${myTasks.length} items assigned to you.`}
             </p>
           </div>
@@ -332,6 +348,14 @@ const TasksPage = () => {
                   tasks={filteredMyTasks}
                   handleUpdateTask={handleUpdateTask}
                   updatingTaskId={updatingTaskId}
+                  setSelectedTaskDetail={setSelectedTaskDetail}
+                />
+              ) : activeTab === 'assignees' ? (
+                <TaskAssigneesTab
+                  tasks={allTasks.filter(task =>
+                    task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    task.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                  )}
                   setSelectedTaskDetail={setSelectedTaskDetail}
                 />
               ) : (
@@ -393,3 +417,4 @@ const TasksPage = () => {
 };
 
 export default TasksPage;
+

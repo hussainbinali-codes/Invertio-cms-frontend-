@@ -142,12 +142,16 @@ const TaskViewModal = ({ project, onClose }) => {
                     <TableCell>
                       <Badge 
                         variant={
-                          task.priority === 'Urgent' ? 'destructive' : 
+                          task.priority === 'Urgent' ? 'default' : 
                           task.priority === 'High' ? 'warning' : 
                           task.priority === 'Medium' ? 'primary' : 
                           'secondary'
                         } 
-                        className="text-[10px]"
+                        className={
+                          task.priority === 'Urgent'
+                            ? 'text-[10px] bg-rose-100 text-rose-700'
+                            : 'text-[10px]'
+                        }
                       >
                         {task.priority || 'Medium'}
                       </Badge>
@@ -209,3 +213,4 @@ const TaskViewModal = ({ project, onClose }) => {
 };
 
 export default TaskViewModal;
+

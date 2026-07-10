@@ -38,12 +38,16 @@ const MyPipelineTab = ({
             <TableCell className="py-4">
               <Badge 
                 variant={
-                  task.priority === 'Urgent' ? 'destructive' : 
+                  task.priority === 'Urgent' ? 'default' : 
                   task.priority === 'High' ? 'warning' : 
                   task.priority === 'Medium' ? 'primary' : 
                   'secondary'
                 } 
-                className="text-[10px] font-bold"
+                className={
+                    task.priority === 'Urgent'
+                      ? 'text-[10px] font-bold bg-rose-100 text-rose-700'
+                      : 'text-[10px] font-bold'
+                  }
               >
                 {task.priority || 'Medium'}
               </Badge>
@@ -111,3 +115,5 @@ const MyPipelineTab = ({
 };
 
 export default MyPipelineTab;
+
+
