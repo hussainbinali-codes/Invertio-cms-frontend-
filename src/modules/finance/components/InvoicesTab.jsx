@@ -63,8 +63,8 @@ const InvoicesTab = ({
             className="text-xs rounded-lg border border-slate-200 py-2 focus:ring-primary-500"
           >
             <option value="All">All Types</option>
-            <option value="Outbound">Outbound</option>
             <option value="Inbound">Inbound</option>
+            <option value="Outbound">Outbound</option>
           </select>
           <select
             value={invoiceStatusFilter}
@@ -117,10 +117,10 @@ const InvoicesTab = ({
                 filteredInvoices.map(inv => (
                   <TableRow key={inv.id} className="group">
                     <TableCell className="py-5">
-                      {inv.type === 'Outbound' ? (
-                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold text-[10px] uppercase">Outbound </Badge>
+                      {inv.type === 'Inbound' ? (
+                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold text-[10px] uppercase">Inbound </Badge>
                       ) : (
-                        <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Inbound</Badge>
+                        <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Outbound</Badge>
                       )}
                     </TableCell>
                     <TableCell className="py-5">
@@ -169,7 +169,7 @@ const InvoicesTab = ({
                     </TableCell>
                     <TableCell className="py-5">
                       <div className="flex flex-col items-start gap-2">
-                        {inv.type === 'Outbound' ? (
+                        {inv.type === 'Inbound' ? (
                           inv.generated_pdf_url ? (
                             <button
                               type="button"

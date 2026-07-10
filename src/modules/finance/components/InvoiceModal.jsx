@@ -15,7 +15,7 @@ const InvoiceModal = ({
   currencies
 }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
-  const [invoiceType, setInvoiceType] = useState('Outbound');
+  const [invoiceType, setInvoiceType] = useState('Inbound');
   const [manualClientName, setManualClientName] = useState('');
 
   useLockBodyScroll(isOpen);
@@ -26,7 +26,7 @@ const InvoiceModal = ({
     ? projects.filter(p => p.client_id === selectedClientId)
     : projects;
 
-  const isInbound = invoiceType === 'Inbound';
+  const isOutbound = invoiceType === 'Outbound';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
@@ -66,17 +66,17 @@ const InvoiceModal = ({
                 onChange={(e) => {
                   const value = e.target.value;
                   setInvoiceType(value);
-                  if (value !== 'Inbound') {
+                  if (value !== 'Outbound') {
                     setManualClientName('');
                   }
                 }}
                 required
               >
-                <option value="Outbound">Outbound </option>
                 <option value="Inbound">Inbound </option>
+                <option value="Outbound">Outbound </option>
               </select>
             </div>
-            {isInbound ? (
+            {isOutbound ? (
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Client / Vendor Name <span className="text-red-500 font-bold">*</span></label>
                 <input
@@ -113,7 +113,7 @@ const InvoiceModal = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label={<span>Due Date <span className="text-red-500 font-bold">*</span></span>} name="due_date" type="date" required />
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">{isInbound ? 'Upload Receipt / Document' : 'Document (PDF/Image)'} <span className="text-red-500 font-bold">*</span></label>
+                <label className="text-sm font-medium text-slate-700">{isOutbound ? 'Upload Receipt / Document' : 'Document (PDF/Image)'} <span className="text-red-500 font-bold">*</span></label>
                 <input type="file" name="document" className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" required />
               </div>
             </div>

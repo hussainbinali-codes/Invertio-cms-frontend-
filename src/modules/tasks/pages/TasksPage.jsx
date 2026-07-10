@@ -200,7 +200,7 @@ const TasksPage = () => {
     try {
       const taskRes = await axios.post(`/projects/${selectedProject.id}/tasks`, {
         ...payload,
-        assigned_to: payload.assigned_to || null,
+        assigned_to: payload.assigned_to || undefined,
         story_points: parseInt(payload.story_points || 0),
         priority: payload.priority || 'Medium',
         task_references: taskReferences ? [{ title: 'Notes', value: taskReferences }] : []
@@ -277,6 +277,14 @@ const TasksPage = () => {
           >
             MY PIPELINE
           </button>
+          <button onClick={() => setActiveTab('my')}
+            className={cn(
+              "px-6 py-2 rounded-lg text-xs font-bold transition-all",
+              activeTab === 'my' ? "bg-white text-primary-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            Task Assignees
+          </button>
         </div>
       )}
 
@@ -347,6 +355,7 @@ const TasksPage = () => {
           onSubmit={submitTask}
           isSubmitting={isSubmitting}
           projectTeam={projectTeam}
+          isAdmin={isAdmin}
           taskReferences={taskReferences}
           setTaskReferences={setTaskReferences}
           selectedFiles={selectedFiles}

@@ -236,16 +236,12 @@ const LeavesPage = () => {
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                     required
                   >
-                    <option value="Available">Available (Paid Leave)</option>
+                    <option value="Available">Paid Leave</option>
                     {/* <option value="Sick Leave">
                       Sick Leave (Medical Grounds)
                     </option> */}
-                    <option value="Unpaid">Unpaid (No Deduction)</option>
+                    <option value="Unpaid">Unpaid Leave</option>
                   </select>
-                  {/* <p className="text-[10px] text-slate-400 font-medium italic mt-1">
-                    * First Paid Leave and first Sick Leave of the month are
-                    paid. Subsequent ones are unpaid.
-                  </p> */}
                 </div>
 
                 {selectionType === "range" ? (

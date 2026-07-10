@@ -13,6 +13,7 @@ const AddTaskModal = ({
   onSubmit,
   isSubmitting,
   projectTeam,
+  isAdmin,
   taskReferences,
   setTaskReferences,
   selectedFiles,
@@ -61,19 +62,21 @@ const AddTaskModal = ({
                 />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Assign To (Project Team)</label>
-                <select name="assigned_to" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
-                  <option value="">Select team member...</option>
-                  {projectTeam.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role_name || u.email})</option>
-                  ))}
-                  {projectTeam.length === 0 && (
-                    <option disabled>No members assigned to this project team yet</option>
-                  )}
-                </select>
-              </div>
+            <div className={`grid grid-cols-1 ${isAdmin ? 'sm:grid-cols-2' : ''} gap-4`}>
+              {isAdmin && (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Assign To (Project Team)</label>
+                  <select name="assigned_to" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
+                    <option value="">Select team member...</option>
+                    {projectTeam.map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role_name || u.email})</option>
+                    ))}
+                    {projectTeam.length === 0 && (
+                      <option disabled>No members assigned to this project team yet</option>
+                    )}
+                  </select>
+                </div>
+              )}
               <Input label="Due Date" name="due_date" type="date" className="h-10" required />
             </div>
 
@@ -129,7 +132,7 @@ const AddTaskModal = ({
               </Button>
               <Button type="submit" form="add-task-form" disabled={isSubmitting} className="bg-primary-600 hover:bg-primary-700">
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                  <><CheckSquare className="w-4 h-4 mr-2" /> Create & Assign</>
+                  <><CheckSquare className="w-4 h-4 mr-2" /> {isAdmin ? 'Create & Assign' : 'Create Task'}</>
                 )}
               </Button>
             </div>
@@ -141,3 +144,4 @@ const AddTaskModal = ({
 };
 
 export default AddTaskModal;
+
