@@ -49,6 +49,34 @@ const PayrollModal = ({
               </div>
               <Input label="Year" name="year" type="number" min="2000" defaultValue={new Date().getFullYear()} required />
             </div>
+            
+            <div className="space-y-1">
+              <Input 
+                label="Days Adjustment" 
+                name="days_adjustment" 
+                type="number" 
+                step="0.5" 
+                placeholder="e.g., +2.0 or -1.5" 
+                defaultValue="0" 
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5 font-medium leading-normal">
+                Add days (positive number) to pay for extra working days or subtract days (negative number) to reduce pay.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Justification Comment</label>
+              <textarea 
+                name="justification" 
+                rows="2" 
+                placeholder="Provide justification comment for this adjustment..." 
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5 font-medium leading-normal">
+                Internal justification notes (these comments will not appear on the generated payslip PDF).
+              </p>
+            </div>
+
             <div className="flex gap-3 justify-end pt-4">
               <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
               <Button type="submit" disabled={isSubmitting} className="bg-primary-600 hover:bg-primary-700">

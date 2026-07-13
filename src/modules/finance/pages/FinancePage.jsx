@@ -273,7 +273,9 @@ const FinancePage = () => {
     const payload = {
       user_id: formData.get('user_id'),
       month: parseInt(formData.get('month')),
-      year: parseInt(formData.get('year'))
+      year: parseInt(formData.get('year')),
+      days_adjustment: formData.get('days_adjustment') ? parseFloat(formData.get('days_adjustment')) : 0.00,
+      justification: formData.get('justification') || ''
     };
 
     try {
