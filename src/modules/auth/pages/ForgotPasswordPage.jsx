@@ -32,7 +32,7 @@ const ForgotPasswordPage = () => {
         </Link>
       </div>
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Forgot Password?</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Forgot Password?</h2>
         <p className="text-slate-500 text-sm mt-2">Enter your email to receive a password reset code.</p>
       </div>
 

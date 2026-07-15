@@ -51,7 +51,7 @@ const PayrollStatusModal = ({
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
               Payment / Transaction Notes {isTransitioningToPaid && <span className="text-rose-500">*</span>}
             </label>
             <Textarea
@@ -66,7 +66,7 @@ const PayrollStatusModal = ({
           </div>
 
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
               Proof of Payment / Media {isTransitioningToPaid && <span className="text-rose-500">*</span>}
             </label>
             <div className="flex flex-col gap-3">

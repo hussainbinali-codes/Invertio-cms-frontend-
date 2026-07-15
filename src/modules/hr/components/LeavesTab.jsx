@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
@@ -14,12 +14,12 @@ const LeavesTab = ({
   setSearchTerm
 }) => {
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-slate-900">
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
-        <div>
-          <CardTitle className="text-lg sm:text-xl font-bold">Leave Requests</CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Approve or reject employee time-off applications.</p>
-        </div>
+    <PremiumCard 
+      title="Leave Requests" 
+      subtitle="Approve or reject employee time-off applications." 
+      icon={Clock}
+      className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+      headerRight={
         <div className="relative w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input 
@@ -29,8 +29,9 @@ const LeavesTab = ({
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
+      }
+    >
+      <div className="flex-1">
         <Table>
           <TableHeader>
             <TableRow>
@@ -49,7 +50,7 @@ const LeavesTab = ({
             )}
             {leaves.map(leave => (
               <TableRow key={leave.id}>
-                <TableCell className="py-5 font-bold">{leave?.employee_name}</TableCell>
+                <TableCell className="py-5 font-bold text-slate-800">{leave?.employee_name}</TableCell>
                 <TableCell className="py-5">
                   <Badge
                     variant={
@@ -57,21 +58,21 @@ const LeavesTab = ({
                         leave.leave_type === 'Sick Leave' ? 'success' :
                           leave.leave_type === 'Unpaid' ? 'danger' : 'secondary'
                     }
-                    className="text-[10px] font-bold uppercase"
+                    className="text-xs font-semibold text-slate-500"
                   >
                     {leave?.leave_type || 'Available'}
                   </Badge>
                 </TableCell>
                 <TableCell className="py-5">
-                  <div className="text-xs font-semibold">{new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}</div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 flex items-center gap-1">
+                  <div className="text-sm font-normal">{new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1">
                     <Clock className="w-3 h-3" /> {leave.days_count} Days
                   </div>
                 </TableCell>
                 <TableCell className="py-5">
                   <Badge
                     variant={leave.status === 'Approved' ? 'success' : leave.status === 'Rejected' ? 'danger' : 'primary'}
-                    className="text-[10px] font-bold uppercase"
+                    className="text-xs font-semibold text-slate-500"
                   >
                     {leave.status}
                   </Badge>
@@ -94,8 +95,8 @@ const LeavesTab = ({
             ))}
           </tbody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </PremiumCard>
   );
 };
 

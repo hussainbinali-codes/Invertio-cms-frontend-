@@ -32,7 +32,7 @@ const LiveAttendance = () => {
             <CardHeader className="py-5 border-b border-slate-50 flex flex-row items-center justify-between">
                 <div>
                     <CardTitle className="text-lg font-bold">Who's In Today</CardTitle>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Live Presence Tracker</p>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">Live Presence Tracker</p>
                 </div>
                 <Badge variant="primary" className="bg-emerald-50 text-emerald-700 border-emerald-100 text-[10px] h-6">
                     {attendance.filter(a => !a.check_out).length} Active
@@ -75,7 +75,7 @@ const LiveAttendance = () => {
                     )}
                 </div>
                 <div className="p-3 bg-slate-50/50 text-center border-t border-slate-50">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                         Total Today: {attendance.length} Employees
                     </p>
                 </div>

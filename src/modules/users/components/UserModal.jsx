@@ -351,7 +351,7 @@ const UserModal = ({
             <div className="space-y-6 pt-6 border-t border-slate-100">
               <div className="flex items-center justify-between bg-slate-900 p-4 rounded-xl shadow-lg">
                 <div>
-                  <label className="text-sm font-black text-white uppercase tracking-wider">
+                  <label className="text-sm font-semibold text-white uppercase tracking-wider">
                     Security & Access Control
                   </label>
                   <p className="text-[10px] text-slate-400 font-medium">

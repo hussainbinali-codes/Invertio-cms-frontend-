@@ -35,7 +35,7 @@ const ProofOfCompletionModal = ({
         </CardHeader>
         <CardContent className="p-6 space-y-6 overflow-y-auto flex-1">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Completion Notes</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Completion Notes</label>
             <Textarea 
               placeholder="Summarize the work done, results, or any important deployment notes..."
               className="min-h-[120px] text-sm"
@@ -47,7 +47,7 @@ const ProofOfCompletionModal = ({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Media / Deliverables</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Media / Deliverables</label>
             </div>
             <div className="flex flex-col gap-3">
               <input 

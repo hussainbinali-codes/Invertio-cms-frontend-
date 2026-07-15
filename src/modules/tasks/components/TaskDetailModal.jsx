@@ -274,7 +274,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   {doc.classification || 'Internal'}
                 </span>
               </div>
-              <p className="text-[9px] text-slate-400">{(doc.file_size / 1024).toFixed(0)} KB</p>
+              <p className="text-[10px] text-slate-400">{(doc.file_size / 1024).toFixed(0)} KB</p>
            </div>
         </a>
     );
@@ -291,9 +291,9 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <ClipboardList className="w-6 h-6 text-primary-600" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-black tracking-tight text-slate-900">{taskData.title}</CardTitle>
+              <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">{taskData.title}</CardTitle>
               <div className="flex items-center gap-3 mt-1">
-                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider">
+                <Badge variant="outline" className="text-xs font-semibold text-slate-500">
                   {taskData.project_name || 'Individual Task'}
                 </Badge>
                 <Badge 
@@ -302,7 +302,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                         currentStatus === 'In Progress' ? 'primary' : 
                         'default'
                     }
-                    className="text-[10px] font-bold uppercase tracking-wider"
+                    className="text-xs font-semibold text-slate-500"
                 >
                     {currentStatus}
                 </Badge>
@@ -314,7 +314,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="h-9 text-[10px] font-bold uppercase border-slate-200"
+                className="h-9 text-xs font-semibold text-slate-500 border-slate-200"
                 onClick={() => setIsEditing(true)}
               >
                 Edit Details
@@ -325,7 +325,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="h-9 text-[10px] font-bold uppercase"
+                  className="h-9 text-xs font-semibold text-slate-500"
                   onClick={() => setIsEditing(false)}
                 >
                   Cancel
@@ -333,7 +333,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <Button 
                   variant="primary" 
                   size="sm" 
-                  className="h-9 text-[10px] font-bold uppercase"
+                  className="h-9 text-xs font-semibold text-slate-500"
                   onClick={handleUpdateTask}
                   disabled={isUpdating}
                 >
@@ -356,7 +356,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             <div className="md:w-2/3 p-5 sm:p-8 border-b md:border-b-0 md:border-r border-slate-50 min-h-[300px]">
               <div className="flex items-center gap-2 mb-4 text-slate-400">
                 <Info className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Description & Details</span>
+                <span className="text-xs font-semibold text-slate-500">Description & Details</span>
               </div>
               <div className="prose prose-slate max-w-none mb-8">
                 {isEditing ? (
@@ -367,7 +367,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       onChange={(e) => setEditData({...editData, description: e.target.value})}
                     />
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Progress Update</p>
+                      <p className="text-xs font-semibold text-slate-500 text-slate-500 mb-2">Progress Update</p>
                       <textarea
                         className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[96px]"
                         value={editData.progress_note}
@@ -390,7 +390,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-slate-400">
                     <Link className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">References & Examples</span>
+                    <span className="text-xs font-semibold text-slate-500">References & Examples</span>
                   </div>
                   <div className="grid grid-cols-1 gap-2">
                     {taskData.task_references.map((ref, i) => (
@@ -419,7 +419,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <div className="space-y-4 mt-8 pt-8 border-t border-slate-50">
                   <div className="flex items-center gap-2 text-slate-400">
                     <FileText className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Initial Media & Assets</span>
+                    <span className="text-xs font-semibold text-slate-500">Initial Media & Assets</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {loadingDocs && (
@@ -447,7 +447,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <div className="space-y-4 mt-8 pt-8 border-t border-emerald-100 bg-emerald-50/20 -mx-5 sm:-mx-8 px-5 sm:px-8 pb-8">
                   <div className="flex items-center gap-2 text-emerald-600">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Proof of Completion</span>
+                    <span className="text-xs font-semibold text-slate-500">Proof of Completion</span>
                   </div>
                   <div className="bg-white p-5 rounded-xl border border-emerald-100 shadow-sm space-y-4">
                     {taskData.completion_notes && (
@@ -463,7 +463,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                     )}
 
                     {taskData.completion_date && (
-                      <div className="pt-2 flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                      <div className="pt-2 flex items-center gap-2 text-xs text-slate-500 font-medium">
                         <Clock className="w-3 h-3" />
                         Completed on {new Date(taskData.completion_date).toLocaleString()}
                       </div>
@@ -478,22 +478,22 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <div>
                 <div className="flex items-center gap-2 mb-3 text-slate-400">
                   <User className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Assignment & Impact</span>
+                  <span className="text-xs font-semibold text-slate-500">Assignment & Impact</span>
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-primary-700 text-xs font-black">
+                      <div className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-primary-700 text-sm font-normal">
                          {(taskData.assigned_to_name || taskData.user_name || 'NA').substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                         <div className="text-sm font-bold text-slate-900">{taskData.assigned_to_name || taskData.user_name || "Unassigned"}</div>
-                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Primary Lead</div>
+                         <div className="text-sm font-semibold text-slate-900">{taskData.assigned_to_name || taskData.user_name || "Unassigned"}</div>
+                         <div className="text-xs text-slate-500 font-medium tracking-tighter">Primary Lead</div>
                         </div>
                     </div>
                     {isAdmin && isEditing && (
                       <div>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Reassign Task</p>
+                        <p className="text-xs text-slate-500 font-medium mb-1">Reassign Task</p>
                         <select
                           className="w-full text-xs font-bold text-slate-900 bg-white rounded-lg p-2.5 border border-slate-200"
                           value={editData.assigned_to}
@@ -512,10 +512,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
                     <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Priority</p>
+                      <p className="text-xs text-slate-500 font-medium mb-0.5">Priority</p>
                       {isEditing ? (
                         <select 
-                          className="text-xs font-black uppercase tracking-wider text-slate-900 bg-transparent border-none p-0 focus:ring-0"
+                          className="text-sm font-normal uppercase tracking-wider text-slate-900 bg-transparent border-none p-0 focus:ring-0"
                           value={editData.priority}
                           onChange={(e) => setEditData({...editData, priority: e.target.value})}
                         >
@@ -526,7 +526,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                         </select>
                       ) : (
                         <p className={cn(
-                          "text-xs font-black uppercase tracking-wider",
+                          "text-sm font-normal uppercase tracking-wider",
                            taskData.priority === 'Urgent' ? "text-rose-600" : 
                            taskData.priority === 'High' ? "text-amber-600" : 
                            "text-slate-600"
@@ -534,14 +534,14 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                        )}
                      </div>
                      <div className="text-right">
-                       <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Complexity</p>
-                       <p className="text-xs font-black text-slate-900">{taskData.story_points || 0} Points</p>
+                       <p className="text-xs text-slate-500 font-medium mb-0.5">Complexity</p>
+                       <p className="text-sm font-normal text-slate-900">{taskData.story_points || 0} Points</p>
                      </div>
                    </div>
                   
                   {isAdmin && (
                     <div className="p-4 bg-primary-50/50 rounded-xl border border-primary-100 mt-4">
-                       <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                       <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           Update Status
                        </p>
@@ -557,7 +557,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                                 disabled={isUpdating}
                                 onClick={() => handleQuickStatusUpdate(s.value)}
                                 className={cn(
-                                   "px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border",
+                                   "px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 transition-all border",
                                    currentStatus === s.value
                                       ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-200"
                                       : "bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600"
@@ -572,9 +572,9 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
                   {isEditing && !isAdmin && (
                     <div className="p-3 bg-white rounded-xl border border-slate-100 mt-2">
-                       <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Status</p>
+                       <p className="text-xs text-slate-500 font-medium mb-1">Status</p>
                        <select 
-                          className="w-full text-xs font-black uppercase tracking-wider text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-100"
+                          className="w-full text-sm font-normal uppercase tracking-wider text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-100"
                           value={editData.status}
                           onChange={(e) => setEditData({...editData, status: e.target.value})}
                        >
@@ -591,18 +591,18 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <div>
                 <div className="flex items-center gap-2 mb-3 text-slate-400">
                   <Clock className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Timeline</span>
+                  <span className="text-xs font-semibold text-slate-500">Timeline</span>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Due Date</div>
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <div className="text-xs text-slate-500 font-medium mb-1">Due Date</div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
                       <Calendar className="w-4 h-4 text-rose-400" />
                       {taskData.due_date ? new Date(taskData.due_date).toLocaleDateString() : "Flexible"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Last Activity</div>
+                    <div className="text-xs text-slate-500 font-medium mb-1">Last Activity</div>
                     <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
                       {latestActivity?.created_at ? new Date(latestActivity.created_at).toLocaleString() : (taskData.updated_at ? new Date(taskData.updated_at).toLocaleDateString() : 'N/A')}
                     </div>
@@ -613,7 +613,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <div>
                 <div className="flex items-center gap-2 mb-3 text-slate-400">
                   <Clock className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Task Activity</span>
+                  <span className="text-xs font-semibold text-slate-500">Task Activity</span>
                 </div>
                 <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
                   {loadingActivities && (

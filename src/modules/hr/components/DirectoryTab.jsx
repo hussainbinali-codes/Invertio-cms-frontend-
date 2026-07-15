@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import KpiCard from '../../../components/ui/KpiCard';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Input from '../../../components/ui/Input';
-import StatCard from '../../../components/ui/StatCard';
 import PaginationControls from '../../../components/ui/PaginationControls';
 import {
   Users,
@@ -41,19 +41,18 @@ const DirectoryTab = ({
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard title="Active Staff" value={directoryPagination?.total || employees.length} icon={Users} subtext="Personnel records" />
-        <StatCard title="Departments" value="4" icon={Briefcase} subtext="Org structure" />
-        <StatCard title="Retention" value="98%" icon={UserCheck} subtext="Annual score" />
-        <StatCard title="Avg Tenure" value="2.4y" icon={Clock} subtext="Stability metric" />
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+        <KpiCard title="Active Staff" value={directoryPagination?.total || employees.length} icon={Users} subtext="Personnel records" />
+        <KpiCard title="Departments" value="4" icon={Briefcase} subtext="Org structure" />
+        <KpiCard title="Retention" value="98%" icon={UserCheck} subtext="Annual score" />
+        <KpiCard title="Avg Tenure" value="2.4y" icon={Clock} subtext="Stability metric" />
       </div>
 
-      <Card className="text-slate-900 overflow-hidden">
-        <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 py-6">
-          <div>
-            <CardTitle className="text-lg sm:text-xl font-bold">Employee Directory</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">Accessing {directoryPagination?.total || employees.length} personnel files.</p>
-          </div>
+      <PremiumCard 
+        title="Employee Directory" 
+        subtitle={`Accessing ${directoryPagination?.total || employees.length} personnel files.`} 
+        icon={Users}
+        headerRight={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -77,9 +76,9 @@ const DirectoryTab = ({
               </select>
             </div>
           </div>
-        </CardHeader>
-
-        <CardContent className="p-0">
+        }
+      >
+        <div className="flex-1">
           <Table>
             <TableHeader>
               <TableRow>
@@ -123,10 +122,10 @@ const DirectoryTab = ({
                   </TableCell>
                   <TableCell className="py-5">
                     <div className="text-xs font-bold text-slate-800">{person.designation || 'N/A'}</div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{person.department || 'General'}</div>
+                    <div className="text-xs text-slate-500 font-medium">{person.department || 'General'}</div>
                   </TableCell>
                   <TableCell className="py-5">
-                    <div className="text-xs font-semibold text-slate-600">
+                    <div className="text-sm font-normal text-slate-600">
                       {person.joining_date ? new Date(person.joining_date).toLocaleDateString() : 'Pending'}
                     </div>
                   </TableCell>
@@ -135,14 +134,14 @@ const DirectoryTab = ({
                       <div className="text-xs font-bold text-slate-900">
                         {person.salary ? `\u20B9${parseFloat(person.salary).toLocaleString('en-IN')}` : 'N/A'}
                       </div>
-                      <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">Monthly CTC</div>
+                      <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">Monthly CTC</div>
                     </TableCell>
                   )}
                   <TableCell className="py-5">
                     {person.status === 'Pending' && hasPermission('users', 'status.edit') ? (
                       <button
                         onClick={() => updateUserStatus(person.user_id || person.id, 'Active')}
-                        className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-pointer"
+                        className="text-xs font-semibold text-slate-500 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-pointer"
                       >
                         Pending — Activate
                       </button>
@@ -150,7 +149,7 @@ const DirectoryTab = ({
                       <Badge
                         variant={person.status === 'Active' ? 'default' : 'outline'}
                         className={cn(
-                          'text-[10px] font-bold uppercase tracking-wider',
+                          'text-xs font-semibold text-slate-500',
                           person.status === 'Active' && 'bg-indigo-50 text-indigo-700 border-indigo-200',
                           person.status === 'Disabled' && 'bg-slate-50 text-slate-500 border-slate-200'
                         )}
@@ -192,8 +191,8 @@ const DirectoryTab = ({
             onPrevious={onPreviousPage}
             onNext={onNextPage}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </PremiumCard>
     </div>
   );
 };

@@ -86,29 +86,31 @@ const NotificationDropdown = () => {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                        <h3 className="font-bold text-slate-900 text-sm">Notifications</h3>
-                        {unreadCount > 0 && (
-                            <button 
-                                onClick={markAllRead}
-                                className="text-[10px] font-bold text-primary-600 hover:text-primary-700 uppercase tracking-wider"
-                            >
-                                Mark all read
-                            </button>
-                        )}
-                    </div>
+                <div className="absolute right-0 mt-3 w-80 bg-slate-200/50 p-1.5 rounded-[1.75rem] border border-slate-200/20 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="bg-white rounded-[calc(1.75rem-0.375rem)] border border-slate-200/20 shadow-sm overflow-hidden flex flex-col">
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest leading-none">
+                                Notifications
+                            </span>
+                            {unreadCount > 0 && (
+                                <button 
+                                    onClick={markAllRead}
+                                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 uppercase tracking-widest font-mono"
+                                >
+                                    Mark all read
+                                </button>
+                            )}
+                        </div>
 
-                    <div className="max-h-[400px] overflow-y-auto">
-                        {notifications.length > 0 ? (
-                            <div className="divide-y divide-slate-50">
-                                {notifications.map((n) => (
+                        <div className="max-h-[350px] overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                            {notifications.length > 0 ? (
+                                notifications.map((n) => (
                                     <div 
                                         key={n.id} 
                                         onClick={() => !n.is_read && markAsRead(n.id)}
                                         className={cn(
-                                            "p-4 flex gap-3 cursor-pointer transition-colors hover:bg-slate-50",
-                                            !n.is_read ? "bg-primary-50/30" : "bg-white"
+                                            "p-4 flex gap-3 cursor-pointer transition-all duration-200 hover:bg-slate-50",
+                                            !n.is_read ? "bg-blue-50/15" : "bg-white"
                                         )}
                                     >
                                         <div className="mt-0.5 flex-shrink-0">
@@ -116,31 +118,31 @@ const NotificationDropdown = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-start gap-2">
-                                                <p className={cn("text-xs font-bold leading-tight truncate", !n.is_read ? "text-slate-900" : "text-slate-600")}>
+                                                <p className={cn("text-xs font-bold leading-tight truncate", !n.is_read ? "text-slate-900" : "text-slate-500")}>
                                                     {n.title}
                                                 </p>
-                                                <span className="text-[9px] text-slate-400 whitespace-nowrap font-medium uppercase">
-                                                    {new Date(n.created_at).toLocaleDateString()}
+                                                <span className="text-[10px] text-slate-400 font-bold font-mono uppercase tracking-wider">
+                                                    {new Date(n.created_at).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed font-medium">
+                                            <p className="text-[10px] text-slate-400 mt-1 line-clamp-2 leading-relaxed font-semibold">
                                                 {n.message}
                                             </p>
                                         </div>
                                         {!n.is_read && (
-                                            <div className="mt-1 flex-shrink-0">
-                                                <div className="w-1.5 h-1.5 bg-primary-500 rounded-full" />
+                                            <div className="mt-1.5 flex-shrink-0">
+                                                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
                                             </div>
                                         )}
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="py-12 text-center">
-                                <Bell className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                                <p className="text-xs text-slate-400 font-medium italic">No notifications yet.</p>
-                            </div>
-                        )}
+                                ))
+                            ) : (
+                                <div className="py-12 text-center">
+                                    <Bell className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                                    <p className="text-xs text-slate-500 font-medium italic">No notifications yet.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

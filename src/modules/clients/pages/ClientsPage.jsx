@@ -73,6 +73,81 @@ const CURRENCIES = [
 
 const FILE_BASE_URL = "http://localhost:5000";
 
+// Premium Double-Bezel KPI Card component
+const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
+  return (
+    <div className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 hover:bg-slate-200/60 active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group hover:-translate-y-0.5 flex-1">
+      <div className="bg-white p-5 rounded-[calc(1.75rem-0.375rem)] border border-slate-200/25 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_8px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
+              {title}
+            </span>
+            {Icon && (
+              <div className="p-2 bg-slate-50 border border-slate-100/60 rounded-xl group-hover:scale-105 transition-transform duration-300">
+                <Icon className="w-3.5 h-3.5 text-slate-500" />
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-3">
+            <span className="text-3xl font-bold text-slate-800 tracking-tight font-mono">
+              {value}
+            </span>
+          </div>
+        </div>
+
+        {(trend || subtext) && (
+          <div className="mt-4 flex items-center gap-2">
+            {trend && (
+              <span className={cn(
+                "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono",
+                trend.startsWith('+') ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50"
+              )}>
+                {trend}
+              </span>
+            )}
+            {subtext && (
+              <span className="text-xs text-slate-500 font-medium font-mono">
+                {subtext}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Premium Double-Bezel Card Container component
+const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
+  return (
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+        {(title || subtitle) && (
+          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {Icon && (
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                  <Icon className="w-4 h-4 text-slate-500" />
+                </div>
+              )}
+              <div>
+                {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
+                {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+              </div>
+            </div>
+            {headerRight}
+          </div>
+        )}
+        <div className="flex-1 flex flex-col">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ClientsPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Lead");
@@ -704,115 +779,118 @@ const ClientsPage = () => {
   const statsList = stats;
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+      {/* Header section with Asymmetric Layout */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
             Clients & CRM
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-1 font-normal">
             Manage your customer pipeline and track interactions.
           </p>
         </div>
-         {/* active tabs other thn leads o side of button shows 0 */}
-        {hasPermission("clients", "create") & activeTab === 'Lead' ? (
-          
+        {hasPermission("clients", "create") && activeTab === 'Lead' ? (
+          <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
             <Button
               onClick={() => setShowAddModal(true)}
-              className="bg-primary-600 hover:bg-primary-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-3.5 h-3.5" />
               Add {activeTab}
             </Button>
-          ): ''}
-
+          </div>
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Stats Grid in Double-Bezel nested wrapper */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsLoading
           ? [...Array(4)].map((_, i) => (
-              <Card key={i} className="p-5">
-                <div className="flex justify-between">
-                  <div className="space-y-3 flex-1">
-                    <Skeleton className="h-4 w-24" />
-
-                    <Skeleton className="h-8 w-28" />
-
-                    <Skeleton className="h-3 w-20" />
+              <div key={i} className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 flex-1">
+                <div className="bg-white p-5 rounded-[calc(1.75rem-0.375rem)] border border-slate-200/25 shadow-sm h-full flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <Skeleton className="h-3 w-20 rounded-md" />
+                    <Skeleton className="h-8 w-24 rounded-lg" />
                   </div>
-
-                  <Skeleton className="w-12 h-12 rounded-xl" />
                 </div>
-              </Card>
+              </div>
             ))
-          : statsList.map((stat, i) => <StatCard key={i} {...stat} />)}
+          : statsList.map((stat, i) => (
+              <KpiCard 
+                key={i} 
+                title={stat.title} 
+                value={stat.value} 
+                icon={stat.icon} 
+              />
+            ))}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
+      {/* Pipeline Tabs capsules */}
+      <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         {PIPELINE_STAGES.map((tab) => {
           const count = stageCounts[tab] || 0;
+          const isActive = activeTab === tab;
           return (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "flex-1 min-w-[140px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
-                activeTab === tab
-                  ? "bg-primary-50 text-primary-700"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50",
+                "flex-1 min-w-[145px] py-2 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98]",
+                isActive
+                  ? "bg-white text-blue-600 shadow-sm border border-slate-200/20"
+                  : "text-slate-500 hover:text-slate-800 hover:bg-white/40",
               )}
             >
               {tab}
-              <Badge
-                variant={activeTab === tab ? "primary" : "secondary"}
-                className="px-1.5 py-0 h-5 min-w-5 flex items-center justify-center text-[10px]"
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full font-mono text-[10px] font-semibold border",
+                  isActive
+                    ? "text-blue-600 bg-blue-50 border-blue-100/50"
+                    : "text-slate-400 bg-slate-50 border-slate-200/60"
+                )}
               >
                 {count}
-              </Badge>
+              </span>
             </button>
           );
         })}
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-6">
-          <div>
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
-              {activeTab}s
-              <Badge variant="secondary" className="font-medium">
-                {filteredItems.length} of {items.length}
-              </Badge>
-            </CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              Viewing all prospects in the {activeTab.toLowerCase()} stage.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
+      {/* Main Table Enclosure wrapped in Premium Double-Bezel Card */}
+      <PremiumCard 
+        title={`${activeTab}s`} 
+        subtitle={`Viewing all prospects in the ${activeTab.toLowerCase()} stage.`} 
+        headerRight={
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                className="pl-10 w-full sm:w-64 h-10 text-sm"
+                className="pl-10 w-full sm:w-64 h-10 text-xs rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium"
                 placeholder={`Search ${activeTab.toLowerCase()}s...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <select
-              value={leadStatusFilter}
-              onChange={(e) => setLeadStatusFilter(e.target.value)}
-              className="h-10 text-sm border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100/80 px-3 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer transition-colors shadow-sm font-medium text-slate-700"
-            >
-              <option value="All">All Statuses</option>
-              {LEAD_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            {activeTab === "Lead" && (
+              <select
+                value={leadStatusFilter}
+                onChange={(e) => setLeadStatusFilter(e.target.value)}
+                className="h-10 text-xs border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100/80 px-3.5 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer transition-colors shadow-sm font-bold text-slate-600"
+              >
+                <option value="All">All Statuses</option>
+                {LEAD_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
-        </CardHeader>
-
-        <CardContent className="p-0">
+        }
+      >
+        <div className="flex-1 overflow-x-auto">
           {loading ? (
             <div className="divide-y divide-slate-100">
               {[...Array(5)].map((_, i) => (
@@ -918,7 +996,7 @@ const ClientsPage = () => {
                     <TableCell className="py-5">
                       <Badge
                         className={cn(
-                          "text-[10px] font-bold uppercase",
+                          "text-xs font-semibold text-slate-500",
                           getStageColor(item.lifecycle_stage),
                         )}
                       >
@@ -932,7 +1010,7 @@ const ClientsPage = () => {
                           handleUpdateStatus(item.id, e.target.value)
                         }
                         className={cn(
-                          "text-[10px] font-bold uppercase py-1 px-2 rounded border focus:ring-1 focus:ring-primary-500",
+                          "text-xs font-semibold text-slate-500 py-1 px-2 rounded border focus:ring-1 focus:ring-primary-500",
                           getStatusColor(item.lead_status || "Active"),
                         )}
                       >
@@ -968,7 +1046,7 @@ const ClientsPage = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 px-2 text-[10px] font-bold uppercase"
+                              className="h-7 px-2 text-xs font-semibold text-slate-500"
                               disabled={
                                 PIPELINE_STAGES.indexOf(
                                   item.lifecycle_stage,
@@ -1028,8 +1106,8 @@ const ClientsPage = () => {
               </tbody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </PremiumCard>
 
       <Suspense fallback={null}>
         <ClientDetailModal

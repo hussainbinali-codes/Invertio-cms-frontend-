@@ -149,7 +149,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
               <TableCell className="py-4">
                 <div className="flex items-center gap-1.5">
                   <TrendingUp className="w-3 h-3 text-slate-400" />
-                  <span className="text-[10px] font-black text-slate-700">{task.story_points || 0} pts</span>
+                  <span className="text-[10px] font-bold text-slate-700">{task.story_points || 0} pts</span>
                 </div>
               </TableCell>
               <TableCell className="py-4">
@@ -159,7 +159,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
                     task.status === 'In Progress' ? 'primary' : 
                     'secondary'
                   } 
-                  className="text-[10px] font-bold uppercase tracking-wider"
+                  className="text-xs font-semibold text-slate-500"
                 >
                   {task.status || 'Pending'}
                 </Badge>
@@ -167,7 +167,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
               <TableCell className="py-4">
                 <div className="flex items-center gap-1.5 text-slate-500">
                   <Calendar className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-bold uppercase tracking-tight">
+                  <span className="text-xs font-semibold text-slate-500 tracking-tight">
                     {task.due_date ? new Date(task.due_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'Flexible'}
                   </span>
                 </div>
@@ -181,7 +181,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
                       <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center">
                           <CheckSquare className="w-6 h-6 text-slate-200" />
                       </div>
-                      <h3 className="text-sm font-bold text-slate-900">No tasks found!</h3>
+                      <h3 className="text-sm font-semibold text-slate-900">No tasks found!</h3>
                       <p className="text-[10px] text-slate-400 font-medium">Try adjusting your filters.</p>
                   </div>
               </TableCell>

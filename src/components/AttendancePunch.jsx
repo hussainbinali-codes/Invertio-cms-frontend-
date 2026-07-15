@@ -62,79 +62,83 @@ const AttendancePunch = ({
     );
 
   return (
-    <div className="bg-white/50 backdrop-blur-sm rounded-xl border border-slate-200/50 p-3 shadow-sm mx-1">
-      <div className="text-center mb-3">
-        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-          <Clock className="w-2.5 h-2.5" />
-          Live Time
+    <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-1">
+      <div className="bg-white p-4 rounded-[calc(1rem)] border border-slate-200/25 shadow-sm text-center">
+        <div className="mb-3">
+          <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            <Clock className="w-2.5 h-2.5 text-blue-600" />
+            Live Time
+          </div>
+          <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none mt-1">
+            {currentTime.toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+              timeZone: "Asia/Kolkata",
+            })}
+          </p>
+          <p className="text-xs font-medium text-slate-500 mt-1.5">
+            {currentTime.toLocaleDateString("en-IN", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              timeZone: "Asia/Kolkata",
+            })}
+          </p>
         </div>
-        <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none">
-          {currentTime.toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: "Asia/Kolkata",
-          })}
-        </p>
-        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-          {currentTime.toLocaleDateString("en-IN", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            timeZone: "Asia/Kolkata",
-          })}
-        </p>
-      </div>
 
-      <div className="space-y-2">
-        <Button
-          onClick={handlePunchButtonClick}
-          disabled={actionLoading || isDetectingLocation || status === "out"}
-          className={cn(
-            "w-full h-9 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-sm active:scale-[0.98]",
-            status === "in"
-              ? "bg-rose-500 hover:bg-rose-600 shadow-rose-100"
-              : status === "out"
-                ? "bg-slate-200 text-slate-500 shadow-none cursor-not-allowed"
-                : "bg-primary-600 hover:bg-primary-700 shadow-primary-100",
-          )}
-        >
-          {isDetectingLocation ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-              Detecting Location
-            </>
-          ) : actionLoading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : status === "in" ? (
-            <>
-              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Punch Out
-            </>
-          ) : status === "out" ? (
-            <>
-              <Clock className="w-3.5 h-3.5 mr-1.5" /> Day Ended
-            </>
-          ) : (
-            <>
-              <LogIn className="w-3.5 h-3.5 mr-1.5" /> Punch In
-            </>
-          )}
-        </Button>
+        <div className="space-y-2.5">
+          <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+            <Button
+              onClick={handlePunchButtonClick}
+              disabled={actionLoading || isDetectingLocation || status === "out"}
+              className={cn(
+                "w-full h-9 text-xs font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5",
+                status === "in"
+                  ? "bg-rose-600 hover:bg-rose-700 text-white"
+                  : status === "out"
+                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                    : "bg-blue-600 hover:bg-blue-700 text-white",
+              )}
+            >
+              {isDetectingLocation ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Detecting...
+                </>
+              ) : actionLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : status === "in" ? (
+                <>
+                  <LogOut className="w-3.5 h-3.5" /> Punch Out
+                </>
+              ) : status === "out" ? (
+                <>
+                  <Clock className="w-3.5 h-3.5" /> Day Ended
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-3.5 h-3.5" /> Punch In
+                </>
+              )}
+            </Button>
+          </div>
 
-        <div className="flex items-center justify-center gap-1 text-[8px] font-bold text-slate-400 uppercase tracking-tight">
-          <MapPin
-            className={cn(
-              "w-2.5 h-2.5",
-              location ? "text-emerald-500" : "text-slate-300",
-            )}
-          />
-          <span>
-            {isDetectingLocation
-              ? "detecting current location"
-              : location
-                ? "location verified"
-                : "location will be required"}
-          </span>
+          <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400">
+            <MapPin
+              className={cn(
+                "w-2.5 h-2.5",
+                location ? "text-emerald-500" : "text-slate-300",
+              )}
+            />
+            <span>
+              {isDetectingLocation
+                ? "detecting location"
+                : location
+                  ? "verified"
+                  : "gps required"}
+            </span>
+          </div>
         </div>
       </div>
     </div>

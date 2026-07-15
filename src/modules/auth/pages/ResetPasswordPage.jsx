@@ -47,7 +47,7 @@ const ResetPasswordPage = () => {
         </Link>
       </div>
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Create New Password</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">Create New Password</h2>
         <p className="text-slate-500 text-sm mt-2 font-medium">Enter the code sent to your email and your new password.</p>
       </div>
 

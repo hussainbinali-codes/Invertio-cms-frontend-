@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardTitle, CardContent } from '../../../components/ui/Card';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
@@ -40,12 +40,12 @@ const InvoicesTab = ({
   };
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-4 py-6 border-b border-slate-100">
-        <div>
-          <CardTitle className="text-xl font-bold ">Invoice Management</CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Tracking {invoices.length} billing records.</p>
-        </div>
+    <PremiumCard 
+      title="Invoice Management" 
+      subtitle={`Tracking ${invoices.length} billing records.`} 
+      icon={FileText}
+      className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+      headerRight={
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -78,8 +78,9 @@ const InvoicesTab = ({
             <option value="Cancelled">Cancelled</option>
           </select>
         </div>
-      </div>
-      <CardContent className="p-0">
+      }
+    >
+      <div className="flex-grow">
         {isRefreshing ? (
           <div className="divide-y divide-slate-100">
             {[...Array(5)].map((_, i) => (
@@ -147,8 +148,8 @@ const InvoicesTab = ({
                       )}
                     </TableCell>
                     <TableCell className="py-5">
-                      <div className="text-sm font-bold text-slate-900">{inv.client_name || 'Vendor'}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">{inv.project_name || 'General Expense'}</div>
+                      <div className="text-sm font-semibold text-slate-900">{inv.client_name || 'Vendor'}</div>
+                      <div className="text-xs text-slate-500 font-medium mt-0.5 tracking-wider">{inv.project_name || 'General Expense'}</div>
                     </TableCell>
                     <TableCell className="py-5 font-bold text-slate-900">
                       {currencies.find(c => c.code === inv.currency)?.symbol || '$'}
@@ -158,11 +159,11 @@ const InvoicesTab = ({
                       {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString() : new Date(inv.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="py-5">
-                      <Badge variant={inv.status === 'Paid' ? 'success' : inv.status === 'Overdue' ? 'destructive' : 'default'} className="text-[10px] font-bold uppercase tracking-wider">
+                      <Badge variant={inv.status === 'Paid' ? 'success' : inv.status === 'Overdue' ? 'destructive' : 'default'} className="text-xs font-semibold text-slate-500">
                         {inv.status}
                       </Badge>
                       {inv.payment_notes && (
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 max-w-[120px] truncate" title={inv.payment_notes}>
+                        <p className="text-xs text-slate-500 font-medium mt-1 max-w-[120px] truncate" title={inv.payment_notes}>
                           {inv.payment_notes}
                         </p>
                       )}
@@ -235,7 +236,7 @@ const InvoicesTab = ({
             </tbody>
           </Table>
         )}
-      </CardContent>
+      </div>
 
       <InvoiceStatusModal 
         isOpen={statusModal.isOpen}
@@ -248,7 +249,7 @@ const InvoicesTab = ({
            setStatusModal({ isOpen: false, invoice: null, targetStatus: '' });
         }}
       />
-    </Card>
+    </PremiumCard>
   );
 };
 

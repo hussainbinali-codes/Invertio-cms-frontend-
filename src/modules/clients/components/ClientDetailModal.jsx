@@ -77,7 +77,7 @@ const ClientDetailModal = ({
             <div>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-xl font-bold">{selectedClient.company_name}</CardTitle>
-                <Badge className={cn("text-[10px] font-bold uppercase", getStageColor(selectedClient.lifecycle_stage))}>
+                <Badge className={cn("text-xs font-semibold text-slate-500", getStageColor(selectedClient.lifecycle_stage))}>
                   {selectedClient.lifecycle_stage}
                 </Badge>
               </div>
@@ -161,7 +161,7 @@ const ClientDetailModal = ({
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-bold text-primary-700 uppercase">Sales Potential</span>
-                          <span className="text-lg font-black text-primary-900">{selectedClient.currency || 'USD'} {selectedClient.expected_value?.toLocaleString()}</span>
+                          <span className="text-lg font-bold text-primary-900">{selectedClient.currency || 'USD'} {selectedClient.expected_value?.toLocaleString()}</span>
                         </div>
                         <div className="w-full h-2 bg-primary-200 rounded-full overflow-hidden">
                           <div className="h-full bg-primary-600" style={{ width: `${selectedClient.lead_score || 0}%` }} />
@@ -194,7 +194,7 @@ const ClientDetailModal = ({
                       <div className="p-2 bg-white/10 rounded-lg">
                         <Clock className="w-4 h-4" />
                       </div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Timeline</span>
+                      <span className="text-sm font-semibold text-slate-400">Timeline</span>
                     </div>
                     <div className="space-y-4">
                       <div>
@@ -207,7 +207,7 @@ const ClientDetailModal = ({
                       </div>
                       <div className="pt-4 border-t border-white/10 mt-4">
                         <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">Project Status</div>
-                        <Badge variant="outline" className={cn("text-[10px] font-black uppercase border-white/20", 
+                        <Badge variant="outline" className={cn("text-xs font-semibold text-slate-500 border-white/20", 
                           selectedClient.maintenance_status === 'Active' ? "text-emerald-400" : "text-slate-400"
                         )}>
                           {selectedClient.maintenance_status || 'NOT APPLICABLE'}
@@ -235,7 +235,7 @@ const ClientDetailModal = ({
               <div className="w-full md:w-80 p-6 border-r border-slate-100 bg-slate-50 overflow-y-auto">
                 {hasPermission('clients', 'interactions.create') && selectedClient.lead_status !== 'Not Interested' ? (
                   <form onSubmit={logInteraction} className="space-y-4">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Log New Activity</h3>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Log New Activity</h3>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Type</label>
                       <select name="type" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
@@ -267,7 +267,7 @@ const ClientDetailModal = ({
               </div>
               <div className="flex-1 p-8 overflow-y-auto bg-white">
                 <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <MessageSquare className="w-4 h-4 text-slate-400" />
                     Activity Timeline
                   </h3>
@@ -287,7 +287,7 @@ const ClientDetailModal = ({
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                       <Zap className="w-8 h-8 text-slate-200" />
                     </div>
-                    <p className="text-sm font-bold text-slate-900">No activity logged yet</p>
+                    <p className="text-sm font-semibold text-slate-900">No activity logged yet</p>
                     <p className="text-xs text-slate-400 mt-1">Start by recording your first client interaction.</p>
                   </div>
                 ) : (
@@ -303,14 +303,14 @@ const ClientDetailModal = ({
                         <div className="p-6 rounded-2xl border border-slate-100 bg-white group-hover:border-slate-200 group-hover:shadow-sm transition-all duration-200">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
-                              <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{log.type}</span>
+                              <span className="text-sm font-normal text-slate-900 uppercase tracking-wide">{log.type}</span>
                               {log.stage && (
-                                <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-tight px-1.5 border-slate-200 text-slate-500">
+                                <Badge variant="outline" className="text-xs font-semibold text-slate-500 tracking-tight px-1.5 border-slate-200 text-slate-500">
                                   Stage: {log.stage}
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(log.date || log.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+                            <span className="text-xs text-slate-500 font-medium">{new Date(log.date || log.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
                           </div>
                           <p className="text-sm text-slate-600 leading-relaxed font-medium">"{log.notes}"</p>
                         </div>
@@ -385,7 +385,7 @@ const ClientDetailModal = ({
                               href={doc.file_url || `${BASE_URL.replace('/api', '')}/${doc.file_key}`} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="text-sm font-bold text-slate-900 hover:text-primary-600 transition-colors flex items-center gap-2"
+                              className="text-sm font-semibold text-slate-900 hover:text-primary-600 transition-colors flex items-center gap-2"
                             >
                               {doc.file_name}
                               <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />

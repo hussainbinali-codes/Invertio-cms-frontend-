@@ -89,7 +89,7 @@ const AddTaskModal = ({
                 onChange={(e) => setTaskReferences(e.target.value)}
                 required
               />
-              <p className="text-[9px] text-slate-400 italic">Example: Link to Figma or "Follow the naming convention in the Auth module"</p>
+              <p className="text-[10px] text-slate-400 italic">Example: Link to Figma or "Follow the naming convention in the Auth module"</p>
             </div>
 
             <div className="space-y-3 pt-2">

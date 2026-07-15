@@ -10,7 +10,7 @@ import {
   Loader2, Plus, X, FolderPlus, Users, Briefcase, CheckCircle2,
   AlertTriangle, TrendingUp, Link, FolderOpen, ExternalLink,
   FileText, UploadCloud, Trash2, MessageSquare, Send, Layers,
-  Lock, ShieldCheck, Phone, Mail, User, Info, Edit
+  Lock, ShieldCheck, Phone, Mail, User, Info, Edit, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProjectTeamModal from '../components/ProjectTeamModal';
@@ -30,6 +30,81 @@ const CURRENCIES = [
   { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham' },
   { code: 'SAR', symbol: '﷼', name: 'Saudi Riyal' }
 ];
+
+// Premium Double-Bezel KPI Card component
+const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
+  return (
+    <div className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 hover:bg-slate-200/60 active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group hover:-translate-y-0.5 flex-1">
+      <div className="bg-white p-5 rounded-[calc(1.75rem-0.375rem)] border border-slate-200/25 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_8px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
+              {title}
+            </span>
+            {Icon && (
+              <div className="p-2 bg-slate-50 border border-slate-100/60 rounded-xl group-hover:scale-105 transition-transform duration-300">
+                <Icon className="w-3.5 h-3.5 text-slate-500" />
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-3">
+            <span className="text-3xl font-bold text-slate-800 tracking-tight font-mono">
+              {value}
+            </span>
+          </div>
+        </div>
+
+        {(trend || subtext) && (
+          <div className="mt-4 flex items-center gap-2">
+            {trend && (
+              <span className={cn(
+                "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono",
+                trend.startsWith('+') ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50"
+              )}>
+                {trend}
+              </span>
+            )}
+            {subtext && (
+              <span className="text-xs text-slate-500 font-medium font-mono">
+                {subtext}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Premium Double-Bezel Card Container component
+const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
+  return (
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+        {(title || subtitle) && (
+          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {Icon && (
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                  <Icon className="w-4 h-4 text-slate-500" />
+                </div>
+              )}
+              <div>
+                {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
+                {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+              </div>
+            </div>
+            {headerRight}
+          </div>
+        )}
+        <div className="flex-1 flex flex-col">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProjectsPage = () => {
   const navigate = useNavigate();
@@ -244,38 +319,48 @@ const ProjectsPage = () => {
   console.log("active projects", activeProjects)
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+      {/* Header section with Asymmetric Layout */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Projects</h1>
-          <p className="text-sm text-slate-500 mt-1">Overview of all client and internal institutional projects.</p>
+          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+            Projects
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-normal">
+            Overview of all client and internal institutional projects.
+          </p>
         </div>
         {hasPermission('projects', 'create') && (
-          <Button onClick={() => { setProjectCategory('New Project'); setShowAddModal(true); }} className="bg-primary-600 hover:bg-primary-700 h-10">
-            <FolderPlus className="w-4 h-4 mr-2" />
-            Create Project
-          </Button>
+          <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+            <Button 
+              onClick={() => { setProjectCategory('New Project'); setShowAddModal(true); }} 
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              Create Project
+            </Button>
+          </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Projects" value={projects.length} icon={Briefcase} subtext="Active & planned" />
-        <StatCard title="In Progress" value={projects.filter(p => p.status === 'In Progress').length} icon={TrendingUp} trend="+2" subtext="Current velocity" />
-        <StatCard title="Completed" value={projects.filter(p => p.status === 'Completed').length} icon={CheckCircle2} subtext="Lifetime delivery" />
-        <StatCard title="Maintenance" value={projects.filter(p => p.category === 'Maintenance').length} icon={Layers} subtext="Long-term support" />
+      {/* KPI Stats Grid in Double-Bezel nested wrapper */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KpiCard title="Total Projects" value={projects.length} icon={Briefcase} subtext="Active & planned" />
+        <KpiCard title="In Progress" value={projects.filter(p => p.status === 'In Progress').length} icon={TrendingUp} trend="+2" subtext="Current velocity" />
+        <KpiCard title="Completed" value={projects.filter(p => p.status === 'Completed').length} icon={CheckCircle2} subtext="Lifetime delivery" />
+        <KpiCard title="Maintenance" value={projects.filter(p => p.category === 'Maintenance').length} icon={Layers} subtext="Long-term support" />
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-6">
-          <div>
-            <CardTitle className="text-xl font-bold">Active Tracker</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">Monitoring {projects.length} active initiatives.</p>
-          </div>
+      <PremiumCard 
+        title="Active Tracker" 
+        subtitle={`Monitoring ${projects.length} active initiatives.`} 
+        icon={Briefcase}
+        headerRight={
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
-              <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-45" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                className="pl-10 h-10 text-sm w-full"
+                className="pl-10 h-10 text-xs rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium w-full"
                 placeholder="Search projects..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -284,7 +369,7 @@ const ProjectsPage = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 text-sm border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100/80 px-3 focus:ring-2 focus:ring-primary-500 outline-none cursor-pointer transition-colors shadow-sm font-medium text-slate-700"
+              className="h-10 text-xs border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100/80 px-3.5 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer transition-colors shadow-sm font-bold text-slate-600"
             >
               <option value="All">All Statuses</option>
               <option value="Planned">Planned</option>
@@ -295,10 +380,9 @@ const ProjectsPage = () => {
               <option value="Blocked (Payment)">Blocked (Payment)</option>
             </select>
           </div>
-        </CardHeader>
-
-
-        <CardContent className="p-0">
+        }
+      >
+        <div className="flex-1 overflow-x-auto">
           {loading ? (
             <div className="divide-y divide-slate-100">
               {[...Array(5)].map((_, i) => (
@@ -334,8 +418,8 @@ const ProjectsPage = () => {
                       <TableCell className="py-5">
                         <div className="font-bold text-slate-900">{project.name}</div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{project.tech_stack || 'Standard Stack'}</span>
-                          <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-tight py-0 px-1.5 border-slate-100">
+                          <span className="text-xs text-slate-500 font-medium">{project.tech_stack || 'Standard Stack'}</span>
+                          <Badge variant="secondary" className="text-xs font-semibold text-slate-500 tracking-tight py-0 px-1.5 border-slate-100">
                             {project.category || 'New Project'}
                           </Badge>
                           {hasPermission('projects', 'budget.view') && (
@@ -364,13 +448,13 @@ const ProjectsPage = () => {
                       <TableCell className="py-5">
                         <div className="text-sm font-semibold text-slate-700">{project.client_name || 'Internal'}</div>
                         {project.reference_name && (
-                          <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 flex items-center gap-1">
+                          <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1">
                             <TrendingUp className="w-3 h-3 text-emerald-500" />
                             Ref: {project.reference_name}
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="py-5 text-[10px] text-slate-500 font-bold uppercase">
+                      <TableCell className="py-5 text-sm font-normal text-slate-600">
                         {project.start_date ? formatDate(project.start_date) : 'N/A'} - {project.end_date ? formatDate(project.end_date) : 'Ongoing'}
                       </TableCell>
                       <TableCell className="py-5">
@@ -379,7 +463,7 @@ const ProjectsPage = () => {
                         ) : hasPermission('projects', 'edit') ? (
                           <select
                             className={cn(
-                              "text-[10px] font-bold  border rounded-lg px-2 py-1 outline-none",
+                              "text-xs font-medium border rounded-lg px-2.5 py-1 outline-none bg-white",
                               getStatusColorClass(project.status)
                             )}
                             value={project.status}
@@ -438,7 +522,7 @@ const ProjectsPage = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 text-[10px] font-bold uppercase text-primary-600 hover:bg-primary-50 px-3"
+                                className="h-8 text-xs font-semibold text-slate-500 text-primary-600 hover:bg-primary-50 px-3"
                                 onClick={() => handleManageTeam(project)}
                               >
                                 <Users className="w-3.5 h-3.5 mr-1.5" />
@@ -462,7 +546,7 @@ const ProjectsPage = () => {
                             <div className="flex-1 space-y-3">
                               <div className="flex items-center gap-2 text-amber-800">
                                 <User className="w-4 h-4" />
-                                <h4 className="text-xs font-bold uppercase tracking-widest">Client Contact Details</h4>
+                                <h4 className="text-sm font-semibold tracking-widest">Client Contact Details</h4>
                               </div>
                               {(() => {
                                 const client = clients.find(c => c.id === project.client_id);
@@ -499,7 +583,7 @@ const ProjectsPage = () => {
                             <div className="flex-1 space-y-3 border-l border-amber-100 pl-8">
                               <div className="flex items-center gap-2 text-amber-800">
                                 <Briefcase className="w-4 h-4" />
-                                <h4 className="text-xs font-bold uppercase tracking-widest">Partner & Commission Info</h4>
+                                <h4 className="text-sm font-semibold tracking-widest">Partner & Commission Info</h4>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
                                 <div className="flex items-center gap-2">
@@ -547,14 +631,14 @@ const ProjectsPage = () => {
           {/* Pagination Footer */}
           {filteredProjects.length > 0 && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4 px-6 border-t border-slate-100 bg-slate-50/30">
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="text-sm font-normal text-slate-500 uppercase tracking-wider">
                 Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredProjects.length)} to {Math.min(currentPage * itemsPerPage, filteredProjects.length)} of {filteredProjects.length} projects
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+                  className="h-8 px-3 text-sm font-semibold"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 >
@@ -574,7 +658,7 @@ const ProjectsPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+                  className="h-8 px-3 text-sm font-semibold"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 >
@@ -583,8 +667,8 @@ const ProjectsPage = () => {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </PremiumCard>
 
       {/* Add Project Modal */}
       {showAddModal && (

@@ -355,7 +355,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
              </div>
              {canManageResources && (
                <Button 
-                 className="w-full mt-5 h-9 text-xs font-bold uppercase tracking-wider bg-primary-600 text-white hover:bg-primary-700 shadow-sm flex items-center justify-center gap-1.5" 
+                 className="w-full mt-5 h-9 text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 shadow-sm flex items-center justify-center gap-1.5" 
                  onClick={handleUpdateLinks}
                  disabled={isSavingLinks}
                >
@@ -387,7 +387,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                    <Button 
                      onClick={() => document.getElementById('resource-file-upload-comp').click()}
                      disabled={isUploading}
-                     className="bg-primary-600 hover:bg-primary-700 h-8 px-3 text-[10px] font-bold uppercase"
+                     className="bg-primary-600 hover:bg-primary-700 h-8 px-3 text-xs font-semibold text-slate-500"
                    >
                       {isUploading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <UploadCloud className="w-3 h-3 mr-2" />}
                       Upload
@@ -425,7 +425,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                               {doc.classification || 'Internal'}
                             </span>
                           </div>
-                          <p className="text-[9px] text-slate-500 font-medium">
+                          <p className="text-[10px] text-slate-500 font-medium">
                             {(doc.file_size / 1024).toFixed(0)}KB • {new Date(doc.created_at).toLocaleDateString()}
                           </p>
                         </div>
@@ -471,7 +471,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                 ) : projectComments.length === 0 ? (
                    <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-50">
                       <MessageSquare className="w-8 h-8 mb-2" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em]">Start a Discussion</p>
+                      <p className="text-xs font-semibold text-slate-500">Start a Discussion</p>
                    </div>
                 ) : (
                    projectComments.map((comment) => (
@@ -487,7 +487,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                          )}>
                             {comment.task_title && (
                                <div className={cn(
-                                 "mb-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider inline-flex items-center gap-1",
+                                 "mb-1 px-1.5 py-0.5 rounded text-xs font-semibold text-slate-500 inline-flex items-center gap-1",
                                  comment.user_id === user.id ? "bg-white/20 text-white" : "bg-primary-50 text-primary-600"
                                )}>
                                  <FileText className="w-2.5 h-2.5" />
@@ -521,7 +521,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                               className="w-full text-left px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors flex items-center justify-between group"
                            >
                               <span className="truncate">{task.title}</span>
-                              <span className="text-[9px] text-slate-300 group-hover:text-primary-300 font-bold uppercase">{task.status}</span>
+                              <span className="text-[10px] text-slate-300 group-hover:text-primary-300 font-bold uppercase">{task.status}</span>
                            </button>
                         ))
                       }
@@ -534,7 +534,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
                 {selectedTaskId && (
                   <div className="absolute -top-6 left-2 flex items-center gap-1.5 bg-primary-50 text-primary-600 px-2 py-0.5 rounded-t-lg border-t border-x border-primary-100 animate-in slide-in-from-bottom-1">
                     <FileText className="w-3 h-3" />
-                    <span className="text-[9px] font-black uppercase tracking-wider">{selectedTaskTitle}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider">{selectedTaskTitle}</span>
                     <button onClick={() => {setSelectedTaskId(null); setSelectedTaskTitle('');}} className="hover:text-rose-500">
                       <X className="w-2.5 h-2.5" />
                     </button>

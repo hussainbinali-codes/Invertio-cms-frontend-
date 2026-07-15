@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import KpiCard from '../../../components/ui/KpiCard';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Input from '../../../components/ui/Input';
-import StatCard from '../../../components/ui/StatCard';
 import PaginationControls from '../../../components/ui/PaginationControls';
 import {
   Users,
@@ -43,18 +43,15 @@ const RecruitmentTab = ({
 }) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total Candidates" value={recruitmentStats.totalCandidates} icon={Users} subtext="Active pipeline" />
-        <StatCard title="Interviews" value={recruitmentStats.interviews} icon={Calendar} subtext="Active interviews" />
-        <StatCard title="Hired" value={recruitmentStats.hired} icon={UserCheck} subtext="Total hired" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <KpiCard title="Total Candidates" value={recruitmentStats.totalCandidates} icon={Users} subtext="Active pipeline" />
+        <KpiCard title="Interviews" value={recruitmentStats.interviews} icon={Calendar} subtext="Active interviews" />
+        <KpiCard title="Hired" value={recruitmentStats.hired} icon={UserCheck} subtext="Total hired" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader className="py-6">
-            <CardTitle className="text-lg font-bold">Hiring Funnel</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[350px]">
+        <PremiumCard title="Hiring Funnel" className="lg:col-span-1" icon={Users}>
+          <div className="h-[350px] p-4 flex flex-col justify-center">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <FunnelChart>
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
@@ -63,15 +60,15 @@ const RecruitmentTab = ({
                 </Funnel>
               </FunnelChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </PremiumCard>
 
-        <Card className="lg:col-span-2 text-slate-900 overflow-hidden">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
-            <div>
-              <CardTitle className="text-lg sm:text-xl font-bold">Recruitment Tracker</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">Monitoring {recruitmentPagination?.total || candidates.length} applications.</p>
-            </div>
+        <PremiumCard 
+          title="Recruitment Tracker" 
+          subtitle={`Monitoring ${recruitmentPagination?.total || candidates.length} applications.`} 
+          icon={Users}
+          className="lg:col-span-2"
+          headerRight={
             <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
@@ -81,9 +78,9 @@ const RecruitmentTab = ({
                 onChange={(e) => onSearchTermChange(e.target.value)}
               />
             </div>
-          </CardHeader>
-
-          <CardContent className="p-0">
+          }
+        >
+          <div className="flex-1">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -124,7 +121,7 @@ const RecruitmentTab = ({
                         <div className="flex items-center gap-2">
                           <Badge
                             variant={displayStatus === 'Active' || displayStatus === 'Hired' ? 'success' : displayStatus === 'Rejected' ? 'danger' : 'primary'}
-                            className="text-[10px] font-bold uppercase tracking-wider"
+                            className="text-xs font-semibold text-slate-500"
                           >
                             {displayStatus}
                           </Badge>
@@ -155,7 +152,7 @@ const RecruitmentTab = ({
                             </span>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider italic">Not Scheduled</span>
+                          <span className="text-xs text-slate-500 font-medium italic">Not Scheduled</span>
                         )}
                       </TableCell>
                       <TableCell className="py-5">
@@ -164,7 +161,7 @@ const RecruitmentTab = ({
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 text-[10px] font-bold uppercase border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-3"
+                              className="h-8 text-xs font-semibold text-slate-500 border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-3"
                               onClick={() => activateLinkedUser(candidate.user_id)}
                               disabled={isActivating}
                             >
@@ -176,7 +173,7 @@ const RecruitmentTab = ({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 text-[10px] font-bold uppercase text-primary-600 hover:bg-primary-50 px-3"
+                                className="h-8 text-xs font-semibold text-slate-500 text-primary-600 hover:bg-primary-50 px-3"
                                 onClick={() => {
                                   setSelectedCandidate(candidate);
                                   setShowInterviewModal(true);
@@ -191,7 +188,7 @@ const RecruitmentTab = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 text-[10px] font-bold uppercase text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 ml-1 px-2"
+                            className="h-8 text-xs font-semibold text-slate-500 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 ml-1 px-2"
                             onClick={() => openDocs(candidate, 'candidate')}
                             title="Manage Documents"
                           >
@@ -210,8 +207,8 @@ const RecruitmentTab = ({
               onPrevious={onPreviousPage}
               onNext={onNextPage}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </PremiumCard>
       </div>
     </div>
   );
