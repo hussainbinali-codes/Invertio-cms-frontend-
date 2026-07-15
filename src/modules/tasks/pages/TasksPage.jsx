@@ -373,25 +373,27 @@ const TasksPage = () => {
           >
             MY PIPELINE
           </button>
-          <button 
-            onClick={() => setActiveTab('assignees')}
-            className={cn(
-              "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 active:scale-[0.98]",
-              activeTab === 'assignees' ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
-            )}
-          >
-            MANAGE ASSIGNEES
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => setActiveTab('assignees')}
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 active:scale-[0.98]",
+                activeTab === 'assignees' ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+              )}
+            >
+              MANAGE ASSIGNEES
+            </button>
+          )}
         </div>
       )}
 
       {/* Main Container Card in Double-Bezel layout */}
       <PremiumCard 
-        title={activeTab === 'boards' ? 'Institutional Boards' : activeTab === 'assignees' ? 'Manage Task Assignees' : 'Personal Pipeline'} 
+        title={activeTab === 'boards' ? 'Institutional Boards' : (activeTab === 'assignees' && isAdmin) ? 'Manage Task Assignees' : 'Personal Pipeline'} 
         subtitle={
           activeTab === 'boards'
             ? `Managing tasks across ${projects.length} project pipelines.`
-            : activeTab === 'assignees'
+            : (activeTab === 'assignees' && isAdmin)
             ? `Viewing all ${allTasks.length} task assignments across the company.`
             : `Tracking ${myTasks.length} items assigned to you.`
         } 
@@ -432,7 +434,7 @@ const TasksPage = () => {
                   updatingTaskId={updatingTaskId}
                   setSelectedTaskDetail={setSelectedTaskDetail}
                 />
-              ) : activeTab === 'assignees' ? (
+              ) : (activeTab === 'assignees' && isAdmin) ? (
                 <TaskAssigneesTab
                   tasks={allTasks.filter(task =>
                     task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
