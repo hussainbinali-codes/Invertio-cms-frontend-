@@ -317,7 +317,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 className="h-9 text-xs font-semibold text-slate-500 border-slate-200"
                 onClick={() => setIsEditing(true)}
               >
-                Edit Details
+                {isAdmin ? 'Edit Details' : 'Update Progress'}
               </Button>
             )}
             {isEditing && (
@@ -337,7 +337,13 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   onClick={handleUpdateTask}
                   disabled={isUpdating}
                 >
-                  {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save Changes'}
+                  {isUpdating ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : isAdmin ? (
+                    'Save Changes'
+                  ) : (
+                    'Submit Progress'
+                  )}
                 </Button>
               </div>
             )}
@@ -361,13 +367,19 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <div className="prose prose-slate max-w-none mb-8">
                 {isEditing ? (
                   <div className="space-y-4">
-                    <textarea 
-                      className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[120px]"
-                      value={editData.description}
-                      onChange={(e) => setEditData({...editData, description: e.target.value})}
-                    />
+                    {isAdmin ? (
+                      <textarea 
+                        className="w-full p-4 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[120px]"
+                        value={editData.description}
+                        onChange={(e) => setEditData({...editData, description: e.target.value})}
+                      />
+                    ) : (
+                      <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm bg-slate-50 p-4 rounded-xl border border-slate-100/50">
+                        {taskData.description || "No detailed description provided for this task."}
+                      </p>
+                    )}
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold text-slate-500 text-slate-500 mb-2">Progress Update</p>
+                      <p className="text-xs font-semibold text-slate-500 mb-2">Progress Update</p>
                       <textarea
                         className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none min-h-[96px]"
                         value={editData.progress_note}
@@ -513,7 +525,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
                     <div>
                       <p className="text-xs text-slate-500 font-medium mb-0.5">Priority</p>
-                      {isEditing ? (
+                      {isEditing && isAdmin ? (
                         <select 
                           className="text-sm font-normal uppercase tracking-wider text-slate-900 bg-transparent border-none p-0 focus:ring-0"
                           value={editData.priority}
@@ -570,21 +582,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                     </div>
                   )}
 
-                  {isEditing && !isAdmin && (
-                    <div className="p-3 bg-white rounded-xl border border-slate-100 mt-2">
-                       <p className="text-xs text-slate-500 font-medium mb-1">Status</p>
-                       <select 
-                          className="w-full text-sm font-normal uppercase tracking-wider text-slate-900 bg-slate-50 rounded-lg p-2 border border-slate-100"
-                          value={editData.status}
-                          onChange={(e) => setEditData({...editData, status: e.target.value})}
-                       >
-                          <option value="Pending">Pending</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
-                          <option value="Cancelled">Cancelled</option>
-                       </select>
-                    </div>
-                  )}
+                  {/* Status dropdown hidden for non-admins to prevent direct status manipulation outside workflow */}
                 </div>
               </div>
 

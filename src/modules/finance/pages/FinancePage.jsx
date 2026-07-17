@@ -49,7 +49,9 @@ const TabLoader = () => (
 
 const FinancePage = () => {
   const navigate = useNavigate();
-  const [activeView, setActiveView] = useState('Overview'); // 'Overview', 'Invoices', 'Expenses', 'Payroll'
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isSuperAdmin = user.role_name === 'Super Admin';
+  const [activeView, setActiveView] = useState(isSuperAdmin ? 'Overview' : 'Invoices'); // 'Overview', 'Invoices', 'Expenses', 'Payroll'
   const [reportData, setReportData] = useState({ consolidated: {}, byCurrency: {} });
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -100,7 +102,11 @@ const FinancePage = () => {
       navigate('/dashboard');
       return;
     }
-    fetchFinanceData();
+    if (isSuperAdmin) {
+      fetchFinanceData();
+    } else {
+      setLoading(false);
+    }
     fetchAuxData();
   }, []);
 
@@ -138,6 +144,7 @@ const FinancePage = () => {
   }, [activeView]);
 
   const fetchFinanceData = async () => {
+    if (!isSuperAdmin) return;
     try {
       const year = new Date().getFullYear();
       const res = await axios.get(`/finance/report?startDate=${year}-01-01&endDate=${year}-12-31`);
@@ -426,7 +433,7 @@ const FinancePage = () => {
       {/* View Tabs capsules */}
       <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar w-fit">
         {[
-          { id: 'Overview', icon: LayoutDashboard },
+          ...(isSuperAdmin ? [{ id: 'Overview', icon: LayoutDashboard }] : []),
           { id: 'Invoices', icon: FileText },
           { id: 'Expenses', icon: TrendingDown },
           { id: 'Payroll', icon: Wallet }

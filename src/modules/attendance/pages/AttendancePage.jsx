@@ -75,7 +75,7 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
     <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
-      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-visible h-full flex flex-col">
         {(title || subtitle) && (
           <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -438,24 +438,44 @@ const AttendancePage = () => {
     const row = Math.floor(index / 7);
     const col = index % 7;
 
-    let vClass = "bottom-[105%] mb-2";
-    let hClass = "left-1/2 -translate-x-1/2";
+    let vClass = "";
+    let hClass = "";
 
     if (row === 0) {
+      // Row 1 (0-indexed 0) is below
       vClass = "top-[105%] mt-2";
-    }
-
-    if (col <= 1) {
-      hClass = "left-0 translate-x-0";
-    } else if (col >= 5) {
-      hClass = "right-0 left-auto translate-x-0";
+      if (col <= 1) {
+        hClass = "left-0";
+      } else if (col >= 5) {
+        hClass = "right-0";
+      } else {
+        hClass = "left-1/2 -translate-x-1/2";
+      }
+    } else if (row === 1 || row === 2) {
+      // Rows 2 & 3 (0-indexed 1 & 2) are on left or right
+      vClass = "top-1/2 -translate-y-1/2";
+      if (col <= 3) {
+        hClass = "left-[105%] ml-2";
+      } else {
+        hClass = "right-[105%] mr-2";
+      }
+    } else {
+      // Rows 4, 5, 6 (0-indexed 3, 4, 5) are above
+      vClass = "bottom-[105%] mb-2";
+      if (col <= 1) {
+        hClass = "left-0";
+      } else if (col >= 5) {
+        hClass = "right-0";
+      } else {
+        hClass = "left-1/2 -translate-x-1/2";
+      }
     }
 
     return `${vClass} ${hClass}`;
   };
 
   const getCardClasses = (d, index, isToday, customClass = "") => {
-    const baseClasses = "relative group flex flex-col justify-between h-28 p-2.5 border rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer hover:z-50";
+    const baseClasses = "relative group flex flex-col justify-between h-20 p-2 border rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02] cursor-pointer hover:z-50";
     const activeClass = isToday ? "ring-2 ring-primary-500/80 bg-primary-50/10 border-transparent shadow-md hover:shadow-lg" : "";
 
     if (customClass) {
@@ -768,7 +788,7 @@ const AttendancePage = () => {
                               <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
                               {holiday && <span className="text-blue-400 font-bold">{holiday.name}</span>}
                             </div>
-                            <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                            <div className="space-y-3">
                               <div>
                                 <div className="text-xs font-semibold text-slate-500 text-emerald-400 mb-1">
                                   Present ({totalPresent})

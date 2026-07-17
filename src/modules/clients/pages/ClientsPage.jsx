@@ -53,6 +53,46 @@ const PIPELINE_STAGES = [
   "Project Maintenance",
 ];
 
+// Maps each pipeline stage to its permission key in module_permissions.clients
+const STAGE_PERMISSION_KEY = {
+  "Lead": "tab.lead",
+  "Proposal": "tab.proposal",
+  "Proposal Signed": "tab.proposal_signed",
+  "Project Started": "tab.project_started",
+  "Project Completed": "tab.project_completed",
+  "Project Maintenance": "tab.project_maintenance",
+};
+
+/**
+ * Returns the subset of PIPELINE_STAGES the current user is allowed to see.
+ * Admin roles see everything. If no tab.* keys exist at all, all tabs are shown
+ * for backward compatibility.
+ */
+const getPermittedStages = () => {
+  const userStr = localStorage.getItem("user");
+  if (!userStr) return PIPELINE_STAGES;
+
+  try {
+    const user = JSON.parse(userStr);
+    const role = (user.role_name || "").toLowerCase();
+    if (role === "super admin" || role === "admin" || role === "administrator") {
+      return PIPELINE_STAGES;
+    }
+
+    const clientModules = user.modules?.clients || {};
+
+    // Backward compatibility: if user has no tab.* keys at all, show everything
+    const hasAnyTabKey = Object.keys(clientModules).some((k) => k.startsWith("tab."));
+    if (!hasAnyTabKey) return PIPELINE_STAGES;
+
+    return PIPELINE_STAGES.filter(
+      (stage) => clientModules[STAGE_PERMISSION_KEY[stage]] === true,
+    );
+  } catch {
+    return PIPELINE_STAGES;
+  }
+};
+
 const LEAD_STATUSES = ["Active", "Not Interested", "No Response", "Others"];
 
 const MAINTENANCE_STATUSES = [
@@ -150,7 +190,8 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
 
 const ClientsPage = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("Lead");
+  const permittedStages = getPermittedStages();
+  const [activeTab, setActiveTab] = useState(permittedStages[0] || "Lead");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -828,7 +869,7 @@ const ClientsPage = () => {
 
       {/* Pipeline Tabs capsules */}
       <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-        {PIPELINE_STAGES.map((tab) => {
+        {permittedStages.map((tab) => {
           const count = stageCounts[tab] || 0;
           const isActive = activeTab === tab;
           return (
@@ -980,6 +1021,14 @@ const ClientsPage = () => {
                                 <span className="text-slate-300">•</span>
                                 <span className="text-slate-500">
                                   {item.country}
+                                </span>
+                              </>
+                            )}
+                            {item.onboarded_by_name && (
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-slate-500 font-semibold normal-case text-[9px] text-primary-600 bg-primary-50 px-1 rounded">
+                                  Onboarded by {item.onboarded_by_name}
                                 </span>
                               </>
                             )}

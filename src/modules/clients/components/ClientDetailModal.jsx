@@ -81,7 +81,10 @@ const ClientDetailModal = ({
                   {selectedClient.lifecycle_stage}
                 </Badge>
               </div>
-              <p className="text-sm text-slate-500 mt-0.5">{selectedClient.contact_person} • {selectedClient.email}</p>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {selectedClient.contact_person} • {selectedClient.email}
+                {selectedClient.onboarded_by_name && ` • Onboarded by ${selectedClient.onboarded_by_name}`}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">

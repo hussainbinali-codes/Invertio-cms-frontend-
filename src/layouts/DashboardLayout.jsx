@@ -400,8 +400,8 @@ const DashboardLayout = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between">
-          <nav className="px-3 py-4 space-y-1 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between no-scrollbar">
+          <nav className="px-3 py-4 space-y-1 no-scrollbar">
             {filteredNavItems.map((item) => (
               <NavLink
                 key={item.path}
@@ -552,7 +552,7 @@ const DashboardLayout = () => {
         </header>
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50">
-          <div className="p-4 sm:p-6 lg:p-10 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="p-4 sm:p-6 lg:p-6 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />
           </div>
         </main>
