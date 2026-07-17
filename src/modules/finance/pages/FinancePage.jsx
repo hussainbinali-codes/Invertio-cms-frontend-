@@ -66,6 +66,7 @@ const FinancePage = () => {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('All');
+  const [reminderSendingId, setReminderSendingId] = useState(null);
   
   // Payroll Status Modal State
   const [payrollStatusModal, setPayrollStatusModal] = useState({
@@ -205,6 +206,23 @@ const FinancePage = () => {
       setUsers(Array.isArray(uRes.data.data) ? uRes.data.data : (uRes.data.users || []));
     } catch (err) {
       console.error("Aux fetch error", err);
+    }
+  };
+
+  const sendPaymentReminder = async (invoiceId) => {
+    if (!isSuperAdmin) {
+      toast.error('Only Super Admin can send invoice payment reminders');
+      return;
+    }
+
+    setReminderSendingId(invoiceId);
+    try {
+      await axios.post(`/finance/invoices/${invoiceId}/payment-reminder`);
+      toast.success('Payment reminder sent successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send payment reminder');
+    } finally {
+      setReminderSendingId(null);
     }
   };
 
@@ -480,6 +498,9 @@ const FinancePage = () => {
             setInvoiceStatusFilter={setInvoiceStatusFilter}
             currencies={CURRENCIES}
             updateStatus={updateStatus}
+            sendPaymentReminder={sendPaymentReminder}
+            reminderSendingId={reminderSendingId}
+            isSuperAdmin={isSuperAdmin}
             fileBaseUrl={FILE_BASE_URL}
           />
         )}

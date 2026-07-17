@@ -3,7 +3,7 @@ import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
-import { Search, FileText, CheckCircle2, Download } from 'lucide-react';
+import { Search, FileText, CheckCircle2, Download, Mail, Loader2 } from 'lucide-react';
 import { hasPermission } from '../../../utils/permissionUtils';
 import InvoiceStatusModal from './InvoiceStatusModal';
 
@@ -18,6 +18,9 @@ const InvoicesTab = ({
   setInvoiceStatusFilter,
   currencies,
   updateStatus,
+  sendPaymentReminder,
+  reminderSendingId,
+  isSuperAdmin,
   fileBaseUrl
 }) => {
   const [statusModal, setStatusModal] = React.useState({
@@ -196,6 +199,23 @@ const InvoicesTab = ({
                             View Document
                           </button>
                         ) : null}
+
+
+                        {isSuperAdmin && inv.type === 'Inbound' && !['Paid', 'Cancelled'].includes(inv.status) && (
+                          <button
+                            type="button"
+                            disabled={reminderSendingId === inv.id}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors uppercase tracking-wider"
+                            onClick={() => sendPaymentReminder(inv.id)}
+                          >
+                            {reminderSendingId === inv.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Mail className="w-3 h-3" />
+                            )}
+                            {reminderSendingId === inv.id ? 'Sending...' : 'Send Reminder'}
+                          </button>
+                        )}
 
                         {inv.status === 'Cancelled' ? (
                           <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Cancelled</Badge>
