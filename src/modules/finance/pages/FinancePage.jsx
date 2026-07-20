@@ -538,6 +538,7 @@ const FinancePage = () => {
           clients={clients}
           projects={projects}
           currencies={CURRENCIES}
+          onOpen={fetchAuxData}
         />
 
         <ExpenseModal 

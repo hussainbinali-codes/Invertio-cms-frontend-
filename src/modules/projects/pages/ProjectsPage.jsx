@@ -235,6 +235,7 @@ const ProjectsPage = () => {
     if (status === 'In Progress') return <Badge variant="primary" className={baseStyle}>{status}</Badge>;
     if (status === 'On Hold') return <Badge variant="warning" className={baseStyle}>{status}</Badge>;
     if (status === 'Cancelled') return <Badge variant="destructive" className={baseStyle}>{status}</Badge>;
+    if (status === 'Maintenance') return <Badge variant="warning" className={baseStyle}>{status}</Badge>;
     return <Badge variant="secondary" className={baseStyle}>{status}</Badge>; // Planned
   };
 
@@ -248,6 +249,8 @@ const ProjectsPage = () => {
         return 'text-amber-600 border-amber-200 bg-amber-50/50';
       case 'Planned':
         return 'text-slate-600 border-slate-200 bg-slate-50';
+      case 'Maintenance':
+        return 'text-violet-600 border-violet-200 bg-violet-50/50';
       case 'Cancelled':
         return 'text-rose-600 border-rose-200 bg-rose-50/50';
       default:
@@ -375,6 +378,7 @@ const ProjectsPage = () => {
               <option value="Planned">Planned</option>
               <option value="In Progress">In Progress</option>
               <option value="On Hold">On Hold</option>
+              <option value="Maintenance">Maintenance</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
               <option value="Blocked (Payment)">Blocked (Payment)</option>
@@ -472,6 +476,7 @@ const ProjectsPage = () => {
                             <option value="Planned">Planned</option>
                             <option value="In Progress">In Progress</option>
                             <option value="On Hold">On Hold</option>
+                            <option value="Maintenance">Maintenance</option>
                             <option value="Completed">Completed</option>
                             <option value="Cancelled">Cancelled</option>
                           </select>

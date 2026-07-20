@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -12,18 +12,30 @@ const InvoiceModal = ({
   isSubmitting,
   clients,
   projects,
-  currencies
+  currencies,
+  onOpen
 }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [invoiceType, setInvoiceType] = useState('Inbound');
   const [manualClientName, setManualClientName] = useState('');
 
   useLockBodyScroll(isOpen);
+
+  // Call onOpen callback whenever the modal opens so the parent can refresh stale data
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedClientId('');
+      setInvoiceType('Inbound');
+      setManualClientName('');
+      if (typeof onOpen === 'function') onOpen();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  // Filter projects based on selected client
-  const filteredProjects = selectedClientId 
-    ? projects.filter(p => p.client_id === selectedClientId)
+  // Filter projects based on selected client — use String() coercion to safely compare UUIDs
+  const filteredProjects = selectedClientId
+    ? projects.filter(p => String(p.client_id) === String(selectedClientId))
     : projects;
 
   const isOutbound = invoiceType === 'Outbound';
