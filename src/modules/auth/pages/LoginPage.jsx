@@ -62,10 +62,10 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="w-full">
-      <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+    <div className="w-full mt-6">
+      <form className="space-y-5" onSubmit={handleSubmit}>
         {error && (
-          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-in fade-in slide-in-from-top-1">
+          <div className="p-3 text-xs font-semibold text-slate-500 text-rose-600 bg-rose-50 border border-rose-100 rounded-xl animate-in fade-in slide-in-from-top-1 font-mono">
             {error}
           </div>
         )}
@@ -73,12 +73,12 @@ const LoginPage = () => {
           <Input
             label="Email Address"
             name="email"
-            // type="email"
             required
             placeholder="you@company.com"
             icon={Mail}
             value={formData.email}
             onChange={handleChange}
+            className="rounded-xl border-slate-200 text-sm font-normal focus:ring-2 focus:ring-blue-500 font-mono"
           />
           <Input
             label="Password"
@@ -89,27 +89,27 @@ const LoginPage = () => {
             icon={Lock}
             value={formData.password}
             onChange={handleChange}
+            className="rounded-xl border-slate-200 text-sm font-normal focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         <div className="flex items-center justify-end">
           <Link
             to="/forgot-password"
-            size="sm"
-            className="text-[11px] font-bold text-primary-600 hover:text-primary-700 uppercase tracking-widest transition-colors"
+            className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 uppercase tracking-widest transition-colors font-mono"
           >
             Forgot password?
           </Link>
         </div>
 
-        <div>
+        <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
           <button
             type="submit"
             disabled={isLoading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200 shadow-lg shadow-primary-200 disabled:opacity-70 disabled:shadow-none"
+            className="w-full flex justify-center py-2.5 px-4 text-xs font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm disabled:opacity-75 uppercase tracking-wider"
           >
             {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
             ) : (
               "Sign in to Dashboard"
             )}

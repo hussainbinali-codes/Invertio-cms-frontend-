@@ -90,26 +90,26 @@ const ProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
                 <div className="p-6 space-y-6">
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Name</p>
-                    <p className="text-sm font-bold text-slate-700">{profile.name}</p>
+                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Full Name</p>
+                    <p className="text-sm font-medium text-slate-800">{profile.name}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Email Address</p>
-                    <p className="text-sm font-bold text-slate-700">{profile.email}</p>
+                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Email Address</p>
+                    <p className="text-sm font-medium text-slate-800">{profile.email}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Employee ID</p>
-                    <p className="text-sm font-bold text-slate-700">{profile.employee_id || 'N/A'}</p>
+                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Employee ID</p>
+                    <p className="text-sm font-medium text-slate-800">{profile.employee_id || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="p-6 space-y-6 bg-slate-50/30">
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Department</p>
-                    <p className="text-sm font-bold text-slate-700">{profile.department || 'Operations'}</p>
+                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Department</p>
+                    <p className="text-sm font-medium text-slate-800">{profile.department || 'Operations'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Designation</p>
-                    <p className="text-sm font-bold text-slate-700">{profile.designation || profile.role_name}</p>
+                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Designation</p>
+                    <p className="text-sm font-medium text-slate-800">{profile.designation || profile.role_name}</p>
                   </div>
                 </div>
               </div>
@@ -132,7 +132,7 @@ const ProfilePage = () => {
                      </div>
                      <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account Created</p>
-                        <p className="text-sm font-bold text-slate-700">
+                        <p className="text-sm font-medium text-slate-800">
                           {new Date(profile.created_at).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
                      </div>
@@ -143,7 +143,7 @@ const ProfilePage = () => {
                      </div>
                      <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Joining Date</p>
-                        <p className="text-sm font-bold text-slate-700">
+                        <p className="text-sm font-medium text-slate-800">
                           {profile.joining_date ? new Date(profile.joining_date).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}
                         </p>
                      </div>
@@ -156,7 +156,7 @@ const ProfilePage = () => {
         {/* Sidebar Info */}
         <div className="space-y-6">
           <Card className="border-slate-200 shadow-sm rounded-2xl p-6">
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Account Status</h3>
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">Account Status</h3>
             <div className="space-y-4">
                <div className="flex justify-between items-center pb-3 border-b border-slate-50">
                   <span className="text-xs text-slate-500 font-medium">Role</span>
@@ -195,7 +195,7 @@ const Badge = ({ children, variant = 'default', className }) => {
     default: 'bg-slate-100 text-slate-600 border-slate-200'
   };
   return (
-    <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border", variants[variant], className)}>
+    <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold text-slate-500 border", variants[variant], className)}>
       {children}
     </span>
   );

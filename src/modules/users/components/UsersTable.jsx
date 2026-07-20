@@ -74,13 +74,13 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
             </TableCell>
             <TableCell className="py-5">
               <div className="flex flex-col gap-1">
-                <Badge variant="primary" className="text-[10px] font-bold uppercase tracking-wider w-fit">
+                <Badge variant="primary" className="text-xs font-semibold text-slate-500 w-fit">
                   {user.role_name || "User"}
                 </Badge>
                 {user.module_permissions && Object.keys(user.module_permissions).length > 0 && (
                   <div className="flex items-center gap-1 mt-1">
                     <ShieldCheck className="w-3 h-3 text-amber-500" />
-                    <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tighter">
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tighter">
                       Custom Access
                     </span>
                   </div>
@@ -92,7 +92,7 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
                 <div className="text-xs font-bold text-slate-900">
                   {user.salary ? `\u20B9${user.salary.toLocaleString()}` : "N/A"}
                 </div>
-                <div className="text-[9px] text-slate-400 font-medium uppercase mt-0.5">Monthly CTC</div>
+                <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">Monthly CTC</div>
               </TableCell>
             )}
             <TableCell className="py-5">
@@ -102,7 +102,7 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
                     <Badge
                       key={s.id}
                       variant="outline"
-                      className="text-[9px] px-1.5 py-0 border-slate-200 text-slate-500 whitespace-nowrap"
+                      className="text-[10px] px-1.5 py-0 border-slate-200 text-slate-500 whitespace-nowrap"
                     >
                       {s.name}
                     </Badge>
@@ -115,7 +115,7 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
             <TableCell className="py-5">
               <Badge
                 variant={user.status === "Active" ? "success" : "default"}
-                className="text-[10px] font-bold uppercase tracking-wider"
+                className="text-xs font-semibold text-slate-500"
               >
                 {user.status || "Pending"}
               </Badge>
@@ -124,7 +124,7 @@ const UsersTable = ({ users, loading, handleStatusChange, handleEdit }) => {
               <div className="flex items-center justify-start gap-3">
                 {hasPermission("users", "status.edit") && (
                   <select
-                    className="text-[10px] font-bold uppercase bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                    className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
                     value={user.status || "Pending"}
                     onChange={(e) => handleStatusChange(user.id, e.target.value)}
                   >

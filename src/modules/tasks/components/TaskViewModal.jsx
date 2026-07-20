@@ -64,7 +64,7 @@ const TaskViewModal = ({ project, onClose }) => {
             <Button 
               variant="ghost" 
               size="sm" 
-              className="h-9 text-[10px] font-bold uppercase text-primary-600 hover:bg-primary-50"
+              className="h-9 text-xs font-semibold text-slate-500 text-primary-600 hover:bg-primary-50"
               onClick={() => setShowResources(true)}
             >
               <FolderOpen className="w-3.5 h-3.5 mr-1.5" />
@@ -142,18 +142,22 @@ const TaskViewModal = ({ project, onClose }) => {
                     <TableCell>
                       <Badge 
                         variant={
-                          task.priority === 'Urgent' ? 'destructive' : 
+                          task.priority === 'Urgent' ? 'default' : 
                           task.priority === 'High' ? 'warning' : 
                           task.priority === 'Medium' ? 'primary' : 
                           'secondary'
                         } 
-                        className="text-[10px]"
+                        className={
+                          task.priority === 'Urgent'
+                            ? 'text-[10px] bg-rose-100 text-rose-700'
+                            : 'text-[10px]'
+                        }
                       >
                         {task.priority || 'Medium'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="text-[10px] font-black text-slate-600">{task.story_points || 0} pts</span>
+                      <span className="text-[10px] font-bold text-slate-600">{task.story_points || 0} pts</span>
                     </TableCell>
                     <TableCell>
                       <Badge 
@@ -182,7 +186,7 @@ const TaskViewModal = ({ project, onClose }) => {
             <span className="text-xs text-slate-400 font-medium">Total: {tasks.length} tasks</span>
             <button 
                 onClick={onClose}
-                className="text-xs font-semibold text-primary-600 hover:text-primary-700 underline underline-offset-4"
+                className="text-sm font-normal text-primary-600 hover:text-primary-700 underline underline-offset-4"
             >
                 Close View
             </button>
@@ -209,3 +213,4 @@ const TaskViewModal = ({ project, onClose }) => {
 };
 
 export default TaskViewModal;
+

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
-import { Search, CheckCircle2 } from 'lucide-react';
+import { Search, CheckCircle2, Wallet } from 'lucide-react';
 import { hasPermission } from '../../../utils/permissionUtils';
 
 const PayrollTab = ({
@@ -22,37 +22,37 @@ const PayrollTab = ({
   });
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <CardHeader className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-6">
-        <div>
-          <CardTitle className="text-xl font-bold">Payroll & Labor Costs</CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Tracking employee compensation and project-labor allocation.</p>
-        </div>
+    <PremiumCard 
+      title="Payroll & Labor Costs" 
+      subtitle="Tracking employee compensation and project-labor allocation." 
+      icon={Wallet}
+      className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+      headerRight={
         <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search name or project..." 
-                value={payrollSearch}
-                onChange={(e) => setPayrollSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:ring-primary-500 w-full sm:w-64"
-              />
-            </div>
-            <select 
-              value={payrollYearFilter}
-              onChange={(e) => setPayrollYearFilter(e.target.value)}
-              className="text-xs rounded-lg border border-slate-200 py-2 focus:ring-primary-500"
-            >
-              <option value="All">All Years</option>
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-            </select>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search name or project..." 
+              value={payrollSearch}
+              onChange={(e) => setPayrollSearch(e.target.value)}
+              className="pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:ring-primary-500 w-full sm:w-64"
+            />
+          </div>
+          <select 
+            value={payrollYearFilter}
+            onChange={(e) => setPayrollYearFilter(e.target.value)}
+            className="text-xs rounded-lg border border-slate-200 py-2 focus:ring-primary-500"
+          >
+            <option value="All">All Years</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+          </select>
         </div>
-      </CardHeader>
-
-      <CardContent className="p-0">
+      }
+    >
+      <div className="flex-grow">
          <Table>
             <TableHeader>
               <TableRow>
@@ -69,7 +69,7 @@ const PayrollTab = ({
               ) : (
                 filteredPayroll.map(pay => (
                   <TableRow key={pay.id}>
-                    <TableCell className="py-5 font-bold text-slate-900 text-sm">
+                    <TableCell className="py-5 font-bold text-slate-800 text-sm">
                       {pay.user_name}
                       {pay.proof_url && (
                         <a
@@ -82,9 +82,9 @@ const PayrollTab = ({
                         </a>
                       )}
                     </TableCell>
-                    <TableCell className="py-5 font-bold text-slate-500 text-sm">{pay.project_name || 'General Admin'}</TableCell>
-                    <TableCell className="py-5 text-sm text-slate-600">{pay.month}/{pay.year}</TableCell>
-                    <TableCell className="py-5 font-bold text-slate-900">
+                    <TableCell className="py-5 font-bold text-slate-500 text-xs">{pay.project_name || 'General Admin'}</TableCell>
+                    <TableCell className="py-5 text-xs text-slate-600">{pay.month}/{pay.year}</TableCell>
+                    <TableCell className="py-5 font-bold text-slate-900 font-mono">
                       {currencies.find(c => c.code === pay.currency)?.symbol || '$'}
                       {pay.amount?.toLocaleString()}
                     </TableCell>
@@ -98,20 +98,21 @@ const PayrollTab = ({
                           >
                             <option value="Pending">Pending</option>
                             <option value="Paid">Paid</option>
+                            <option value="Failed">Failed</option>
                           </select>
                           {pay.payment_notes && (
-                             <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 max-w-[120px] truncate" title={pay.payment_notes}>
-                               {pay.payment_notes}
-                             </p>
+                            <p className="text-xs text-slate-500 font-medium mt-1 max-w-[120px] truncate" title={pay.payment_notes}>
+                              {pay.payment_notes}
+                            </p>
                           )}
                         </div>
                       ) : (
                         <div className="flex flex-col gap-1">
-                          <Badge variant={pay.status === 'Paid' ? 'success' : 'default'} className="text-[10px] font-bold uppercase w-fit">{pay.status}</Badge>
+                          <Badge variant={pay.status === 'Paid' ? 'success' : 'default'} className="text-xs font-semibold text-slate-500 w-fit">{pay.status}</Badge>
                           {pay.payment_notes && (
-                             <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[100px]" title={pay.payment_notes}>
-                               {pay.payment_notes}
-                             </p>
+                            <p className="text-xs text-slate-500 font-medium truncate max-w-[100px]" title={pay.payment_notes}>
+                              {pay.payment_notes}
+                            </p>
                           )}
                         </div>
                       )}
@@ -121,8 +122,8 @@ const PayrollTab = ({
               )}
             </tbody>
          </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </PremiumCard>
   );
 };
 

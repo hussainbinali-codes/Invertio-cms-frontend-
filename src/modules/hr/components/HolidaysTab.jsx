@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
@@ -14,12 +14,12 @@ const HolidaysTab = ({
   setSearchTerm
 }) => {
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-slate-900">
-      <CardHeader className="flex flex-row items-center justify-between py-6">
-        <div>
-          <CardTitle className="text-xl font-bold">Holiday Calendar</CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Public holidays and company-wide closures.</p>
-        </div>
+    <PremiumCard 
+      title="Holiday Calendar" 
+      subtitle="Public holidays and company-wide closures." 
+      icon={Calendar}
+      className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+      headerRight={
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input 
@@ -29,8 +29,9 @@ const HolidaysTab = ({
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
+      }
+    >
+      <div className="flex-1">
         <Table>
           <TableHeader>
             <TableRow>
@@ -48,15 +49,15 @@ const HolidaysTab = ({
             )}
             {holidays.map(holiday => (
               <TableRow key={holiday.id}>
-                <TableCell className="py-5 font-bold">{holiday.name}</TableCell>
+                <TableCell className="py-5 font-bold text-slate-800">{holiday.name}</TableCell>
                 <TableCell className="py-5">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-primary-500" />
-                    <span className="text-xs font-semibold">{new Date(holiday.date).toLocaleDateString()}</span>
+                    <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-sm font-normal">{new Date(holiday.date).toLocaleDateString()}</span>
                   </div>
                 </TableCell>
                 <TableCell className="py-5">
-                  <Badge variant="outline" className="text-[10px] font-bold uppercase">{holiday.type || 'Public'}</Badge>
+                  <Badge variant="outline" className="text-xs font-semibold text-slate-500">{holiday.type || 'Public'}</Badge>
                 </TableCell>
                 <TableCell className="py-5">
                   {hasPermission('hr', 'holidays.manage') && (
@@ -74,8 +75,8 @@ const HolidaysTab = ({
             ))}
           </tbody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </PremiumCard>
   );
 };
 

@@ -113,7 +113,7 @@ const InterviewModal = ({
             />
 
             <div className="pt-4 border-t border-slate-100">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Schedule Interview Details</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Schedule Interview Details</label>
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700">Assign Interviewer</label>

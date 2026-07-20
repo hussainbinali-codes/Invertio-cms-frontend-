@@ -87,7 +87,7 @@ const PerformanceActionModal = ({
               <>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Salary</div>
-                  <div className="text-lg font-black text-slate-900">₹{parseFloat(selectedUserForPerf?.salary || 0).toLocaleString()}</div>
+                  <div className="text-lg font-bold text-slate-900">₹{parseFloat(selectedUserForPerf?.salary || 0).toLocaleString()}</div>
                 </div>
                 <Input label="New Base Salary" name="new_salary" type="number" min="0" step="0.01" required placeholder="Enter new salary amount" />
                 <Input label="Effective Date" name="effective_date" type="date" required />

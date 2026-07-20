@@ -115,7 +115,7 @@ const SettingsPage = () => {
               <AlertCircle className="w-6 h-6 text-slate-400" />
            </div>
            <div>
-              <p className="text-sm font-bold text-slate-900">Need help with your account?</p>
+              <p className="text-sm font-semibold text-slate-900">Need help with your account?</p>
               <p className="text-xs text-slate-500 mt-0.5 font-medium">Contact the IT administration team if you've lost access or suspect unauthorized activity.</p>
            </div>
         </CardContent>

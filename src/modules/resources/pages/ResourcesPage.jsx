@@ -27,6 +27,81 @@ import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 
+// Premium Double-Bezel KPI Card component
+const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
+  return (
+    <div className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 hover:bg-slate-200/60 active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group hover:-translate-y-0.5 flex-1">
+      <div className="bg-white p-5 rounded-[calc(1.75rem-0.375rem)] border border-slate-200/25 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_8px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
+              {title}
+            </span>
+            {Icon && (
+              <div className="p-2 bg-slate-50 border border-slate-100/60 rounded-xl group-hover:scale-105 transition-transform duration-300">
+                <Icon className="w-3.5 h-3.5 text-slate-500" />
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-3">
+            <span className="text-3xl font-bold text-slate-800 tracking-tight font-mono">
+              {value}
+            </span>
+          </div>
+        </div>
+
+        {(trend || subtext) && (
+          <div className="mt-4 flex items-center gap-2">
+            {trend && (
+              <span className={cn(
+                "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono",
+                trend.startsWith('+') ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50"
+              )}>
+                {trend}
+              </span>
+            )}
+            {subtext && (
+              <span className="text-xs text-slate-500 font-medium font-mono">
+                {subtext}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Premium Double-Bezel Card Container component
+const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
+  return (
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+        {(title || subtitle) && (
+          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {Icon && (
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                  <Icon className="w-4 h-4 text-slate-500" />
+                </div>
+              )}
+              <div>
+                {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
+                {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+              </div>
+            </div>
+            {headerRight}
+          </div>
+        )}
+        <div className="flex-1 flex flex-col">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ResourcesPage = () => {
   const [resources, setResources] = useState([]); // Inventory items
   const [utilization, setUtilization] = useState([]); // Chart data
@@ -171,58 +246,72 @@ const ResourcesPage = () => {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-10">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div className="max-w-2xl">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Asset Center</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage institutional inventory and workforce allocation.</p>
+    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+      {/* Header section with Asymmetric Layout */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+            Asset Center
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-normal">
+            Manage institutional inventory and workforce allocation.
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-            <Button 
-                variant={activeTab === 'inventory' ? 'primary' : 'ghost'} 
-                onClick={() => setActiveTab('inventory')}
-                className="h-9 sm:h-10 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex-1 sm:flex-none"
-            >
-                Inventory
-            </Button>
-            <Button 
-                variant={activeTab === 'utilization' ? 'primary' : 'ghost'} 
-                onClick={() => setActiveTab('utilization')}
-                className="h-9 sm:h-10 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex-1 sm:flex-none"
-            >
-                Workforce
-            </Button>
-            {hasPermission('resources', 'create') && (
-              <Button onClick={() => { 
-                setSelectedResource(null); 
-                setSelectedAssignmentUsers([]);
-                setShowAddModal(true); 
-              }} className="bg-primary-600 hover:bg-primary-700 h-9 sm:h-10 text-[10px] sm:text-xs flex-1 sm:flex-none sm:ml-2">
-                <Plus className="w-4 h-4 mr-1.5 sm:mr-2" />
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Tabs toggle */}
+          <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap">
+            {[
+              { id: 'inventory', label: 'Inventory' },
+              { id: 'utilization', label: 'Workforce' }
+            ].map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 uppercase tracking-wider whitespace-nowrap active:scale-[0.98]",
+                    isActive ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {hasPermission('resources', 'create') && (
+            <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+              <Button 
+                onClick={() => { 
+                  setSelectedResource(null); 
+                  setSelectedAssignmentUsers([]);
+                  setShowAddModal(true); 
+                }} 
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
                 New Asset
               </Button>
-            )}
+            </div>
+          )}
         </div>
       </div>
 
       {activeTab === 'inventory' ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard title="Total Inventory" value={resources.length} icon={Cpu} subtext="Tracked items" />
-                <StatCard title="Assigned" value={resources.filter(r => r.assigned_users?.length > 0).length} icon={Monitor} subtext="Currently in use" />
-                <StatCard title="Available" value={resources.filter(r => !r.assigned_users || r.assigned_users.length === 0).length} icon={AlertCircle} subtext="Ready to deploy" />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <KpiCard title="Total Inventory" value={resources.length} icon={Cpu} subtext="Tracked items" />
+            <KpiCard title="Assigned" value={resources.filter(r => r.assigned_users?.length > 0).length} icon={Monitor} subtext="Currently in use" />
+            <KpiCard title="Available" value={resources.filter(r => !r.assigned_users || r.assigned_users.length === 0).length} icon={AlertCircle} subtext="Ready to deploy" />
+          </div>
 
-            <Card className="overflow-hidden">
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
-                    <div>
-                        <CardTitle className="text-lg sm:text-xl font-bold">Inventory & Access</CardTitle>
-                        <p className="text-xs text-slate-500 mt-0.5 font-medium">Manage hardware, software licenses, and repository access.</p>
-                    </div>
-                </CardHeader>
-
-
-                <CardContent className="p-0">
+          <PremiumCard 
+            title="Inventory & Access" 
+            subtitle="Manage hardware, software licenses, and repository access." 
+            icon={Monitor}
+          >
+            <div className="flex-1">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -240,10 +329,10 @@ const ResourcesPage = () => {
 
                                     <TableCell className="py-5">
                                         <div className="font-bold text-slate-900">{item.name}</div>
-                                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{item.details || 'No details'}</div>
+                                        {/* <div className="text-xs text-slate-500 font-medium mt-0.5">{item.details || 'No details'}</div> */}
                                     </TableCell>
                                     <TableCell className="py-5">
-                                        <Badge variant="outline" className="text-[10px] font-bold uppercase">{item.type}</Badge>
+                                        <Badge variant="outline" className="text-xs font-semibold text-slate-500">{item.type}</Badge>
                                     </TableCell>
                                     <TableCell className="py-5">
                                         {item.assigned_users?.length > 0 ? (
@@ -303,64 +392,54 @@ const ResourcesPage = () => {
                             ))}
                         </tbody>
                     </Table>
-                </CardContent>
-            </Card>
+                </div>
+            </PremiumCard>
         </div>
       ) : (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard title="Total Team" value={userAllocation.length} icon={Users} subtext="Global talent pool" />
-                <StatCard title="Bench Strength" value={utilization.find(u => u.name === 'Bench')?.value || 0} icon={Layers} subtext="Available now" />
-                <StatCard title="ROI Matrix" value="84%" icon={TrendingUp} trend="+5%" subtext="Efficiency score" />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <KpiCard title="Total Team" value={userAllocation.length} icon={Users} subtext="Global talent pool" />
+            <KpiCard title="Bench Strength" value={utilization.find(u => u.name === 'Bench')?.value || 0} icon={Layers} subtext="Available now" />
+            <KpiCard title="ROI Matrix" value="84%" icon={TrendingUp} trend="+5%" subtext="Efficiency score" />
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                <CardHeader className="py-6">
-                    <CardTitle className="text-lg font-bold">Workforce Utilization</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                        <PieChart>
-                        <Pie data={utilization} innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value">
-                            {utilization.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend verticalAlign="bottom" height={36}/>
-                        </PieChart>
-                    </ResponsiveContainer>
-                </CardContent>
-                </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <PremiumCard title="Workforce Utilization" icon={Layers}>
+              <div className="h-[350px] p-6">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <PieChart>
+                    <Pie data={utilization} innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value">
+                      {utilization.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </PremiumCard>
 
-                <Card>
-                <CardHeader className="py-6">
-                    <CardTitle className="text-lg font-bold">Core Proficiency Matrix</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={mockSkills}>
-                        <PolarGrid stroke="#e2e8f0" />
-                        <PolarAngleAxis dataKey="subject" tick={{fill: '#64748b', fontSize: 12}} />
-                        <Radar name="Company Avg" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.5} />
-                        <Tooltip />
-                    </RadarChart>
-                    </ResponsiveContainer>
-                </CardContent>
-                </Card>
-            </div>
+            <PremiumCard title="Core Proficiency Matrix" icon={TrendingUp}>
+              <div className="h-[350px] p-6">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={mockSkills}>
+                    <PolarGrid stroke="#e2e8f0" />
+                    <PolarAngleAxis dataKey="subject" tick={{fill: '#64748b', fontSize: 12}} />
+                    <Radar name="Company Avg" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.5} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </PremiumCard>
+          </div>
 
-            <Card>
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-6">
-                    <div>
-                    <CardTitle className="text-xl font-bold">Allocation Matrix</CardTitle>
-                    <p className="text-xs text-slate-500 mt-0.5 font-medium">Monitoring {userAllocation.length} project assignees.</p>
-                    </div>
-                </CardHeader>
-
-
-                <CardContent className="p-0">
+          <PremiumCard 
+            title="Allocation Matrix" 
+            subtitle={`Monitoring ${userAllocation.length} project assignees.`} 
+            icon={Users}
+          >
+            <div className="flex-1">
                     <Table>
                         <TableHeader>
                         <TableRow>
@@ -380,7 +459,7 @@ const ResourcesPage = () => {
                             <TableRow key={row.id} className="group">
                                 <TableCell className="py-5">
                                     <div className="font-bold text-slate-900">{row.name}</div>
-                                    <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">{row.role || 'Contributor'}</div>
+                                    <div className="text-xs text-slate-500 font-medium mt-0.5 tracking-wider">{row.role || 'Contributor'}</div>
                                 </TableCell>
                                 <TableCell className="py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">{row.primary_skill}</TableCell>
                                 <TableCell className="py-5">
@@ -394,7 +473,7 @@ const ResourcesPage = () => {
                                 </TableCell>
                                 <TableCell className="py-5">
                                     <div className="flex items-center gap-2">
-                                        <Badge variant={row.status === 'Active' ? 'success' : 'destructive'} className="text-[10px] font-bold uppercase tracking-wider">
+                                        <Badge variant={row.status === 'Active' ? 'success' : 'destructive'} className="text-xs font-semibold text-slate-500">
                                             {row.status}
                                         </Badge>
                                         {hasPermission('users', 'status.edit') && (
@@ -420,8 +499,8 @@ const ResourcesPage = () => {
                         })}
                         </tbody>
                     </Table>
-                </CardContent>
-            </Card>
+            </div>
+          </PremiumCard>
         </div>
       )}
 

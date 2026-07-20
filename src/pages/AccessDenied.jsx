@@ -11,7 +11,7 @@ const AccessDenied = () => {
             <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mb-6 animate-bounce">
                 <ShieldAlert className="w-10 h-10 text-rose-600" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Access Denied</h1>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Access Denied</h1>
             <p className="text-slate-500 max-w-md mb-8">
                 You don't have the required permissions to access this section. 
                 Please contact your administrator if you believe this is an error.

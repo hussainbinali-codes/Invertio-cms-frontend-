@@ -151,7 +151,7 @@ const AssetsPage = () => {
                                 </div>
                              </TableCell>
                              <TableCell className="py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">{asset.type}</TableCell>
-                             <TableCell className="py-5 font-mono text-[10px] text-slate-400 font-bold uppercase">{asset.serial_number}</TableCell>
+                             <TableCell className="py-5 font-mono text-xs text-slate-500 font-medium">{asset.serial_number}</TableCell>
                              <TableCell className="py-5">
                                 {asset.assignee_name ? (
                                    <div className="flex items-center gap-2">
@@ -165,7 +165,7 @@ const AssetsPage = () => {
                                 )}
                              </TableCell>
                              <TableCell className="py-5">
-                                <Badge variant={asset.status === 'Active' ? 'success' : 'default'} className="text-[10px] font-bold uppercase tracking-wider">{asset.status}</Badge>
+                                <Badge variant={asset.status === 'Active' ? 'success' : 'default'} className="text-xs font-semibold text-slate-500">{asset.status}</Badge>
                              </TableCell>
                              <TableCell className="py-5">
                                 <div className="flex justify-start gap-2">

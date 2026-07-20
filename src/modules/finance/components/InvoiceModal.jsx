@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -12,17 +12,33 @@ const InvoiceModal = ({
   isSubmitting,
   clients,
   projects,
-  currencies
+  currencies,
+  onOpen
 }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [invoiceType, setInvoiceType] = useState('Inbound');
+  const [manualClientName, setManualClientName] = useState('');
 
   useLockBodyScroll(isOpen);
+
+  // Call onOpen callback whenever the modal opens so the parent can refresh stale data
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedClientId('');
+      setInvoiceType('Inbound');
+      setManualClientName('');
+      if (typeof onOpen === 'function') onOpen();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  // Filter projects based on selected client
-  const filteredProjects = selectedClientId 
-    ? projects.filter(p => p.client_id === selectedClientId)
+  // Filter projects based on selected client — use String() coercion to safely compare UUIDs
+  const filteredProjects = selectedClientId
+    ? projects.filter(p => String(p.client_id) === String(selectedClientId))
     : projects;
+
+  const isOutbound = invoiceType === 'Outbound';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
@@ -55,24 +71,50 @@ const InvoiceModal = ({
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Direction <span className="text-red-500 font-bold">*</span></label>
-              <select name="type" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
-                <option value="Outbound">Outbound </option>
-                <option value="Inbound">Inbound </option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Client / Recipient <span className="text-red-500 font-bold">*</span></label>
               <select 
-                name="client_id" 
+                name="type" 
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" 
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
+                value={invoiceType}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setInvoiceType(value);
+                  if (value !== 'Outbound') {
+                    setManualClientName('');
+                  }
+                }}
                 required
               >
-                <option value="">Select client...</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
+                <option value="Inbound">Inbound </option>
+                <option value="Outbound">Outbound </option>
               </select>
             </div>
+            {isOutbound ? (
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Client / Vendor Name <span className="text-red-500 font-bold">*</span></label>
+                <input
+                  name="manual_client_name"
+                  value={manualClientName}
+                  onChange={(e) => setManualClientName(e.target.value)}
+                  placeholder="Enter client or vendor name"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                  required
+                />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Client / Recipient <span className="text-red-500 font-bold">*</span></label>
+                <select 
+                  name="client_id" 
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" 
+                  value={selectedClientId}
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  required
+                >
+                  <option value="">Select client...</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Associated Project <span className="text-red-500 font-bold">*</span></label>
               <select name="project_id" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" required>
@@ -83,7 +125,7 @@ const InvoiceModal = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label={<span>Due Date <span className="text-red-500 font-bold">*</span></span>} name="due_date" type="date" required />
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Document (PDF/Image) <span className="text-red-500 font-bold">*</span></label>
+                <label className="text-sm font-medium text-slate-700">{isOutbound ? 'Upload Receipt / Document' : 'Document (PDF/Image)'} <span className="text-red-500 font-bold">*</span></label>
                 <input type="file" name="document" className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" required />
               </div>
             </div>

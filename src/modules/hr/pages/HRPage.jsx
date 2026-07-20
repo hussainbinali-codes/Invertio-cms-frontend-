@@ -2,6 +2,8 @@ import React, { useEffect, useState, Suspense, lazy } from 'react';
 import axios from '../../../api/axios';
 import Button from '../../../components/ui/Button';
 import Skeleton from '../../../components/ui/Skeleton';
+import KpiCard from '../../../components/ui/KpiCard';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import {
   Calendar,
   UserPlus,
@@ -512,44 +514,62 @@ const HRPage = () => {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-10">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div className="max-w-2xl">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Institutional HR</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Recruitment governance and employee management hub.</p>
+    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+      {/* Header section with Asymmetric Layout */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+            Institutional HR
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-normal">
+            Recruitment governance and employee management hub.
+          </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto no-scrollbar whitespace-nowrap">
-            {['recruitment', 'directory', 'leaves', 'performance', 'holidays'].map((tab) => (
-              <Button
-                key={tab}
-                variant={activeTab === tab ? 'primary' : 'ghost'}
-                onClick={() => {
-                  setActiveTab(tab);
-                  setSearchTerm('');
-                }}
-                className={cn(
-                  'h-8 px-3 sm:px-4 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap',
-                  activeTab === tab ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
-                )}
-              >
-                {tab}
-              </Button>
-            ))}
+          {/* Sub-Tabs Toggle */}
+          <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 whitespace-nowrap">
+            {['recruitment', 'directory', 'leaves', 'performance', 'holidays'].map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setSearchTerm('');
+                  }}
+                  className={cn(
+                    'px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 uppercase tracking-wider whitespace-nowrap active:scale-[0.98]',
+                    isActive ? 'bg-white text-blue-600 shadow-sm border border-slate-200/20' : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
+                  )}
+                >
+                  {tab}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex gap-2">
             {activeTab === 'recruitment' && hasPermission('hr', 'recruitment.manage') && (
-              <Button onClick={() => { setSelectedCandidate(null); setShowInterviewModal(true); }} className="bg-primary-600 hover:bg-primary-700 h-9 sm:h-10 text-xs sm:text-sm flex-1 shadow-lg shadow-primary-100">
-                <UserPlus className="w-4 h-4 mr-1.5 sm:mr-2" />
-                New Interview
-              </Button>
+              <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+                <Button 
+                  onClick={() => { setSelectedCandidate(null); setShowInterviewModal(true); }} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  New Interview
+                </Button>
+              </div>
             )}
             {activeTab === 'holidays' && hasPermission('hr', 'holidays.manage') && (
-              <Button onClick={() => setShowHolidayModal(true)} className="bg-emerald-600 hover:bg-emerald-700 h-9 sm:h-10 text-xs sm:text-sm flex-1 shadow-lg shadow-emerald-100">
-                <Calendar className="w-4 h-4 mr-1.5 sm:mr-2" />
-                Add Holiday
-              </Button>
+              <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+                <Button 
+                  onClick={() => setShowHolidayModal(true)} 
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  Add Holiday
+                </Button>
+              </div>
             )}
           </div>
         </div>

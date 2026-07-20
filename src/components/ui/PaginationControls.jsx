@@ -21,7 +21,7 @@ const PaginationControls = ({
   return (
     <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4 px-6 border-t border-slate-100 bg-slate-50/30 ${className}`.trim()}>
       <div className="space-y-1">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="text-sm font-normal text-slate-500 uppercase tracking-wider">
           Showing {itemCount} of {total} records
         </div>
         <div className="text-xs font-medium text-slate-400">
@@ -33,7 +33,7 @@ const PaginationControls = ({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+          className="h-8 px-3 text-sm font-semibold"
           disabled={!hasPreviousPage}
           onClick={onPrevious}
         >
@@ -42,7 +42,7 @@ const PaginationControls = ({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+          className="h-8 px-3 text-sm font-semibold"
           disabled={!hasNextPage}
           onClick={onNext}
         >

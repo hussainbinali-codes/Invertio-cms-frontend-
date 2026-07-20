@@ -382,8 +382,8 @@ const DashboardLayout = () => {
             <img
               src={
                 isSidebarCollapsed
-                  ? "/invertio logo short.png"
-                  : "/invertio logo.png"
+                  ? "/invertio_logo_short.png"
+                  : "/invertio_logo.png"
               }
               alt="Logo"
               className={cn(
@@ -400,8 +400,8 @@ const DashboardLayout = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between">
-          <nav className="px-3 py-4 space-y-1 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between no-scrollbar">
+          <nav className="px-3 py-4 space-y-1 no-scrollbar">
             {filteredNavItems.map((item) => (
               <NavLink
                 key={item.path}
@@ -420,30 +420,32 @@ const DashboardLayout = () => {
                   )
                 }
               >
-                <item.icon
-                  className={cn(
-                    "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
-                    isSidebarCollapsed ? "lg:mr-0 mr-3" : "mr-3",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "truncate transition-all duration-300",
-                    isSidebarCollapsed ? "lg:hidden block" : "block",
-                  )}
-                >
-                  {item.label}
-                </span>
-                {({ isActive }) =>
-                  isActive && (
-                    <div
+                {({ isActive }) => (
+                  <>
+                    <item.icon
                       className={cn(
-                        "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
-                        isSidebarCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6",
+                        "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
+                        isSidebarCollapsed ? "lg:mr-0 mr-3" : "mr-3",
                       )}
                     />
-                  )
-                }
+                    <span
+                      className={cn(
+                        "truncate transition-all duration-300",
+                        isSidebarCollapsed ? "lg:hidden block" : "block",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                    {isActive && (
+                      <div
+                        className={cn(
+                          "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
+                          isSidebarCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6",
+                        )}
+                      />
+                    )}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -535,7 +537,7 @@ const DashboardLayout = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden xs:flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded-full border border-emerald-100">
+            <div className="hidden xs:flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold text-slate-500 rounded-full border border-emerald-100">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse" />
               Online
             </div>
@@ -550,7 +552,7 @@ const DashboardLayout = () => {
         </header>
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50">
-          <div className="p-4 sm:p-6 lg:p-10 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="p-4 sm:p-6 lg:p-6 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />
           </div>
         </main>

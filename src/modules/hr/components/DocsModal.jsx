@@ -79,7 +79,7 @@ const DocsModal = ({
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full h-9 text-xs font-bold uppercase tracking-wider" 
+                    className="w-full h-9 text-sm font-semibold" 
                     disabled={isUploadingDoc}
                   >
                     {isUploadingDoc ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : <><Plus className="w-3.5 h-3.5 mr-2" /> Add File</>}
@@ -109,14 +109,14 @@ const DocsModal = ({
                         <div>
                           <div className="text-xs font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name || 'Untitled Document'}</div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0">{doc.doc_type}</Badge>
+                            <Badge variant="outline" className="text-xs font-semibold text-slate-500 tracking-widest px-1.5 py-0">{doc.doc_type}</Badge>
                             <Badge className={cn(
                               "text-[8px] font-bold uppercase py-0 px-1.5 h-4",
                               doc.classification === 'confidential' ? "bg-rose-100 text-rose-600 border-rose-200" : "bg-slate-100 text-slate-500 border-slate-200"
                             )}>
                               {doc.classification || 'INTERNAL'}
                             </Badge>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">{new Date(doc.created_at).toLocaleDateString()}</span>
+                            <span className="text-xs text-slate-500 font-medium">{new Date(doc.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </div>
@@ -145,7 +145,7 @@ const DocsModal = ({
           </div>
         </CardContent>
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-          <Button variant="secondary" onClick={onClose} className="h-9 text-xs font-bold uppercase tracking-wider">Close</Button>
+          <Button variant="secondary" onClick={onClose} className="h-9 text-sm font-semibold">Close</Button>
         </div>
       </Card>
     </div>

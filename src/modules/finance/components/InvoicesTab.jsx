@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardTitle, CardContent } from '../../../components/ui/Card';
+import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
-import { Search, FileText, CheckCircle2, Download } from 'lucide-react';
+import { Search, FileText, CheckCircle2, Download, Mail, Loader2 } from 'lucide-react';
 import { hasPermission } from '../../../utils/permissionUtils';
 import InvoiceStatusModal from './InvoiceStatusModal';
 
@@ -18,6 +18,9 @@ const InvoicesTab = ({
   setInvoiceStatusFilter,
   currencies,
   updateStatus,
+  sendPaymentReminder,
+  reminderSendingId,
+  isSuperAdmin,
   fileBaseUrl
 }) => {
   const [statusModal, setStatusModal] = React.useState({
@@ -40,12 +43,12 @@ const InvoicesTab = ({
   };
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-4 py-6 border-b border-slate-100">
-        <div>
-          <CardTitle className="text-xl font-bold ">Invoice Management</CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Tracking {invoices.length} billing records.</p>
-        </div>
+    <PremiumCard 
+      title="Invoice Management" 
+      subtitle={`Tracking ${invoices.length} billing records.`} 
+      icon={FileText}
+      className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+      headerRight={
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -63,8 +66,8 @@ const InvoicesTab = ({
             className="text-xs rounded-lg border border-slate-200 py-2 focus:ring-primary-500"
           >
             <option value="All">All Types</option>
-            <option value="Outbound">Outbound</option>
             <option value="Inbound">Inbound</option>
+            <option value="Outbound">Outbound</option>
           </select>
           <select
             value={invoiceStatusFilter}
@@ -78,8 +81,9 @@ const InvoicesTab = ({
             <option value="Cancelled">Cancelled</option>
           </select>
         </div>
-      </div>
-      <CardContent className="p-0">
+      }
+    >
+      <div className="flex-grow">
         {isRefreshing ? (
           <div className="divide-y divide-slate-100">
             {[...Array(5)].map((_, i) => (
@@ -117,10 +121,10 @@ const InvoicesTab = ({
                 filteredInvoices.map(inv => (
                   <TableRow key={inv.id} className="group">
                     <TableCell className="py-5">
-                      {inv.type === 'Outbound' ? (
-                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold text-[10px] uppercase">Outbound </Badge>
+                      {inv.type === 'Inbound' ? (
+                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold text-[10px] uppercase">Inbound </Badge>
                       ) : (
-                        <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Inbound</Badge>
+                        <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Outbound</Badge>
                       )}
                     </TableCell>
                     <TableCell className="py-5">
@@ -147,8 +151,8 @@ const InvoicesTab = ({
                       )}
                     </TableCell>
                     <TableCell className="py-5">
-                      <div className="text-sm font-bold text-slate-900">{inv.client_name || 'Vendor'}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">{inv.project_name || 'General Expense'}</div>
+                      <div className="text-sm font-semibold text-slate-900">{inv.client_name || 'Vendor'}</div>
+                      <div className="text-xs text-slate-500 font-medium mt-0.5 tracking-wider">{inv.project_name || 'General Expense'}</div>
                     </TableCell>
                     <TableCell className="py-5 font-bold text-slate-900">
                       {currencies.find(c => c.code === inv.currency)?.symbol || '$'}
@@ -158,31 +162,59 @@ const InvoicesTab = ({
                       {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString() : new Date(inv.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="py-5">
-                      <Badge variant={inv.status === 'Paid' ? 'success' : inv.status === 'Overdue' ? 'destructive' : 'default'} className="text-[10px] font-bold uppercase tracking-wider">
+                      <Badge variant={inv.status === 'Paid' ? 'success' : inv.status === 'Overdue' ? 'destructive' : 'default'} className="text-xs font-semibold text-slate-500">
                         {inv.status}
                       </Badge>
                       {inv.payment_notes && (
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 max-w-[120px] truncate" title={inv.payment_notes}>
+                        <p className="text-xs text-slate-500 font-medium mt-1 max-w-[120px] truncate" title={inv.payment_notes}>
                           {inv.payment_notes}
                         </p>
                       )}
                     </TableCell>
                     <TableCell className="py-5">
                       <div className="flex flex-col items-start gap-2">
-                        {inv.generated_pdf_url ? (
+                        {inv.type === 'Inbound' ? (
+                          inv.generated_pdf_url ? (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
+                              onClick={() => window.open(resolveFileUrl(inv.generated_pdf_url), '_blank', 'noopener,noreferrer')}
+                            >
+                              <Download className="w-3 h-3" />
+                              Download Invoice
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              <Download className="w-3 h-3" />
+                              Generating...
+                            </span>
+                          )
+                        ) : inv.document_url ? (
                           <button
                             type="button"
                             className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
-                            onClick={() => window.open(resolveFileUrl(inv.generated_pdf_url), '_blank', 'noopener,noreferrer')}
+                            onClick={() => window.open(resolveFileUrl(inv.document_url), '_blank', 'noopener,noreferrer')}
                           >
-                            <Download className="w-3 h-3" />
-                            Download Invoice
+                            <FileText className="w-3 h-3" />
+                            View Document
                           </button>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            <Download className="w-3 h-3" />
-                            Generating...
-                          </span>
+                        ) : null}
+
+
+                        {isSuperAdmin && inv.type === 'Inbound' && !['Paid', 'Cancelled'].includes(inv.status) && (
+                          <button
+                            type="button"
+                            disabled={reminderSendingId === inv.id}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors uppercase tracking-wider"
+                            onClick={() => sendPaymentReminder(inv.id)}
+                          >
+                            {reminderSendingId === inv.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Mail className="w-3 h-3" />
+                            )}
+                            {reminderSendingId === inv.id ? 'Sending...' : 'Send Reminder'}
+                          </button>
                         )}
 
                         {inv.status === 'Cancelled' ? (
@@ -224,7 +256,7 @@ const InvoicesTab = ({
             </tbody>
           </Table>
         )}
-      </CardContent>
+      </div>
 
       <InvoiceStatusModal 
         isOpen={statusModal.isOpen}
@@ -237,7 +269,7 @@ const InvoicesTab = ({
            setStatusModal({ isOpen: false, invoice: null, targetStatus: '' });
         }}
       />
-    </Card>
+    </PremiumCard>
   );
 };
 

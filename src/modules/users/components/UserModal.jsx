@@ -101,6 +101,7 @@ const UserModal = ({
         { key: "view", label: "View Finance Hub" },
         { key: "invoices.create", label: "Generate Invoices" },
         { key: "expenses.create", label: "Log Expenses" },
+        { key: "payroll.manage", label: "Create Payroll" },
       ],
     },
     {
@@ -141,6 +142,14 @@ const UserModal = ({
           key: "documents.confidential",
           label: "Manage Confidential Client Docs",
         },
+      ],
+      tabs: [
+        { key: "tab.lead", label: "Leads" },
+        { key: "tab.proposal", label: "Proposal" },
+        { key: "tab.proposal_signed", label: "Proposal Signed" },
+        { key: "tab.project_started", label: "Project Started" },
+        { key: "tab.project_completed", label: "Project Completed" },
+        { key: "tab.project_maintenance", label: "Project Maintenance" },
       ],
     },
     {
@@ -351,7 +360,7 @@ const UserModal = ({
             <div className="space-y-6 pt-6 border-t border-slate-100">
               <div className="flex items-center justify-between bg-slate-900 p-4 rounded-xl shadow-lg">
                 <div>
-                  <label className="text-sm font-black text-white uppercase tracking-wider">
+                  <label className="text-sm font-semibold text-white uppercase tracking-wider">
                     Security & Access Control
                   </label>
                   <p className="text-[10px] text-slate-400 font-medium">
@@ -403,9 +412,16 @@ const UserModal = ({
                               setPages({ ...pages, [mod.id]: isChecked });
 
                               if (isChecked && !modules[mod.id]) {
+                                const defaults = { view: true };
+                                // Auto-enable all tab permissions when Clients is toggled on
+                                if (mod.tabs) {
+                                  mod.tabs.forEach((tab) => {
+                                    defaults[tab.key] = true;
+                                  });
+                                }
                                 setModules({
                                   ...modules,
-                                  [mod.id]: { view: true },
+                                  [mod.id]: defaults,
                                 });
                               }
                             }}
@@ -415,43 +431,96 @@ const UserModal = ({
                       </div>
 
                       {isPageEnabled && (
-                        <div className="p-4 pt-2 grid grid-cols-2 sm:grid-cols-3 gap-3 animate-in slide-in-from-top-1 duration-200">
-                          {mod.actions.map((action) => {
-                            const isActionEnabled =
-                              modules[mod.id]?.[action.key] === true;
-                            return (
-                              <label
-                                key={action.key}
-                                className="flex items-center gap-2 text-[11px] cursor-pointer group/action p-2 rounded-lg hover:bg-slate-50 transition-colors"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                                  checked={isActionEnabled}
-                                  onChange={(e) => {
-                                    const isChecked = e.target.checked;
-                                    setModules({
-                                      ...modules,
-                                      [mod.id]: {
-                                        ...(modules[mod.id] || {}),
-                                        [action.key]: isChecked,
-                                      },
-                                    });
-                                  }}
-                                />
-                                <span
-                                  className={cn(
-                                    "font-medium transition-colors",
-                                    isActionEnabled
-                                      ? "text-slate-900 font-bold"
-                                      : "text-slate-500 group-hover/action:text-slate-700",
-                                  )}
+                        <div className="animate-in slide-in-from-top-1 duration-200">
+                          {/* Action Permissions */}
+                          <div className="p-4 pt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {mod.actions.map((action) => {
+                              const isActionEnabled =
+                                modules[mod.id]?.[action.key] === true;
+                              return (
+                                <label
+                                  key={action.key}
+                                  className="flex items-center gap-2 text-[11px] cursor-pointer group/action p-2 rounded-lg hover:bg-slate-50 transition-colors"
                                 >
-                                  {action.label}
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                                    checked={isActionEnabled}
+                                    onChange={(e) => {
+                                      const isChecked = e.target.checked;
+                                      setModules({
+                                        ...modules,
+                                        [mod.id]: {
+                                          ...(modules[mod.id] || {}),
+                                          [action.key]: isChecked,
+                                        },
+                                      });
+                                    }}
+                                  />
+                                  <span
+                                    className={cn(
+                                      "font-medium transition-colors",
+                                      isActionEnabled
+                                        ? "text-slate-900 font-bold"
+                                        : "text-slate-500 group-hover/action:text-slate-700",
+                                    )}
+                                  >
+                                    {action.label}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+
+                          {/* Tab Access Permissions (Pipeline Stages) */}
+                          {mod.tabs && (
+                            <div className="mx-4 mb-4 p-3 bg-orange-50/60 border border-orange-200/50 rounded-xl">
+                              <div className="flex items-center gap-2 mb-2.5">
+                                <div className="w-1 h-4 bg-orange-400 rounded-full" />
+                                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+                                  Pipeline Tab Access
                                 </span>
-                              </label>
-                            );
-                          })}
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {mod.tabs.map((tab) => {
+                                  const isTabEnabled =
+                                    modules[mod.id]?.[tab.key] === true;
+                                  return (
+                                    <label
+                                      key={tab.key}
+                                      className="flex items-center gap-2 text-[11px] cursor-pointer group/tab p-2 rounded-lg hover:bg-orange-100/50 transition-colors"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                                        checked={isTabEnabled}
+                                        onChange={(e) => {
+                                          const isChecked = e.target.checked;
+                                          setModules({
+                                            ...modules,
+                                            [mod.id]: {
+                                              ...(modules[mod.id] || {}),
+                                              [tab.key]: isChecked,
+                                            },
+                                          });
+                                        }}
+                                      />
+                                      <span
+                                        className={cn(
+                                          "font-medium transition-colors",
+                                          isTabEnabled
+                                            ? "text-orange-900 font-bold"
+                                            : "text-slate-500 group-hover/tab:text-orange-700",
+                                        )}
+                                      >
+                                        {tab.label}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

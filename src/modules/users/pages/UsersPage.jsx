@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from '../../../api/axios';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
-import StatCard from '../../../components/ui/StatCard';
 import PaginationControls from '../../../components/ui/PaginationControls';
 import {
   Search, UserPlus, Users,
@@ -11,6 +9,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { hasPermission } from '../../../utils/permissionUtils';
+import { cn } from '../../../utils/cn';
 
 import UserModal from '../components/UserModal';
 import UsersTable from '../components/UsersTable';
@@ -23,6 +22,81 @@ const DEFAULT_PAGINATION = {
   totalPages: 1,
   hasNextPage: false,
   hasPreviousPage: false
+};
+
+// Premium Double-Bezel KPI Card component
+const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
+  return (
+    <div className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 hover:bg-slate-200/60 active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group hover:-translate-y-0.5 flex-1">
+      <div className="bg-white p-5 rounded-[calc(1.75rem-0.375rem)] border border-slate-200/25 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_8px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
+              {title}
+            </span>
+            {Icon && (
+              <div className="p-2 bg-slate-50 border border-slate-100/60 rounded-xl group-hover:scale-105 transition-transform duration-300">
+                <Icon className="w-3.5 h-3.5 text-slate-500" />
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-3">
+            <span className="text-3xl font-bold text-slate-800 tracking-tight font-mono">
+              {value}
+            </span>
+          </div>
+        </div>
+
+        {(trend || subtext) && (
+          <div className="mt-4 flex items-center gap-2">
+            {trend && (
+              <span className={cn(
+                "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono",
+                trend.startsWith('+') ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50"
+              )}>
+                {trend}
+              </span>
+            )}
+            {subtext && (
+              <span className="text-xs text-slate-500 font-medium font-mono">
+                {subtext}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Premium Double-Bezel Card Container component
+const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
+  return (
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+        {(title || subtitle) && (
+          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {Icon && (
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                  <Icon className="w-4 h-4 text-slate-500" />
+                </div>
+              )}
+              <div>
+                {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
+                {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+              </div>
+            </div>
+            {headerRight}
+          </div>
+        )}
+        <div className="flex-1 flex flex-col">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const UsersPage = () => {
@@ -234,34 +308,64 @@ const UsersPage = () => {
   }
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+      {/* Header section with Asymmetric Layout */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Team Members</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage employees, permissions, and system access.</p>
+          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+            Team Members
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-normal">
+            Manage employees, permissions, and system access.
+          </p>
         </div>
         {hasPermission('users', 'create') && (
-          <Button onClick={() => { resetForm(); setShowAddModal(true); }} className="bg-primary-600 hover:bg-primary-700">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add Member
-          </Button>
+          <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+            <Button 
+              onClick={() => { resetForm(); setShowAddModal(true); }} 
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Add Member
+            </Button>
+          </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total Users" value={pagination.total} icon={Users} subtext="Registered members" />
-        <StatCard title="Active" value={users.filter(u => u.status === 'Active').length} icon={UserCheck} trend="+2" subtext="On this page" />
-        <StatCard title="Admins" value={users.filter(u => u.role_name === 'Admin' || u.role_name === 'Super Admin').length} icon={ShieldCheck} subtext="On this page" />
+      {/* KPI Stats Grid in Double-Bezel nested wrapper */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <KpiCard 
+          title="Total Users" 
+          value={pagination.total || 0} 
+          icon={Users} 
+          subtext="Registered staff members" 
+        />
+        <KpiCard 
+          title="Active Users" 
+          value={users.filter(u => u.status === 'Active').length} 
+          icon={UserCheck} 
+          trend="+2" 
+          subtext="Active on this page" 
+        />
+        <KpiCard 
+          title="Security Admins" 
+          value={users.filter(u => u.role_name === 'Admin' || u.role_name === 'Super Admin').length} 
+          icon={ShieldCheck} 
+          subtext="Authorized system managers" 
+        />
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-6">
-          <CardTitle className="text-xl font-bold">All Users</CardTitle>
+      {/* Main Table Enclosure wrapped in Premium Double-Bezel Card */}
+      <PremiumCard 
+        title="All Workspace Users" 
+        subtitle="Staff roster and role profiles" 
+        icon={Users}
+        headerRight={
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               placeholder="Search by name or email..."
-              className="pl-10 h-10 text-sm"
+              className="pl-10 h-10 text-xs rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -269,22 +373,25 @@ const UsersPage = () => {
               }}
             />
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
+        }
+      >
+        <div className="flex-1 flex flex-col justify-between">
           <UsersTable
             users={filteredUsers}
             loading={loading}
             handleStatusChange={handleStatusChange}
             handleEdit={handleEdit}
           />
-          <PaginationControls
-            pagination={pagination}
-            itemCount={users.length}
-            onPrevious={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            onNext={() => setCurrentPage((prev) => Math.min(prev + 1, pagination.totalPages || 1))}
-          />
-        </CardContent>
-      </Card>
+          <div className="border-t border-slate-100 p-4">
+            <PaginationControls
+              pagination={pagination}
+              itemCount={users.length}
+              onPrevious={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              onNext={() => setCurrentPage((prev) => Math.min(prev + 1, pagination.totalPages || 1))}
+            />
+          </div>
+        </div>
+      </PremiumCard>
 
       <UserModal
         isOpen={showAddModal}
