@@ -63,6 +63,7 @@ const FinancePage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceModalType, setInvoiceModalType] = useState('Outbound');
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('All');
@@ -435,14 +436,26 @@ const FinancePage = () => {
             </div>
           )}
           {hasPermission('finance', 'invoices.create') && (
-            <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
-              <Button 
-                onClick={() => setShowInvoiceModal(true)} 
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                New Invoice
-              </Button>
+            <div className="flex items-center gap-2">
+              <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+                <Button 
+                  onClick={() => { setInvoiceModalType('Outbound'); setShowInvoiceModal(true); }} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New Outbound Invoice
+                </Button>
+              </div>
+              <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+                <Button 
+                  variant="secondary"
+                  onClick={() => { setInvoiceModalType('Inbound'); setShowInvoiceModal(true); }} 
+                  className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+                >
+                  <FileText className="w-3.5 h-3.5 text-amber-600" />
+                  Record Inbound Invoice
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -539,6 +552,7 @@ const FinancePage = () => {
           projects={projects}
           currencies={CURRENCIES}
           onOpen={fetchAuxData}
+          modalType={invoiceModalType}
         />
 
         <ExpenseModal 

@@ -20,6 +20,7 @@ const PerformanceTab = lazy(() => import('../components/PerformanceTab'));
 const HolidaysTab = lazy(() => import('../components/HolidaysTab'));
 
 const InterviewModal = lazy(() => import('../components/InterviewModal'));
+const AddCandidateModal = lazy(() => import('../components/AddCandidateModal'));
 const HolidayModal = lazy(() => import('../components/HolidayModal'));
 const PerformanceActionModal = lazy(() => import('../components/PerformanceActionModal'));
 const DocsModal = lazy(() => import('../components/DocsModal'));
@@ -84,6 +85,7 @@ const HRPage = () => {
   const canManageConfidential = isAdmin || user?.modules?.hr?.['documents.confidential'];
 
   const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -287,6 +289,14 @@ const HRPage = () => {
       await axios.patch(`/hr/recruitment/candidates/${candidateId}/stage`, { stage: newStage });
       toast.success(`Stage updated to ${newStage}`);
       fetchHRData();
+
+      if (newStage === 'Interview') {
+        const cand = candidates.find(c => c.id === candidateId);
+        if (cand) {
+          setSelectedCandidate(cand);
+          setShowInterviewModal(true);
+        }
+      }
     } catch (err) {
       toast.error('Failed to update stage');
     }
@@ -336,6 +346,28 @@ const HRPage = () => {
       fetchHRData();
     } catch (err) {
       toast.error('Failed to update stage to Hired');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCandidateSubmit = async (formData, scheduleNext = false) => {
+    setIsSubmitting(true);
+    try {
+      const res = await axios.post('/hr/recruitment/candidates', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const newCandidate = res.data?.data;
+      toast.success('Candidate registered successfully!');
+      setShowCandidateModal(false);
+      fetchHRData();
+
+      if (scheduleNext && newCandidate) {
+        setSelectedCandidate(newCandidate);
+        setShowInterviewModal(true);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to register candidate');
     } finally {
       setIsSubmitting(false);
     }
@@ -550,14 +582,26 @@ const HRPage = () => {
 
           <div className="flex gap-2">
             {activeTab === 'recruitment' && hasPermission('hr', 'recruitment.manage') && (
-              <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
-                <Button 
-                  onClick={() => { setSelectedCandidate(null); setShowInterviewModal(true); }} 
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  New Interview
-                </Button>
+              <div className="flex items-center gap-2">
+                <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+                  <Button 
+                    onClick={() => setShowCandidateModal(true)} 
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Add Candidate
+                  </Button>
+                </div>
+                <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+                  <Button 
+                    variant="secondary"
+                    onClick={() => { setSelectedCandidate(null); setShowInterviewModal(true); }} 
+                    className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    New Interview
+                  </Button>
+                </div>
               </div>
             )}
             {activeTab === 'holidays' && hasPermission('hr', 'holidays.manage') && (
@@ -651,6 +695,14 @@ const HRPage = () => {
       </Suspense>
 
       <Suspense fallback={null}>
+        <AddCandidateModal
+          isOpen={showCandidateModal}
+          onClose={() => setShowCandidateModal(false)}
+          onSubmit={handleCandidateSubmit}
+          isSubmitting={isSubmitting}
+          roles={roles}
+        />
+
         <InterviewModal
           isOpen={showInterviewModal}
           onClose={() => setShowInterviewModal(false)}

@@ -3,7 +3,8 @@ import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
-import { Search, FileText, CheckCircle2, Download, Mail, Loader2 } from 'lucide-react';
+import { Search, FileText, CheckCircle2, Download, Mail, Loader2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { cn } from '../../../utils/cn';
 import { hasPermission } from '../../../utils/permissionUtils';
 import InvoiceStatusModal from './InvoiceStatusModal';
 
@@ -42,6 +43,9 @@ const InvoicesTab = ({
     return url.startsWith('http') ? url : `${fileBaseUrl}${url}`;
   };
 
+  const outboundCount = invoices.filter(i => i.type === 'Outbound').length;
+  const inboundCount = invoices.filter(i => i.type === 'Inbound').length;
+
   return (
     <PremiumCard 
       title="Invoice Management" 
@@ -61,18 +65,9 @@ const InvoicesTab = ({
             />
           </div>
           <select
-            value={invoiceTypeFilter}
-            onChange={(e) => setInvoiceTypeFilter(e.target.value)}
-            className="text-xs rounded-lg border border-slate-200 py-2 focus:ring-primary-500"
-          >
-            <option value="All">All Types</option>
-            <option value="Inbound">Inbound</option>
-            <option value="Outbound">Outbound</option>
-          </select>
-          <select
             value={invoiceStatusFilter}
             onChange={(e) => setInvoiceStatusFilter(e.target.value)}
-            className="text-xs rounded-lg border border-slate-200 py-2 focus:ring-primary-500"
+            className="text-xs rounded-lg border border-slate-200 py-2 focus:ring-primary-500 cursor-pointer"
           >
             <option value="All">All Statuses</option>
             <option value="Paid">Paid</option>
@@ -84,6 +79,46 @@ const InvoicesTab = ({
       }
     >
       <div className="flex-grow">
+        {/* Inbound / Outbound View Tabs */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl w-fit">
+            {[
+              { id: 'All', label: 'All Invoices', count: invoices.length },
+              { id: 'Outbound', label: 'Outbound (Billing)', count: outboundCount, icon: ArrowUpRight },
+              { id: 'Inbound', label: 'Inbound (Vendor Bills)', count: inboundCount, icon: ArrowDownLeft }
+            ].map(tab => {
+              const isActive = invoiceTypeFilter === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setInvoiceTypeFilter(tab.id)}
+                  className={cn(
+                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-[0.98]",
+                    isActive 
+                      ? "bg-white text-slate-900 shadow-sm font-bold" 
+                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
+                  )}
+                >
+                  {Icon && (
+                    <Icon className={cn(
+                      "w-3.5 h-3.5",
+                      tab.id === 'Outbound' ? 'text-blue-600' : 'text-amber-600'
+                    )} />
+                  )}
+                  <span>{tab.label}</span>
+                  <span className={cn(
+                    "px-1.5 py-0.5 text-[10px] rounded-full font-bold",
+                    isActive ? "bg-slate-100 text-slate-800" : "bg-slate-200/60 text-slate-500"
+                  )}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {isRefreshing ? (
           <div className="divide-y divide-slate-100">
             {[...Array(5)].map((_, i) => (
@@ -121,10 +156,10 @@ const InvoicesTab = ({
                 filteredInvoices.map(inv => (
                   <TableRow key={inv.id} className="group">
                     <TableCell className="py-5">
-                      {inv.type === 'Inbound' ? (
-                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold text-[10px] uppercase">Inbound </Badge>
+                      {inv.type === 'Outbound' ? (
+                        <Badge className="bg-blue-50 text-blue-700 border-blue-100 font-bold text-[10px] uppercase">Outbound (Billing)</Badge>
                       ) : (
-                        <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold text-[10px] uppercase">Outbound</Badge>
+                        <Badge className="bg-amber-50 text-amber-700 border-amber-100 font-bold text-[10px] uppercase">Inbound (Vendor Bill)</Badge>
                       )}
                     </TableCell>
                     <TableCell className="py-5">
@@ -173,11 +208,11 @@ const InvoicesTab = ({
                     </TableCell>
                     <TableCell className="py-5">
                       <div className="flex flex-col items-start gap-2">
-                        {inv.type === 'Inbound' ? (
+                        {inv.type === 'Outbound' ? (
                           inv.generated_pdf_url ? (
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-wider"
                               onClick={() => window.open(resolveFileUrl(inv.generated_pdf_url), '_blank', 'noopener,noreferrer')}
                             >
                               <Download className="w-3 h-3" />
@@ -185,23 +220,23 @@ const InvoicesTab = ({
                             </button>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                              <Download className="w-3 h-3" />
-                              Generating...
+                              <Download className="w-3 h-3 text-slate-400" />
+                              Generating PDF...
                             </span>
                           )
                         ) : inv.document_url ? (
                           <button
                             type="button"
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700 transition-colors uppercase tracking-wider"
                             onClick={() => window.open(resolveFileUrl(inv.document_url), '_blank', 'noopener,noreferrer')}
                           >
                             <FileText className="w-3 h-3" />
-                            View Document
+                            View Bill Document
                           </button>
                         ) : null}
 
-
-                        {isSuperAdmin && inv.type === 'Inbound' && !['Paid', 'Cancelled'].includes(inv.status) && (
+                        {/* Send Reminder button ONLY for Outbound client invoices */}
+                        {isSuperAdmin && inv.type === 'Outbound' && !['Paid', 'Cancelled'].includes(inv.status) && (
                           <button
                             type="button"
                             disabled={reminderSendingId === inv.id}

@@ -110,7 +110,14 @@ const RecruitmentTab = ({
                     <TableRow key={candidate.id} className="group">
                       <TableCell className="py-5">
                         <div className="font-bold text-slate-900">{candidate.name}</div>
-                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{candidate.email}</div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                          {candidate.email}{candidate.phone ? ` • ${candidate.phone}` : ''}
+                        </div>
+                        {(candidate.designation || candidate.experience) && (
+                          <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                            {candidate.designation || ''} {candidate.experience ? `(${candidate.experience})` : ''}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="py-5">
                         {candidate.employee_id ? (
