@@ -12,6 +12,7 @@ import Skeleton from '../../../components/ui/Skeleton';
 const MyPipelineTab = lazy(() => import('../components/MyPipelineTab'));
 const GlobalBoardsTab = lazy(() => import('../components/GlobalBoardsTab'));
 const TaskAssigneesTab = lazy(() => import('../components/TaskAssigneesTab'));
+const DeveloperWorkspaceTab = lazy(() => import('../components/DeveloperWorkspaceTab'));
 const AddTaskModal = lazy(() => import('../components/AddTaskModal'));
 const ProofOfCompletionModal = lazy(() => import('../components/ProofOfCompletionModal'));
 
@@ -133,11 +134,34 @@ const TasksPage = () => {
   const canViewAll = isAdmin || !!user.modules?.tasks?.view_all;
   const canCreate = isAdmin || !!user.modules?.tasks?.create;
   const showBoardsTab = canViewAll || canCreate;
+  // Developers: users who have tasks view permission but cannot create/view all
+  const isDeveloper = !showBoardsTab;
+
+  // Developer-specific: assigned projects list
+  const [assignedProjects, setAssignedProjects] = useState([]);
+  const [loadingAssigned, setLoadingAssigned] = useState(false);
 
   useEffect(() => {
     fetchData();
     if (showBoardsTab) setActiveTab('boards');
+    if (isDeveloper) fetchAssignedProjects();
   }, []);
+
+  const fetchAssignedProjects = async () => {
+    setLoadingAssigned(true);
+    try {
+      const res = await axios.get('/projects/user/assigned');
+      setAssignedProjects(Array.isArray(res.data.data) ? res.data.data : []);
+    } catch {
+      // Fallback: try the regular projects endpoint which filters by user on backend
+      try {
+        const res = await axios.get('/projects');
+        setAssignedProjects(Array.isArray(res.data.data) ? res.data.data : []);
+      } catch { /* silent */ }
+    } finally {
+      setLoadingAssigned(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -284,25 +308,75 @@ const TasksPage = () => {
     e.preventDefault();
     setIsSubmitting(true);
     const formData = new FormData(e.target);
-    const payload = Object.fromEntries(formData);
+
+    // Collect array inputs
+    const functional_requirements = formData.getAll('functional_requirements');
+    const acceptance_criteria = formData.getAll('acceptance_criteria');
+    const testing_required = formData.getAll('testing_required');
+    const definition_of_done = formData.getAll('definition_of_done');
+    const deliverables = formData.getAll('deliverables');
+
+    const payload = {
+      title: formData.get('title'),
+      module: formData.get('module') || '',
+      task_type: formData.get('task_type'),
+      priority: formData.get('priority') || 'Medium',
+      story_points: parseInt(formData.get('story_points') || 0),
+      assigned_to: formData.get('assigned_to') || undefined,
+      reporter_id: formData.get('reporter_id') || undefined,
+      
+      estimated_start_date: formData.get('estimated_start_date') || undefined,
+      estimated_end_date: formData.get('estimated_end_date') || undefined,
+      estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : undefined,
+      due_date: formData.get('estimated_end_date') || undefined, // Sync due_date with estimated_end_date
+
+      template_data: {
+        business_objective: formData.get('business_objective') || '',
+        current_issue: formData.get('current_issue') || '',
+        expected_improvement: formData.get('expected_improvement') || '',
+        business_impact: formData.get('business_impact') || '',
+        functional_requirements: functional_requirements.filter(Boolean),
+        technical_notes: {
+          architecture: formData.get('tech_architecture') || '',
+          libraries: formData.get('tech_libraries') || '',
+          api_changes: formData.get('tech_api_changes') || '',
+          database_changes: formData.get('tech_db_changes') || '',
+          configurations: formData.get('tech_configurations') || '',
+          dependencies: formData.get('tech_dependencies') || ''
+        },
+        acceptance_criteria: acceptance_criteria.filter(Boolean),
+        deliverables: deliverables.filter(Boolean),
+        testing_required: testing_required.filter(Boolean),
+        definition_of_done: definition_of_done.filter(Boolean),
+        blocker_status: formData.get('blocker_status') || undefined,
+        blocker_waiting_for: formData.get('blocker_waiting_for') || undefined,
+        blocker_expected_resolution: formData.get('blocker_expected_resolution') || undefined,
+        next_update_date: formData.get('next_update_date') || undefined,
+        risks: {
+          performance: formData.get('risk_performance') || '',
+          security: formData.get('risk_security') || '',
+          compatibility: formData.get('risk_compatibility') || '',
+          rollback_concerns: formData.get('risk_rollback') || ''
+        },
+        comments: {
+          developer: formData.get('comment_developer') || '',
+          qa: formData.get('comment_qa') || '',
+          product: formData.get('comment_product') || ''
+        }
+      },
+      task_references: taskReferences ? [{ title: 'Notes', value: taskReferences }] : []
+    };
 
     try {
-      const taskRes = await axios.post(`/projects/${selectedProject.id}/tasks`, {
-        ...payload,
-        assigned_to: payload.assigned_to || undefined,
-        story_points: parseInt(payload.story_points || 0),
-        priority: payload.priority || 'Medium',
-        task_references: taskReferences ? [{ title: 'Notes', value: taskReferences }] : []
-      });
-
+      const taskRes = await axios.post(`/projects/${selectedProject.id}/tasks`, payload);
       const newTask = taskRes.data.data;
 
       if (selectedFiles.length > 0) {
-        const formData = new FormData();
+        const docFormData = new FormData();
         for (const file of selectedFiles) {
-          formData.append('files', file);
+          docFormData.append('files', file);
         }
-        await axios.post(`/projects/tasks/${newTask.id}/documents`, formData, {
+        await axios.post(`/projects/tasks/${newTask.id}/documents`, docFormData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }
@@ -464,6 +538,7 @@ const TasksPage = () => {
           isSubmitting={isSubmitting}
           projectTeam={projectTeam}
           isAdmin={isAdmin}
+          currentUser={user}
           taskReferences={taskReferences}
           setTaskReferences={setTaskReferences}
           selectedFiles={selectedFiles}

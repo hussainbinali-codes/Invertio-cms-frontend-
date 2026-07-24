@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui
 import { BASE_URL } from '../../../api/baseUrl';
 import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
-import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2 } from 'lucide-react';
+import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2, GitBranch, Trash2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import Button from '../../../components/ui/Button';
@@ -46,11 +46,20 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const [isSubmittingProof, setIsSubmittingProof] = React.useState(false);
   const taskId = taskData?.id || task?.id;
 
+  // Sub Tasks states
+  const [subTasks, setSubTasks] = React.useState([]);
+  const [loadingSubTasks, setLoadingSubTasks] = React.useState(false);
+  const [showAddSubTask, setShowAddSubTask] = React.useState(false);
+  const [newSubTask, setNewSubTask] = React.useState({ title: '', priority: 'Medium', due_date: '' });
+  const [isCreatingSubTask, setIsCreatingSubTask] = React.useState(false);
+  const [isDeveloper] = React.useState(!isAdmin && !user?.modules?.tasks?.edit);
+
   React.useEffect(() => {
     if (task && task.id) {
         setTaskData(task);
         fetchTaskDocuments();
         fetchTaskActivities();
+        fetchSubTasks();
         if (isAdmin) {
           fetchAssignableUsers();
         }
@@ -75,6 +84,55 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
         console.error("Failed to fetch task documents", err);
     } finally {
         setLoadingDocs(false);
+    }
+  };
+
+  const fetchSubTasks = async () => {
+    if (!taskId) return;
+    setLoadingSubTasks(true);
+    try {
+        const res = await axios.get(`/tasks/${taskId}/subtasks`);
+        setSubTasks(res.data.data || []);
+    } catch (err) {
+        console.error('Failed to fetch sub tasks', err);
+    } finally {
+        setLoadingSubTasks(false);
+    }
+  };
+
+  const handleCreateSubTask = async () => {
+    if (!newSubTask.title.trim()) { toast.error('Sub task title is required'); return; }
+    setIsCreatingSubTask(true);
+    try {
+        const res = await axios.post(`/tasks/${taskId}/subtasks`, newSubTask);
+        setSubTasks(prev => [...prev, res.data.data]);
+        setNewSubTask({ title: '', priority: 'Medium', due_date: '' });
+        setShowAddSubTask(false);
+        toast.success('Sub task created');
+    } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to create sub task');
+    } finally {
+        setIsCreatingSubTask(false);
+    }
+  };
+
+  const handleSubTaskStatusChange = async (subTaskId, newStatus) => {
+    try {
+        await axios.patch(`/subtasks/${subTaskId}`, { status: newStatus });
+        setSubTasks(prev => prev.map(st => st.id === subTaskId ? { ...st, status: newStatus } : st));
+        toast.success('Sub task updated');
+    } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to update sub task');
+    }
+  };
+
+  const handleDeleteSubTask = async (subTaskId) => {
+    try {
+        await axios.delete(`/subtasks/${subTaskId}`);
+        setSubTasks(prev => prev.filter(st => st.id !== subTaskId));
+        toast.success('Sub task deleted');
+    } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to delete sub task');
     }
   };
 
@@ -481,6 +539,133 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sub Tasks Section */}
+            <div className="space-y-4 mt-8 pt-8 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-400">
+                  <GitBranch className="w-4 h-4" />
+                  <span className="text-xs font-semibold text-slate-500">Sub Tasks</span>
+                  {subTasks.length > 0 && (
+                    <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">
+                      {subTasks.filter(s => s.status === 'Completed').length}/{subTasks.length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowAddSubTask(v => !v)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Sub Task
+                </button>
+              </div>
+
+              {/* Add Sub Task inline form */}
+              {showAddSubTask && (
+                <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Sub task title..."
+                    value={newSubTask.title}
+                    onChange={e => setNewSubTask(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={newSubTask.priority}
+                      onChange={e => setNewSubTask(prev => ({ ...prev, priority: e.target.value }))}
+                      className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                    </select>
+                    <input
+                      type="date"
+                      value={newSubTask.due_date}
+                      onChange={e => setNewSubTask(prev => ({ ...prev, due_date: e.target.value }))}
+                      className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => { setShowAddSubTask(false); setNewSubTask({ title: '', priority: 'Medium', due_date: '' }); }}
+                      className="text-xs text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                    >Cancel</button>
+                    <button
+                      onClick={handleCreateSubTask}
+                      disabled={isCreatingSubTask}
+                      className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-70"
+                    >
+                      {isCreatingSubTask ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                      Create
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub Tasks List */}
+              {loadingSubTasks ? (
+                <div className="space-y-2">
+                  <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
+                  <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
+                </div>
+              ) : subTasks.length === 0 ? (
+                <div className="text-xs text-slate-400 italic py-2">No sub tasks yet. Add one above.</div>
+              ) : (
+                <div className="space-y-2">
+                  {subTasks.map(st => (
+                    <div key={st.id} className="flex items-center gap-3 p-2.5 bg-white border border-slate-100 rounded-xl hover:border-slate-200 transition-colors group">
+                      <button
+                        onClick={() => handleSubTaskStatusChange(st.id, st.status === 'Completed' ? 'Pending' : 'Completed')}
+                        className={cn(
+                          'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                          st.status === 'Completed'
+                            ? 'border-emerald-500 bg-emerald-500'
+                            : 'border-slate-300 hover:border-emerald-400'
+                        )}
+                      >
+                        {st.status === 'Completed' && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('text-xs font-semibold truncate', st.status === 'Completed' && 'line-through text-slate-400')}>{st.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={cn(
+                            'text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                            st.priority === 'Critical' ? 'bg-rose-100 text-rose-600' :
+                            st.priority === 'High' ? 'bg-amber-100 text-amber-600' :
+                            st.priority === 'Medium' ? 'bg-blue-100 text-blue-600' :
+                            'bg-slate-100 text-slate-500'
+                          )}>{st.priority}</span>
+                          {st.assigned_to_name && <span className="text-[9px] text-slate-400">{st.assigned_to_name}</span>}
+                          {st.due_date && <span className="text-[9px] text-slate-400">{new Date(st.due_date).toLocaleDateString()}</span>}
+                        </div>
+                      </div>
+                      <select
+                        value={st.status}
+                        onChange={e => handleSubTaskStatusChange(st.id, e.target.value)}
+                        className="text-[9px] font-bold border border-slate-200 rounded-lg px-1.5 py-1 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-400 shrink-0"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Blocked">Blocked</option>
+                      </select>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDeleteSubTask(st.id)}
+                          className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
