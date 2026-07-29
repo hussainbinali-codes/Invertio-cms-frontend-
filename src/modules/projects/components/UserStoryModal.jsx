@@ -24,7 +24,7 @@ const UserStoryModal = ({ projectId, sprintId, sprints = [], story = null, onClo
     story_points: 0,
     status: 'Draft',
     labelsInput: '',
-    selectedSprintId: sprintId || (sprints.length > 0 ? sprints[0].id : '')
+    selectedSprintId: sprintId || (story?.sprint_id || '')
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,7 +44,7 @@ const UserStoryModal = ({ projectId, sprintId, sprints = [], story = null, onClo
         story_points: story.story_points !== undefined ? story.story_points : 0,
         status: story.status || 'Draft',
         labelsInput: labels,
-        selectedSprintId: sprintId || (sprints.length > 0 ? sprints[0].id : '')
+        selectedSprintId: story.sprint_id || sprintId || ''
       });
     }
   }, [story]);
@@ -91,14 +91,16 @@ const UserStoryModal = ({ projectId, sprintId, sprints = [], story = null, onClo
     try {
       if (isEdit) {
         await axios.put(`/stories/${story.id}`, payload);
+        if (targetSprintId !== (story.sprint_id || '')) {
+          await axios.patch(`/stories/${story.id}/sprint`, { sprint_id: targetSprintId || null });
+        }
         toast.success('User Story updated successfully!');
       } else {
-        if (!targetSprintId) {
-          setError('Please select a sprint for this user story.');
-          setIsSubmitting(false);
-          return;
+        if (targetSprintId) {
+          await axios.post(`/projects/${projectId}/sprints/${targetSprintId}/stories`, payload);
+        } else {
+          await axios.post(`/projects/${projectId}/stories`, payload);
         }
-        await axios.post(`/projects/${projectId}/sprints/${targetSprintId}/stories`, payload);
         toast.success('User Story created successfully!');
       }
       onSuccess();
@@ -232,6 +234,25 @@ const UserStoryModal = ({ projectId, sprintId, sprints = [], story = null, onClo
                     <option value="Completed">Completed</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Sprint Assignment */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-slate-400" />
+                  Sprint Assignment
+                </label>
+                <select
+                  name="selectedSprintId"
+                  value={formData.selectedSprintId}
+                  onChange={handleChange}
+                  className="w-full h-10 px-3 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="">-- Product Backlog (Unassigned) --</option>
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.status || 'Planning'})</option>
+                  ))}
+                </select>
               </div>
 
               {/* Description */}

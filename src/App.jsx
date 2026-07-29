@@ -72,6 +72,7 @@ function App() {
                 <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
                 <Route path="/projects/:projectId/sprints/:sprintId" element={<SprintDetailsPage />} />
                 <Route path="/projects/:projectId/sprints/:sprintId/stories/:storyId" element={<StoryDetailsPage />} />
+                <Route path="/projects/:projectId/stories/:storyId" element={<StoryDetailsPage />} />
               </Route>
 
 

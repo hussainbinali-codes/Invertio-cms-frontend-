@@ -12,12 +12,14 @@ import {
 import toast from 'react-hot-toast';
 import { cn } from '../../../utils/cn';
 import TaskDetailModal from '../../tasks/components/TaskDetailModal';
+import AddTaskModal from '../../tasks/components/AddTaskModal';
 
 const StoryDetailsPage = () => {
   const { projectId, sprintId, storyId } = useParams();
   const navigate = useNavigate();
 
   const [story, setStory] = useState(null);
+  const [sprints, setSprints] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Tabs: Overview (Functional), Tasks, Activity, Attachments
@@ -25,7 +27,12 @@ const StoryDetailsPage = () => {
 
   useEffect(() => {
     fetchStoryDetails();
-  }, [storyId]);
+    if (projectId) {
+      axios.get(`/projects/${projectId}/sprints`)
+        .then(res => setSprints(res.data.data || []))
+        .catch(() => setSprints([]));
+    }
+  }, [storyId, projectId]);
 
   const fetchStoryDetails = async () => {
     try {
@@ -34,9 +41,21 @@ const StoryDetailsPage = () => {
       setStory(res.data.data);
     } catch (err) {
       toast.error('Failed to load user story details');
-      navigate(`/projects/${projectId}/sprints/${sprintId}`);
+      const fallbackUrl = sprintId && sprintId !== 'backlog' ? `/projects/${projectId}/sprints/${sprintId}` : `/projects/${projectId}`;
+      navigate(fallbackUrl);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSprintChange = async (targetSprintId) => {
+    try {
+      await axios.patch(`/stories/${storyId}/sprint`, { sprint_id: targetSprintId || null });
+      const sprintObj = sprints.find(s => String(s.id) === String(targetSprintId));
+      toast.success(targetSprintId ? `Assigned to ${sprintObj?.name || 'Sprint'}` : 'Moved to Product Backlog');
+      fetchStoryDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to assign sprint');
     }
   };
 
@@ -126,11 +145,11 @@ const StoryDetailsPage = () => {
       {/* Top Back Nav */}
       <div>
         <Link
-          to={`/projects/${projectId}/sprints/${sprintId}`}
+          to={sprintId && sprintId !== 'backlog' ? `/projects/${projectId}/sprints/${sprintId}` : `/projects/${projectId}`}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors mb-3"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Sprint Details
+          {sprintId && sprintId !== 'backlog' ? 'Back to Sprint Details' : 'Back to Project Workspace'}
         </Link>
 
         {loading ? (
@@ -143,7 +162,7 @@ const StoryDetailsPage = () => {
             {/* Header Title Row */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-mono font-bold">
                     {story?.story_key}
                   </span>
@@ -152,6 +171,21 @@ const StoryDetailsPage = () => {
                   <span className="px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-mono font-bold">
                     {story?.story_points || 0} Story Points
                   </span>
+
+                  {/* Jira-style Sprint Selector */}
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-xs font-bold text-slate-500">Sprint:</span>
+                    <select
+                      value={story?.sprint_id || ''}
+                      onChange={(e) => handleSprintChange(e.target.value)}
+                      className="text-xs font-bold py-1 px-2.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors focus:outline-none cursor-pointer"
+                    >
+                      <option value="">-- Product Backlog (Unassigned) --</option>
+                      {sprints.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.status || 'Planning'})</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <h1 className="text-2xl font-bold text-slate-950 tracking-tight pt-1">
                   {story?.title}
@@ -301,38 +335,59 @@ const StoryTasksTab = ({ story, storyId, projectId, sprintId }) => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/stories/${storyId}/tasks`);
+      const res = await axios.get(`/stories/${story.id}/tasks`);
       setTasks(res.data.data || []);
-    } catch {
-      toast.error('Failed to load tasks for this user story.');
+    } catch (err) {
+      toast.error('Failed to load tasks for user story');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateTask = async (e) => {
-    e.preventDefault();
-    if (!newTitle.trim()) {
-      toast.error('Task title is required.');
-      return;
+  const fetchProjectTeam = async () => {
+    try {
+      const res = await axios.get(`/projects/${projectId}/team`);
+      setProjectTeam(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch project team', err);
     }
+  };
+
+  const handleAddTaskSubmit = async (e) => {
+    e.preventDefault();
     setIsCreating(true);
     try {
-      await axios.post(`/stories/${storyId}/tasks`, {
-        title: newTitle.trim(),
-        priority: newPriority,
-        due_date: newDueDate || null,
-        assigned_to: assignedTo || null,
-        status: 'Pending'
-      });
-      toast.success('Task created successfully under this User Story!');
-      setNewTitle('');
-      setNewDueDate('');
-      setAssignedTo('');
+      const formData = new FormData(e.target);
+      const functional_requirements = formData.getAll('functional_requirements');
+      const acceptance_criteria = formData.getAll('acceptance_criteria');
+
+      const payload = {
+        title: formData.get('title'),
+        description: formData.get('current_issue') || formData.get('title'),
+        module: formData.get('module') || '',
+        task_type: formData.get('task_type') || 'Feature',
+        priority: formData.get('priority') || 'Medium',
+        estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : undefined,
+        assigned_to: formData.get('assigned_to') || null,
+        due_date: formData.get('estimated_end_date') || null,
+        project_id: projectId,
+        sprint_id: sprintId || story?.sprint_id || null,
+        user_story_id: story.id,
+        template_data: {
+          business_objective: formData.get('business_objective') || '',
+          current_issue: formData.get('current_issue') || '',
+          expected_improvement: formData.get('expected_improvement') || '',
+          functional_requirements: functional_requirements.filter(Boolean),
+          acceptance_criteria: acceptance_criteria.filter(Boolean)
+        }
+      };
+
+      await axios.post(`/stories/${story.id}/tasks`, payload);
+      toast.success('Task created under User Story!');
       setShowCreateModal(false);
       fetchTasks();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create task.');
+      toast.error(err.response?.data?.message || 'Failed to create task');
     } finally {
       setIsCreating(false);
     }
@@ -355,70 +410,18 @@ const StoryTasksTab = ({ story, storyId, projectId, sprintId }) => {
         </Button>
       </div>
 
-      {/* Inline Quick Create Modal / Card */}
-      {showCreateModal && (
-        <form onSubmit={handleCreateTask} className="p-5 bg-blue-50/40 border border-blue-100 rounded-2xl space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-900 uppercase tracking-wider">New Task under {story?.story_key}</span>
-            <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-          </div>
-          <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Task Title (e.g. Build authentication middleware)..."
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              required
-              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Assignee (Project Team)</label>
-                <select
-                  value={assignedTo}
-                  onChange={e => setAssignedTo(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white font-semibold outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Unassigned</option>
-                  {projectTeam.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} {u.role_name ? `(${u.role_name})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Priority</label>
-                <select
-                  value={newPriority}
-                  onChange={e => setNewPriority(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white font-semibold outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Low">Low Priority</option>
-                  <option value="Medium">Medium Priority</option>
-                  <option value="High">High Priority</option>
-                  <option value="Critical">Critical Priority</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Due Date</label>
-                <input
-                  type="date"
-                  value={newDueDate}
-                  onChange={e => setNewDueDate(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button type="submit" disabled={isCreating} size="sm" className="bg-blue-600 text-white font-bold">
-              {isCreating ? 'Creating...' : 'Create Task'}
-            </Button>
-          </div>
-        </form>
-      )}
+      {/* Task Creation Modal with Task Templates */}
+      <AddTaskModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        selectedProject={{ id: projectId }}
+        initialStoryId={story?.id}
+        onSubmit={handleAddTaskSubmit}
+        isSubmitting={isCreating}
+        projectTeam={projectTeam}
+        isAdmin={isAdmin}
+        currentUser={user}
+      />
 
       {/* Task List */}
       <div className="bg-slate-200/40 p-1.5 rounded-[2rem] border border-slate-200/20">

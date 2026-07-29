@@ -13,15 +13,25 @@ const AddTaskModal = ({
   selectedProject,
   onSubmit,
   isSubmitting,
-  projectTeam,
+  projectTeam = [],
   isAdmin,
   currentUser,
-  taskReferences,
-  setTaskReferences,
-  selectedFiles,
-  setSelectedFiles
+  initialStoryId,
+  taskReferences: propTaskReferences,
+  setTaskReferences: propSetTaskReferences,
+  selectedFiles: propSelectedFiles,
+  setSelectedFiles: propSetSelectedFiles
 }) => {
   useLockBodyScroll(isOpen);
+
+  const [internalTaskReferences, setInternalTaskReferences] = useState([]);
+  const [internalSelectedFiles, setInternalSelectedFiles] = useState([]);
+
+  const taskReferences = propTaskReferences !== undefined ? propTaskReferences : internalTaskReferences;
+  const setTaskReferences = propSetTaskReferences || setInternalTaskReferences;
+
+  const selectedFiles = propSelectedFiles !== undefined ? propSelectedFiles : internalSelectedFiles;
+  const setSelectedFiles = propSetSelectedFiles || setInternalSelectedFiles;
 
   const [requirements, setRequirements] = useState(['']);
   const [acceptanceCriteria, setAcceptanceCriteria] = useState(['']);
@@ -33,7 +43,9 @@ const AddTaskModal = ({
     if (isOpen) {
       setRequirements(['']);
       setAcceptanceCriteria(['']);
-      setSelectedStoryId('');
+      setSelectedStoryId(initialStoryId || '');
+      setInternalSelectedFiles([]);
+      setInternalTaskReferences([]);
 
       if (selectedProject?.id) {
         setLoadingStories(true);

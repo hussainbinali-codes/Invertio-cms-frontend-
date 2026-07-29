@@ -7,10 +7,11 @@ import Button from '../../../components/ui/Button';
 import Skeleton from '../../../components/ui/Skeleton';
 import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 import UserStoryModal from '../components/UserStoryModal';
+import ImportUserStoriesModal from '../components/ImportUserStoriesModal';
 import {
   ArrowLeft, Calendar, Layers, CheckSquare, Clock, Flag,
   FileText, Plus, AlertCircle, Info, Bookmark, Sparkles,
-  Edit, Trash2, Tag, LayoutDashboard, ChevronRight, User, CheckCircle2
+  Edit, Trash2, Tag, LayoutDashboard, ChevronRight, User, CheckCircle2, FileSpreadsheet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../../utils/cn';
@@ -34,6 +35,7 @@ const SprintDetailsPage = () => {
   const [editingStory, setEditingStory] = useState(null);
   const [deletingStory, setDeletingStory] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const role = (user.role_name || '').toLowerCase();
   const isAdminOrPM = ['super admin', 'admin', 'administrator', 'project manager', 'pm'].includes(role) || hasPermission('projects', 'edit');
@@ -268,13 +270,22 @@ const SprintDetailsPage = () => {
             </div>
 
             {isAdminOrPM && (
-              <Button
-                onClick={() => { setEditingStory(null); setShowStoryModal(true); }}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create User Story
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setShowImportModal(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Import Excel
+                </Button>
+                <Button
+                  onClick={() => { setEditingStory(null); setShowStoryModal(true); }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create User Story
+                </Button>
+              </div>
             )}
           </div>
 
@@ -474,6 +485,7 @@ const SprintDetailsPage = () => {
         <UserStoryModal
           projectId={projectId}
           sprintId={sprintId}
+          sprints={sprint ? [sprint] : []}
           story={editingStory}
           onClose={() => { setShowStoryModal(false); setEditingStory(null); }}
           onSuccess={fetchStories}
@@ -494,6 +506,16 @@ const SprintDetailsPage = () => {
           isLoading={isDeleting}
         />
       )}
+
+      {/* Import User Stories Modal */}
+      <ImportUserStoriesModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        projectId={projectId}
+        sprintId={sprintId}
+        sprintName={sprint?.name}
+        onImportSuccess={fetchStories}
+      />
     </div>
   );
 };

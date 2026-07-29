@@ -7,10 +7,12 @@ import Button from '../../../components/ui/Button';
 import Skeleton from '../../../components/ui/Skeleton';
 import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 import SprintModal from '../components/SprintModal';
+import ImportUserStoriesModal from '../components/ImportUserStoriesModal';
+import UserStoryModal from '../components/UserStoryModal';
 import {
   ArrowLeft, Plus, Edit, Trash2, Layers, Calendar, CheckSquare,
   TrendingUp, Users, FolderOpen, FileText, Settings, BarChart2,
-  Clock, Flag, AlertCircle, ChevronRight, ShieldCheck
+  Clock, Flag, AlertCircle, ChevronRight, ShieldCheck, FileSpreadsheet, Bookmark, CheckCircle2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../../utils/cn';
@@ -23,17 +25,29 @@ const ProjectWorkspacePage = () => {
 
   const [project, setProject] = useState(null);
   const [sprints, setSprints] = useState([]);
+  const [backlogStories, setBacklogStories] = useState([]);
+  const [allProjectStories, setAllProjectStories] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sprintsLoading, setSprintsLoading] = useState(true);
+  const [backlogLoading, setBacklogLoading] = useState(true);
+  const [storiesLoading, setStoriesLoading] = useState(true);
 
-  // Tab State: Overview, Sprints, Members, Files, Reports, Settings
-  const [activeTab, setActiveTab] = useState('Sprints');
+  // Filters
+  const [storySprintFilter, setStorySprintFilter] = useState('All');
+  const [assigneeFilter, setAssigneeFilter] = useState('');
+
+  // Tab State: UserStories, Backlog, Sprints, Members, Reports
+  const [activeTab, setActiveTab] = useState('UserStories');
 
   // Modal states
   const [showSprintModal, setShowSprintModal] = useState(false);
   const [editingSprint, setEditingSprint] = useState(null);
   const [deletingSprint, setDeletingSprint] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [editingStory, setEditingStory] = useState(null);
 
   const role = (user.role_name || '').toLowerCase();
   const isAdminOrPM = ['super admin', 'admin', 'administrator', 'project manager', 'pm'].includes(role) || hasPermission('projects', 'edit');
@@ -41,6 +55,9 @@ const ProjectWorkspacePage = () => {
   useEffect(() => {
     fetchProjectDetails();
     fetchSprints();
+    fetchBacklog();
+    fetchAllStories();
+    fetchTeamMembers();
   }, [projectId]);
 
   const fetchProjectDetails = async () => {
@@ -71,6 +88,51 @@ const ProjectWorkspacePage = () => {
       toast.error('Failed to load sprints');
     } finally {
       setSprintsLoading(false);
+    }
+  };
+
+  const fetchBacklog = async () => {
+    try {
+      setBacklogLoading(true);
+      const res = await axios.get(`/projects/${projectId}/backlog`);
+      setBacklogStories(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load product backlog', err);
+    } finally {
+      setBacklogLoading(false);
+    }
+  };
+
+  const fetchAllStories = async () => {
+    try {
+      setStoriesLoading(true);
+      const res = await axios.get(`/projects/${projectId}/stories`);
+      setAllProjectStories(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load all project stories', err);
+    } finally {
+      setStoriesLoading(false);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await axios.get(`/projects/${projectId}/team`);
+      setTeamMembers(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load team members', err);
+    }
+  };
+
+  const handleMoveStoryToSprint = async (storyId, targetSprintId) => {
+    try {
+      await axios.patch(`/stories/${storyId}/sprint`, { sprint_id: targetSprintId || null });
+      toast.success(targetSprintId ? 'User story assigned to Sprint' : 'User story moved to Backlog');
+      fetchBacklog();
+      fetchSprints();
+      fetchAllStories();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to assign sprint');
     }
   };
 
@@ -127,12 +189,11 @@ const ProjectWorkspacePage = () => {
   };
 
   const tabs = [
-    { id: 'Overview', label: 'Overview', icon: BarChart2 },
+    { id: 'UserStories', label: 'User Stories', icon: Bookmark, count: allProjectStories.length },
+    { id: 'Backlog', label: 'Product Backlog', icon: Clock, count: backlogStories.length },
     { id: 'Sprints', label: 'Sprints', icon: Layers, count: sprints.length },
-    { id: 'Members', label: 'Members', icon: Users },
-    { id: 'Files', label: 'Files', icon: FolderOpen },
+    { id: 'Members', label: 'Team Allocated', icon: Users, count: teamMembers.length },
     { id: 'Reports', label: 'Reports', icon: FileText },
-    { id: 'Settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -213,7 +274,317 @@ const ProjectWorkspacePage = () => {
       </div>
 
       {/* Tab Content Area */}
+      {activeTab === 'UserStories' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Project User Stories</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Browse and filter all user stories across sprints and backlog. Click any story to view details.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={storySprintFilter}
+                onChange={(e) => setStorySprintFilter(e.target.value)}
+                className="text-xs font-bold py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer"
+              >
+                <option value="All">All Sprints & Backlog</option>
+                <option value="Backlog">Product Backlog Only</option>
+                {sprints.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.status || 'Planning'})</option>
+                ))}
+              </select>
+
+              {isAdminOrPM && (
+                <Button
+                  onClick={() => { setEditingStory(null); setShowStoryModal(true); }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-2 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create User Story
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {storiesLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10">
+                  <div className="bg-white p-6 rounded-[calc(2rem-0.375rem)] border border-slate-100 space-y-4">
+                    <Skeleton className="h-6 w-3/4 rounded-lg" />
+                    <Skeleton className="h-4 w-full rounded-md" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            (() => {
+              const filteredStories = allProjectStories.filter(s => {
+                if (storySprintFilter === 'All') return true;
+                if (storySprintFilter === 'Backlog') return !s.sprint_id;
+                return String(s.sprint_id) === String(storySprintFilter);
+              });
+
+              if (filteredStories.length === 0) {
+                return (
+                  <div className="bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 text-center py-12">
+                    <div className="bg-white p-8 rounded-[calc(2rem-0.375rem)] border border-slate-100 flex flex-col items-center justify-center max-w-md mx-auto">
+                      <Bookmark className="w-8 h-8 text-blue-500 mb-3" />
+                      <h3 className="text-base font-bold text-slate-900">No User Stories Found</h3>
+                      <p className="text-xs text-slate-500 mt-1 mb-4">No stories match the selected sprint filter.</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredStories.map(story => (
+                    <div
+                      key={story.id}
+                      onClick={() => navigate(story.sprint_id ? `/projects/${projectId}/sprints/${story.sprint_id}/stories/${story.id}` : `/projects/${projectId}/stories/${story.id}`)}
+                      className="bg-slate-200/40 p-1.5 rounded-[2rem] border border-slate-200/20 hover:bg-slate-200/60 transition-all duration-300 group hover:-translate-y-0.5 cursor-pointer flex flex-col justify-between"
+                    >
+                      <div className="bg-white p-6 rounded-[calc(2rem-0.375rem)] border border-slate-200/25 shadow-sm h-full flex flex-col justify-between space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-mono font-bold">
+                              {story.story_key}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-[10px] px-2 py-0.5">
+                                {story.priority || 'Medium'}
+                              </Badge>
+                              <Badge className="bg-slate-100 text-slate-700 border-slate-200 font-bold text-[10px] px-2 py-0.5">
+                                {story.sprint_name || 'Backlog'}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors tracking-tight mt-3 line-clamp-2">
+                            {story.title}
+                          </h3>
+
+                          {story.description && (
+                            <p className="text-xs text-slate-500 line-clamp-2 mt-2 font-normal leading-relaxed">
+                              {story.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500">
+                          <span className="bg-slate-100 px-2.5 py-1 rounded-lg font-mono text-[11px]">{story.story_points || 0} Story Points</span>
+                          <span className="text-blue-600 group-hover:translate-x-1 transition-transform flex items-center gap-1 text-xs">
+                            View Details <ChevronRight className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
+          )}
+        </div>
+      )}
+
+      {activeTab === 'Members' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Team Allocated</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Resource team members assigned to this project. Filter by assignee name below.
+              </p>
+            </div>
+
+            {/* Filter by Assignee Name */}
+            <div className="relative w-full sm:w-72">
+              <Users className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Filter by assigned name..."
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+            </div>
+          </div>
+
+          {(() => {
+            const filteredMembers = teamMembers.filter(m =>
+              m.name?.toLowerCase().includes(assigneeFilter.toLowerCase()) ||
+              m.email?.toLowerCase().includes(assigneeFilter.toLowerCase()) ||
+              m.role_name?.toLowerCase().includes(assigneeFilter.toLowerCase())
+            );
+
+            if (filteredMembers.length === 0) {
+              return (
+                <div className="bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 text-center py-12">
+                  <div className="bg-white p-8 rounded-[calc(2rem-0.375rem)] border border-slate-100 flex flex-col items-center justify-center max-w-md mx-auto">
+                    <Users className="w-8 h-8 text-slate-400 mb-3" />
+                    <h3 className="text-base font-bold text-slate-900">No Team Members Found</h3>
+                    <p className="text-xs text-slate-500 mt-1">No allocated members match "{assigneeFilter}".</p>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredMembers.map(member => (
+                  <div key={member.id} className="bg-slate-200/40 p-1.5 rounded-[2rem] border border-slate-200/20 shadow-sm">
+                    <div className="bg-white p-6 rounded-[calc(2rem-0.375rem)] border border-slate-200/25 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200 shrink-0">
+                          {member.name?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-slate-900 truncate">{member.name}</h4>
+                          <p className="text-xs text-slate-500 truncate">{member.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-medium">Project Role</span>
+                        <Badge className="bg-blue-50 text-blue-700 border-blue-200 font-bold text-[10px]">
+                          {member.role_name || 'Team Member'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+      {activeTab === 'Backlog' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Product Backlog</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Unassigned project user stories and requirements awaiting sprint allocation.
+              </p>
+            </div>
+
+            {isAdminOrPM && (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setShowImportModal(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Import Excel
+                </Button>
+                <Button
+                  onClick={() => { setEditingStory(null); setShowStoryModal(true); }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create User Story
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {backlogLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10">
+                  <div className="bg-white p-6 rounded-[calc(2rem-0.375rem)] border border-slate-100 space-y-4">
+                    <Skeleton className="h-6 w-3/4 rounded-lg" />
+                    <Skeleton className="h-4 w-full rounded-md" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : backlogStories.length === 0 ? (
+            <div className="bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 text-center py-12">
+              <div className="bg-white p-8 rounded-[calc(2rem-0.375rem)] border border-slate-100 flex flex-col items-center justify-center max-w-md mx-auto">
+                <div className="p-4 bg-blue-50 text-blue-600 rounded-3xl mb-4">
+                  <Bookmark className="w-8 h-8" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">Backlog is Empty</h3>
+                <p className="text-xs text-slate-500 mt-1 mb-6 text-center">
+                  All user stories have been assigned to sprints or no features have been created yet.
+                </p>
+                {isAdminOrPM && (
+                  <Button
+                    onClick={() => { setEditingStory(null); setShowStoryModal(true); }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold py-2.5 px-5 flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create First Story
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {backlogStories.map((story) => (
+                <div
+                  key={story.id}
+                  className="bg-slate-200/40 p-1.5 rounded-[2rem] border border-slate-200/20 hover:bg-slate-200/60 transition-all duration-300 group flex flex-col justify-between"
+                >
+                  <div className="bg-white p-6 rounded-[calc(2rem-0.375rem)] border border-slate-200/25 shadow-sm h-full flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-mono font-bold">
+                          {story.story_key}
+                        </span>
+                        <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-[10px] px-2 py-0.5">
+                          {story.priority || 'Medium'}
+                        </Badge>
+                      </div>
+
+                      <h3
+                        onClick={() => navigate(`/projects/${projectId}/stories/${story.id}`)}
+                        className="text-base font-bold text-slate-900 hover:text-blue-600 cursor-pointer tracking-tight mt-3 line-clamp-2"
+                      >
+                        {story.title}
+                      </h3>
+
+                      {story.description && (
+                        <p className="text-xs text-slate-500 line-clamp-2 mt-2 font-normal leading-relaxed">
+                          {story.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                        <span className="bg-slate-100 px-2 py-1 rounded-md font-mono">{story.story_points || 0} pts</span>
+                        <span>• {story.task_count || 0} tasks</span>
+                      </div>
+
+                      {isAdminOrPM && (
+                        <select
+                          onChange={(e) => handleMoveStoryToSprint(story.id, e.target.value)}
+                          defaultValue=""
+                          className="text-[11px] font-bold py-1.5 px-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors focus:outline-none cursor-pointer"
+                        >
+                          <option value="" disabled>Move to Sprint ▾</option>
+                          {sprints.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'Sprints' && (
+
         <div className="space-y-6">
           {/* Header & Create Action */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -225,13 +596,22 @@ const ProjectWorkspacePage = () => {
             </div>
 
             {isAdminOrPM && (
-              <Button
-                onClick={() => { setEditingSprint(null); setShowSprintModal(true); }}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create Sprint
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setShowImportModal(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Import Stories Excel
+                </Button>
+                <Button
+                  onClick={() => { setEditingSprint(null); setShowSprintModal(true); }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-2.5 px-4 text-xs font-bold shadow-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Sprint
+                </Button>
+              </div>
             )}
           </div>
 
@@ -375,8 +755,8 @@ const ProjectWorkspacePage = () => {
         </div>
       )}
 
-      {/* Non-Sprint Tabs Placeholder View */}
-      {activeTab !== 'Sprints' && (
+      {/* Reports Tab Placeholder View */}
+      {activeTab === 'Reports' && (
         <div className="bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 text-center py-16">
           <div className="bg-white p-8 rounded-[calc(2rem-0.375rem)] border border-slate-100 flex flex-col items-center justify-center max-w-md mx-auto">
             <div className="p-4 bg-slate-100 text-slate-500 rounded-3xl mb-4">
@@ -413,11 +793,29 @@ const ProjectWorkspacePage = () => {
           onClose={() => setDeletingSprint(null)}
           onConfirm={handleDeleteSprint}
           title="Delete Sprint"
-          message={`Are you sure you want to delete "${deletingSprint.name}"? All associated sprint records will be removed.`}
+          message={`Are you sure you want to delete "${deletingSprint?.name}"? All associated stories will be unassigned.`}
           confirmText="Delete Sprint"
           cancelText="Cancel"
           variant="danger"
           isLoading={isDeleting}
+        />
+      )}
+
+      <ImportUserStoriesModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        project={project}
+        projectId={projectId}
+        onImportSuccess={() => { fetchSprints(); fetchBacklog(); }}
+      />
+
+      {showStoryModal && (
+        <UserStoryModal
+          projectId={projectId}
+          sprints={sprints}
+          story={editingStory}
+          onClose={() => { setShowStoryModal(false); setEditingStory(null); }}
+          onSuccess={() => { fetchBacklog(); fetchSprints(); }}
         />
       )}
     </div>
@@ -425,3 +823,4 @@ const ProjectWorkspacePage = () => {
 };
 
 export default ProjectWorkspacePage;
+

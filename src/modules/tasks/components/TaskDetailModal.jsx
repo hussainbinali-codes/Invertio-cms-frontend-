@@ -50,7 +50,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const [subTasks, setSubTasks] = React.useState([]);
   const [loadingSubTasks, setLoadingSubTasks] = React.useState(false);
   const [showAddSubTask, setShowAddSubTask] = React.useState(false);
-  const [newSubTask, setNewSubTask] = React.useState({ title: '', priority: 'Medium', due_date: '' });
+  const [newSubTask, setNewSubTask] = React.useState({ title: '', priority: 'Medium', due_date: '', estimated_hours: '' });
   const [isCreatingSubTask, setIsCreatingSubTask] = React.useState(false);
   const [isDeveloper] = React.useState(!isAdmin && !user?.modules?.tasks?.edit);
 
@@ -105,12 +105,12 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     setIsCreatingSubTask(true);
     try {
         const res = await axios.post(`/tasks/${taskId}/subtasks`, newSubTask);
-        setSubTasks(prev => [...prev, res.data.data]);
-        setNewSubTask({ title: '', priority: 'Medium', due_date: '' });
-        setShowAddSubTask(false);
         toast.success('Sub task created');
+        setNewSubTask({ title: '', priority: 'Medium', due_date: '', estimated_hours: '' });
+        setShowAddSubTask(false);
+        fetchSubTasks();
     } catch (err) {
-        toast.error(err.response?.data?.message || 'Failed to create sub task');
+        toast.error(err?.response?.data?.message || 'Failed to create sub task');
     } finally {
         setIsCreatingSubTask(false);
     }
@@ -580,11 +580,20 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       onChange={e => setNewSubTask(prev => ({ ...prev, priority: e.target.value }))}
                       className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                      <option value="Critical">Critical</option>
+                      <option value="Low">Low Priority</option>
+                      <option value="Medium">Medium Priority</option>
+                      <option value="High">High Priority</option>
+                      <option value="Critical">Critical Priority</option>
                     </select>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      placeholder="Est Hours (e.g. 2.5)"
+                      value={newSubTask.estimated_hours}
+                      onChange={e => setNewSubTask(prev => ({ ...prev, estimated_hours: e.target.value }))}
+                      className="w-32 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                    />
                     <input
                       type="date"
                       value={newSubTask.due_date}
@@ -594,7 +603,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   </div>
                   <div className="flex gap-2 justify-end">
                     <button
-                      onClick={() => { setShowAddSubTask(false); setNewSubTask({ title: '', priority: 'Medium', due_date: '' }); }}
+                      onClick={() => { setShowAddSubTask(false); setNewSubTask({ title: '', priority: 'Medium', due_date: '', estimated_hours: '' }); }}
                       className="text-xs text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
                     >Cancel</button>
                     <button
@@ -642,6 +651,11 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                             st.priority === 'Medium' ? 'bg-blue-100 text-blue-600' :
                             'bg-slate-100 text-slate-500'
                           )}>{st.priority}</span>
+                          {st.estimated_hours && (
+                            <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                              {st.estimated_hours} hrs
+                            </span>
+                          )}
                           {st.assigned_to_name && <span className="text-[9px] text-slate-400">{st.assigned_to_name}</span>}
                           {st.due_date && <span className="text-[9px] text-slate-400">{new Date(st.due_date).toLocaleDateString()}</span>}
                         </div>
