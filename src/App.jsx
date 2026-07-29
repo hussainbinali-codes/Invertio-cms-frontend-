@@ -12,7 +12,12 @@ import ProtectedRoute from './routes/ProtectedRoute';
 const DashboardPage = lazy(() => import('./modules/dashboard/pages/DashboardPage'));
 const UsersPage = lazy(() => import('./modules/users/pages/UsersPage'));
 const ProjectsPage = lazy(() => import('./modules/projects/pages/ProjectsPage'));
+const ProjectWorkspacePage = lazy(() => import('./modules/projects/pages/ProjectWorkspacePage'));
+const SprintDetailsPage = lazy(() => import('./modules/projects/pages/SprintDetailsPage'));
+const StoryDetailsPage = lazy(() => import('./modules/projects/pages/StoryDetailsPage'));
 const TasksPage = lazy(() => import('./modules/tasks/pages/TasksPage'));
+
+
 const FinancePage = lazy(() => import('./modules/finance/pages/FinancePage'));
 const HRPage = lazy(() => import('./modules/hr/pages/HRPage'));
 const LeavesPage = lazy(() => import('./modules/hr/pages/LeavesPage'));
@@ -64,7 +69,13 @@ function App() {
 
               <Route element={<ProtectedRoute permission="projects" />}>
                 <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
+                <Route path="/projects/:projectId/sprints/:sprintId" element={<SprintDetailsPage />} />
+                <Route path="/projects/:projectId/sprints/:sprintId/stories/:storyId" element={<StoryDetailsPage />} />
+                <Route path="/projects/:projectId/stories/:storyId" element={<StoryDetailsPage />} />
               </Route>
+
+
 
               <Route element={<ProtectedRoute permission="tasks" />}>
                 <Route path="/tasks" element={<TasksPage />} />

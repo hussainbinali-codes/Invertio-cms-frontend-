@@ -129,6 +129,10 @@ const ProjectsPage = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  // Sprint planning state for project creation
+  const [projectUsesSprints, setProjectUsesSprints] = useState(false);
+  const [sprintCount, setSprintCount] = useState(1);
+  const [sprintDates, setSprintDates] = useState([{ start_date: '', end_date: '' }]);
 
   const isAdmin = ['super admin', 'admin', 'administrator'].includes((user.role_name || '').toLowerCase());
 
@@ -169,10 +173,16 @@ const ProjectsPage = () => {
         ...payload,
         client_id: payload.client_id,
         budget: payload.budget ? parseFloat(payload.budget) : 0,
-        resource_links: []
+        resource_links: [],
+        uses_sprints: projectUsesSprints,
+        sprint_count: projectUsesSprints ? sprintCount : 0,
+        sprints_data: projectUsesSprints ? sprintDates.slice(0, sprintCount) : []
       });
       toast.success('Project created successfully');
       setShowAddModal(false);
+      setProjectUsesSprints(false);
+      setSprintCount(1);
+      setSprintDates([{ start_date: '', end_date: '' }]);
       fetchProjects();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create project');
@@ -420,7 +430,12 @@ const ProjectsPage = () => {
                   <React.Fragment key={project.id}>
                     <TableRow className="group border-none">
                       <TableCell className="py-5">
-                        <div className="font-bold text-slate-900">{project.name}</div>
+                        <div 
+                          onClick={() => navigate(`/projects/${project.id}`)}
+                          className="font-bold text-slate-900 hover:text-blue-600 cursor-pointer transition-colors flex items-center gap-1.5"
+                        >
+                          {project.name}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-slate-500 font-medium">{project.tech_stack || 'Standard Stack'}</span>
                           <Badge variant="secondary" className="text-xs font-semibold text-slate-500 tracking-tight py-0 px-1.5 border-slate-100">
@@ -486,6 +501,16 @@ const ProjectsPage = () => {
                       </TableCell>
                       <TableCell className="py-5">
                         <div className="flex items-center justify-start gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2.5 rounded-lg flex items-center gap-1"
+                            onClick={() => navigate(`/projects/${project.id}`)}
+                            title="Open Workspace"
+                          >
+                            <FolderOpen className="w-3.5 h-3.5" />
+                            Workspace
+                          </Button>
                           {isAdmin && (
                             <Button
                               size="sm"
@@ -540,6 +565,7 @@ const ProjectsPage = () => {
                           )}
                         </div>
                       </TableCell>
+
                     </TableRow>
 
                     {/* Confidential Info Section */}
@@ -759,7 +785,87 @@ const ProjectsPage = () => {
                   <Input label="End Date" name="end_date" type="date" required />
                 </div>
 
-                <div className="flex gap-3 justify-end pt-6">
+                {/* Sprint Planning Section */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Sprint Planning</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Auto-generate sprint iterations for this project</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={projectUsesSprints}
+                        onChange={(e) => {
+                          setProjectUsesSprints(e.target.checked);
+                          if (!e.target.checked) {
+                            setSprintCount(1);
+                            setSprintDates([{ start_date: '', end_date: '' }]);
+                          }
+                        }}
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  {projectUsesSprints && (
+                    <div className="p-4 space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">Number of Sprints</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={sprintCount}
+                          onChange={(e) => {
+                            const count = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
+                            setSprintCount(count);
+                            setSprintDates(prev => {
+                              const updated = [...prev];
+                              while (updated.length < count) updated.push({ start_date: '', end_date: '' });
+                              return updated.slice(0, count);
+                            });
+                          }}
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sprint Date Ranges</p>
+                        {Array.from({ length: sprintCount }).map((_, i) => (
+                          <div key={i} className="grid grid-cols-3 gap-2 items-center p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                            <span className="text-xs font-bold text-slate-600">Sprint {i + 1}</span>
+                            <input
+                              type="date"
+                              value={sprintDates[i]?.start_date || ''}
+                              onChange={(e) => {
+                                const updated = [...sprintDates];
+                                updated[i] = { ...updated[i], start_date: e.target.value };
+                                setSprintDates(updated);
+                              }}
+                              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              required={projectUsesSprints}
+                            />
+                            <input
+                              type="date"
+                              value={sprintDates[i]?.end_date || ''}
+                              onChange={(e) => {
+                                const updated = [...sprintDates];
+                                updated[i] = { ...updated[i], end_date: e.target.value };
+                                setSprintDates(updated);
+                              }}
+                              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              required={projectUsesSprints}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 justify-end pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowAddModal(false)}>
                     Cancel
                   </Button>
