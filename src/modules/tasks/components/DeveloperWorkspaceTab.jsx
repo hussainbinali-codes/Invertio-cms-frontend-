@@ -38,7 +38,7 @@ const priorityDot = (priority) => {
 };
 
 // ──────────────── Sub Tasks Row ────────────────
-const SubTaskRow = ({ subTask, onStatusChange }) => (
+const SubTaskRow = ({ subTask, onStatusChange, disabled }) => (
   <div className="flex items-center gap-2.5 py-1.5 px-3 hover:bg-slate-50 rounded-lg transition-colors">
     <GitBranch className="w-3 h-3 text-slate-300 shrink-0" />
     {priorityDot(subTask.priority)}
@@ -48,7 +48,8 @@ const SubTaskRow = ({ subTask, onStatusChange }) => (
     <select
       value={subTask.status}
       onChange={e => onStatusChange(subTask.id, e.target.value)}
-      className="text-[9px] font-bold border border-slate-200 rounded-lg px-1.5 py-0.5 bg-white focus:outline-none shrink-0"
+      disabled={disabled}
+      className="text-[9px] font-bold border border-slate-200 rounded-lg px-1.5 py-0.5 bg-white focus:outline-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <option value="Pending">Pending</option>
       <option value="In Progress">In Progress</option>
@@ -67,6 +68,8 @@ const TaskRow = ({ task }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  const isTaskCompleted = task.status === 'Completed';
 
   const toggle = useCallback(async () => {
     setExpanded(v => !v);
@@ -132,41 +135,43 @@ const TaskRow = ({ task }) => {
         <div className="mt-1 mb-2 space-y-0.5">
           {loading && <div className="text-[10px] text-slate-400 pl-6 py-1"><Loader2 className="w-3 h-3 animate-spin inline mr-1" />Loading...</div>}
           {!loading && subTasks.map(st => (
-            <SubTaskRow key={st.id} subTask={st} onStatusChange={handleSubTaskStatusChange} />
+            <SubTaskRow key={st.id} subTask={st} onStatusChange={handleSubTaskStatusChange} disabled={isTaskCompleted} />
           ))}
           {!loading && subTasks.length === 0 && (
             <div className="text-[10px] text-slate-400 italic pl-6 py-1">No sub tasks</div>
           )}
 
           {/* Inline add sub task */}
-          {showAdd ? (
-            <div className="flex items-center gap-1.5 pl-6 py-1">
-              <input
-                type="text"
-                value={newTitle}
-                onChange={e => setNewTitle(e.target.value)}
-                placeholder="Sub task title..."
-                className="flex-1 text-xs px-2 py-1 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                onKeyDown={e => e.key === 'Enter' && handleAddSubTask()}
-                autoFocus
-              />
+          {!isTaskCompleted && (
+            showAdd ? (
+              <div className="flex items-center gap-1.5 pl-6 py-1">
+                <input
+                  type="text"
+                  value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  placeholder="Sub task title..."
+                  className="flex-1 text-xs px-2 py-1 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  onKeyDown={e => e.key === 'Enter' && handleAddSubTask()}
+                  autoFocus
+                />
+                <button
+                  onClick={handleAddSubTask}
+                  disabled={isCreating}
+                  className="text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"
+                >
+                  {isCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                  Add
+                </button>
+                <button onClick={() => { setShowAdd(false); setNewTitle(''); }} className="text-[10px] text-slate-400 hover:text-slate-600">✕</button>
+              </div>
+            ) : (
               <button
-                onClick={handleAddSubTask}
-                disabled={isCreating}
-                className="text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"
+                onClick={() => setShowAdd(true)}
+                className="flex items-center gap-1 text-[10px] text-blue-600 hover:underline pl-6 py-0.5"
               >
-                {isCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                Add
+                <Plus className="w-3 h-3" /> Add sub task
               </button>
-              <button onClick={() => { setShowAdd(false); setNewTitle(''); }} className="text-[10px] text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1 text-[10px] text-blue-600 hover:underline pl-6 py-0.5"
-            >
-              <Plus className="w-3 h-3" /> Add sub task
-            </button>
+            )
           )}
         </div>
       )}

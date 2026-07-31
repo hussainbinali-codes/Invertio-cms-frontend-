@@ -358,7 +358,7 @@ const ProjectsPage = () => {
 
       {/* KPI Stats Grid in Double-Bezel nested wrapper */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KpiCard title="Total Projects" value={projects.length} icon={Briefcase} subtext="Active & planned" />
+        <KpiCard title="Total Projects" value={projects.length} icon={Briefcase} subtext="All Projects" />
         <KpiCard title="In Progress" value={projects.filter(p => p.status === 'In Progress').length} icon={TrendingUp} trend="+2" subtext="Current velocity" />
         <KpiCard title="Completed" value={projects.filter(p => p.status === 'Completed').length} icon={CheckCircle2} subtext="Lifetime delivery" />
         <KpiCard title="Maintenance" value={projects.filter(p => p.category === 'Maintenance').length} icon={Layers} subtext="Long-term support" />
