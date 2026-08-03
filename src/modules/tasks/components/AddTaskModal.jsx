@@ -189,24 +189,18 @@ const AddTaskModal = ({
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Assign To (Project Team)</label>
-                  <select name="assigned_to" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white" required>
-                    <option value="">Select team member...</option>
-                    {projectTeam.map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.role_name || u.email})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Reporter</label>
-                  <select name="reporter_id" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white" defaultValue={currentUser?.id || ''} required>
-                    <option value="">Select reporter...</option>
-                    {projectTeam.map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.role_name || u.email})</option>
-                    ))}
-                    {currentUser && !projectTeam.some(u => u.id === currentUser.id) && (
-                      <option value={currentUser.id}>{currentUser.name} (You / Reporter)</option>
-                    )}
-                  </select>
+                  {(isAdmin || (currentUser?.role_name || '').toLowerCase().includes('admin') || (currentUser?.role_name || '').toLowerCase().includes('pm') || (currentUser?.role_name || '').toLowerCase().includes('project manager')) ? (
+                    <select name="assigned_to" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white" required>
+                      <option value="">Select team member...</option>
+                      {projectTeam.map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.role_name || u.email})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select name="assigned_to" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-slate-50 font-medium text-slate-700 cursor-not-allowed" defaultValue={currentUser?.id || ''} required>
+                      <option value={currentUser?.id}>{currentUser?.name || 'You'} (Self-Assigned)</option>
+                    </select>
+                  )}
                 </div>
               </div>
             </section>
@@ -264,7 +258,7 @@ const AddTaskModal = ({
             {/* SECTION 5: Technical Notes */}
             <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="text-primary-600 font-bold">04.</span> Technical Notes
+                <span className="text-primary-600 font-bold">04.</span> Technical Notes(optional)
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Textarea label="Architecture / Flow Notes" name="tech_architecture" placeholder="Architecture notes..." />
@@ -360,22 +354,11 @@ const AddTaskModal = ({
               </div>
             </section>
 
-            {/* SECTION 8: Estimation & Timeline */}
-            <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
-              <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="text-primary-600 font-bold">07.</span> Estimation & Timeline
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Input label="Estimated Start Date" name="estimated_start_date" type="date" required />
-                <Input label="Estimated End Date" name="estimated_end_date" type="date" required />
-                <Input label="Estimated Hours" name="estimated_hours" type="number" min="0" step="0.5" placeholder="e.g. 16" required />
-              </div>
-            </section>
 
             {/* SECTION 9 & 10: Progress Updates & Blockers */}
             <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="text-primary-600 font-bold">08.</span> Progress Updates & Blockers (Optional Initialization)
+                <span className="text-primary-600 font-bold">07.</span> Progress Updates & Blockers (Optional Initialization)
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="col-span-1 md:col-span-2">
@@ -400,7 +383,7 @@ const AddTaskModal = ({
             {/* SECTION 11: Risks */}
             <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="text-primary-600 font-bold">09.</span> Risks Assessment
+                <span className="text-primary-600 font-bold">08.</span> Risks Assessment(optional)
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Textarea label="Performance Impact" name="risk_performance" placeholder="Performance concerns..." />
@@ -413,7 +396,7 @@ const AddTaskModal = ({
             {/* SECTION 14: Initial Comments */}
             <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="text-primary-600 font-bold">10.</span> Initial Notes & Comments
+                <span className="text-primary-600 font-bold">09.</span> Initial Notes & Comments(optional)
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Textarea label="Developer Comments" name="comment_developer" placeholder="Initial developer notes..." />
@@ -425,7 +408,7 @@ const AddTaskModal = ({
             {/* Resources & Media Section */}
             <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="text-primary-600 font-bold">11.</span> Resources & Task Media
+                <span className="text-primary-600 font-bold">10.</span> Resources & Task Media
               </h2>
               <div className="space-y-4">
                 <div class="space-y-2">

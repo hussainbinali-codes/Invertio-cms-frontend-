@@ -555,17 +555,23 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => setShowAddSubTask(v => !v)}
-                  className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
-                >
-                  <Plus className="w-3 h-3" />
-                  Add Sub Task
-                </button>
-              </div>
+                  {taskData.status !== 'Completed' ? (
+                    <button
+                      onClick={() => setShowAddSubTask(v => !v)}
+                      className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Sub Task
+                    </button>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                      Task Completed (Locked)
+                    </span>
+                  )}
+                </div>
 
               {/* Add Sub Task inline form */}
-              {showAddSubTask && (
+              {showAddSubTask && taskData.status !== 'Completed' && (
                 <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2">
                   <input
                     type="text"
@@ -625,15 +631,17 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
                 </div>
               ) : subTasks.length === 0 ? (
-                <div className="text-xs text-slate-400 italic py-2">No sub tasks yet. Add one above.</div>
+                <div className="text-xs text-slate-400 italic py-2">No sub tasks yet. {taskData.status !== 'Completed' && 'Add one above.'}</div>
               ) : (
                 <div className="space-y-2">
                   {subTasks.map(st => (
                     <div key={st.id} className="flex items-center gap-3 p-2.5 bg-white border border-slate-100 rounded-xl hover:border-slate-200 transition-colors group">
                       <button
-                        onClick={() => handleSubTaskStatusChange(st.id, st.status === 'Completed' ? 'Pending' : 'Completed')}
+                        onClick={() => taskData.status !== 'Completed' && handleSubTaskStatusChange(st.id, st.status === 'Completed' ? 'Pending' : 'Completed')}
+                        disabled={taskData.status === 'Completed'}
                         className={cn(
                           'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                          taskData.status === 'Completed' ? 'cursor-not-allowed opacity-60' : '',
                           st.status === 'Completed'
                             ? 'border-emerald-500 bg-emerald-500'
                             : 'border-slate-300 hover:border-emerald-400'
@@ -663,14 +671,15 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       <select
                         value={st.status}
                         onChange={e => handleSubTaskStatusChange(st.id, e.target.value)}
-                        className="text-[9px] font-bold border border-slate-200 rounded-lg px-1.5 py-1 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-400 shrink-0"
+                        disabled={taskData.status === 'Completed'}
+                        className="text-[9px] font-bold border border-slate-200 rounded-lg px-1.5 py-1 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-400 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="Pending">Pending</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Completed">Completed</option>
                         <option value="Blocked">Blocked</option>
                       </select>
-                      {isAdmin && (
+                      {isAdmin && taskData.status !== 'Completed' && (
                         <button
                           onClick={() => handleDeleteSubTask(st.id)}
                           className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
