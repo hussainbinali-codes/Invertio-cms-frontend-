@@ -622,7 +622,8 @@ const PayrollTab = lazy(() => import('../components/PayrollTab'));
 // Lazy Load Modals
 const InvoiceModal = lazy(() => import('../components/InvoiceModal'));
 const ExpenseModal = lazy(() => import('../components/ExpenseModal'));
-const PayrollModal = lazy(() => import('../components/PayrollModal'));
+const MonthlyPayrollModal = lazy(() => import('../components/MonthlyPayrollModal'));
+const PayrollBatchDetailsDrawer = lazy(() => import('../components/PayrollBatchDetailsDrawer'));
 const PayrollStatusModal = lazy(() => import('../components/PayrollStatusModal'));
 
 const CURRENCIES = [
@@ -650,63 +651,35 @@ const FinancePage = () => {
   const [reportData, setReportData] = useState({ consolidated: {}, byCurrency: {} });
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [payrollData, setPayrollData] = useState([]);
+  const [payrollBatches, setPayrollBatches] = useState([]);
+  const [activeBatchDetails, setActiveBatchDetails] = useState(null);
+  const [showBatchDrawer, setShowBatchDrawer] = useState(false);
+  const [showMonthlyPayrollModal, setShowMonthlyPayrollModal] = useState(false);
+  const [batchDetailsLoading, setBatchDetailsLoading] = useState(false);
+  const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
+  const [isSendingBatchPayslips, setIsSendingBatchPayslips] = useState(false);
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showPayrollModal, setShowPayrollModal] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState('All');
+  const [expenseCategories, setExpenseCategories] = useState([]);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceModalType, setInvoiceModalType] = useState('Outbound');
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState('All');
   const [reminderSendingId, setReminderSendingId] = useState(null);
-  const [expenseCategories, setExpenseCategories] = useState([]);
-
-  // Payroll Status Modal State
-  const [payrollStatusModal, setPayrollStatusModal] = useState({
-    isOpen: false,
-    payrollId: null,
-    currentStatus: '',
-    targetStatus: '',
-    employeeName: '',
-    period: ''
-  });
-
-  // Invoice Filters
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('All');
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState('All');
-
-  // Expense Filters
   const [expenseSearch, setExpenseSearch] = useState('');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('All');
-
-  // Payroll Filters
-  const [payrollSearch, setPayrollSearch] = useState('');
-  const [payrollYearFilter, setPayrollYearFilter] = useState('All');
-
   const [chartData, setChartData] = useState([
     { name: 'Revenue', value: 0, color: '#3b82f6' },
     { name: 'Expense', value: 0, color: '#ef4444' },
     { name: 'Profit', value: 0, color: '#10b981' },
   ]);
-
-  useEffect(() => {
-    if (!hasPermission('finance', 'view')) {
-      toast.error("Access Denied: You do not have permissions to access the Finance module.");
-      navigate('/dashboard');
-      return;
-    }
-    if (isSuperAdmin) {
-      fetchFinanceData();
-    } else {
-      setLoading(false);
-    }
-    fetchAuxData();
-  }, []);
 
   useEffect(() => {
     let data;
@@ -732,14 +705,115 @@ const FinancePage = () => {
   }, [selectedCurrency, reportData]);
 
   useEffect(() => {
+    if (!hasPermission('finance', 'view')) {
+      toast.error("Access Denied: You do not have permissions to access the Finance module.");
+      navigate('/dashboard');
+      return;
+    }
+    if (isSuperAdmin) {
+      fetchFinanceData();
+    } else {
+      setLoading(false);
+    }
+    fetchAuxData();
+  }, []);
+
+  useEffect(() => {
     if (activeView === 'Invoices') {
       fetchInvoices();
     } else if (activeView === 'Expenses') {
       fetchExpenses();
     } else if (activeView === 'Payroll') {
-      fetchPayrollRecords();
+      fetchPayrollBatches();
     }
   }, [activeView]);
+
+  const fetchPayrollBatches = async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await axios.get('/finance/payroll/batches');
+      setPayrollBatches(res.data.data || []);
+    } catch (err) {
+      toast.error('Failed to fetch payroll runs');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleGenerateMonthlyBatch = async ({ month, year }) => {
+    try {
+      setIsGeneratingBatch(true);
+      const res = await axios.post('/finance/payroll/batches/generate', { month, year });
+      toast.success('Monthly payroll run generated successfully');
+      setShowMonthlyPayrollModal(false);
+      fetchPayrollBatches();
+      if (res.data.data?.id) {
+        handleViewBatchDetails(res.data.data.id);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to generate monthly payroll');
+    } finally {
+      setIsGeneratingBatch(false);
+    }
+  };
+
+  const handleViewBatchDetails = async (batchId) => {
+    try {
+      setShowBatchDrawer(true);
+      setBatchDetailsLoading(true);
+      const res = await axios.get(`/finance/payroll/batches/${batchId}`);
+      setActiveBatchDetails(res.data.data || null);
+    } catch (err) {
+      toast.error('Failed to load batch details');
+    } finally {
+      setBatchDetailsLoading(false);
+    }
+  };
+
+  const handleUpdateAdjustment = async (payrollId, payload) => {
+    const res = await axios.patch(`/finance/payroll/records/${payrollId}/adjustment`, payload);
+    if (activeBatchDetails?.batch?.id) {
+      handleViewBatchDetails(activeBatchDetails.batch.id);
+    }
+    fetchPayrollBatches();
+    return res.data.data;
+  };
+
+  const handleUploadProof = async (payrollId, formData) => {
+    const res = await axios.patch(`/finance/payroll/${payrollId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    if (activeBatchDetails?.batch?.id) {
+      handleViewBatchDetails(activeBatchDetails.batch.id);
+    }
+    fetchPayrollBatches();
+    return res.data.data;
+  };
+
+  const handleSendSinglePayslip = async (payrollId) => {
+    const res = await axios.post(`/finance/payroll/records/${payrollId}/send-payslip`);
+    if (activeBatchDetails?.batch?.id) {
+      handleViewBatchDetails(activeBatchDetails.batch.id);
+    }
+    fetchPayrollBatches();
+    return res.data.data;
+  };
+
+  const handleSendBatchPayslips = async (batchId) => {
+    try {
+      setIsSendingBatchPayslips(true);
+      const res = await axios.post(`/finance/payroll/batches/${batchId}/send-payslips`);
+      toast.success(res.data.message || 'Payslips sent to employees');
+      if (activeBatchDetails?.batch?.id) {
+        handleViewBatchDetails(activeBatchDetails.batch.id);
+      }
+      fetchPayrollBatches();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send batch payslips');
+    } finally {
+      setIsSendingBatchPayslips(false);
+    }
+  };
 
   const fetchFinanceData = async () => {
     if (!isSuperAdmin) return;
@@ -1025,11 +1099,11 @@ const FinancePage = () => {
             <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
               <Button
                 variant="secondary"
-                onClick={() => setShowPayrollModal(true)}
+                onClick={() => setShowMonthlyPayrollModal(true)}
                 className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-2 px-3 sm:px-5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 w-full"
               >
                 <Wallet className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Payroll</span>
+                <span className="truncate">Generate Payroll</span>
               </Button>
             </div>
           )}
@@ -1131,13 +1205,11 @@ const FinancePage = () => {
 
         {activeView === 'Payroll' && (
           <PayrollTab
-            payrollData={payrollData}
-            payrollSearch={payrollSearch}
-            setPayrollSearch={setPayrollSearch}
-            payrollYearFilter={payrollYearFilter}
-            setPayrollYearFilter={setPayrollYearFilter}
-            currencies={CURRENCIES}
-            updatePayrollStatus={updatePayrollStatus}
+            batches={payrollBatches}
+            loading={isRefreshing}
+            onOpenGenerateModal={() => setShowMonthlyPayrollModal(true)}
+            onViewBatchDetails={handleViewBatchDetails}
+            stats={{ totalEmployees: users.length }}
           />
         )}
       </Suspense>
@@ -1166,25 +1238,23 @@ const FinancePage = () => {
           onCategoriesChange={setExpenseCategories}
         />
 
-        <PayrollModal
-          isOpen={showPayrollModal}
-          onClose={() => setShowPayrollModal(false)}
-          onSubmit={processPayroll}
-          isSubmitting={isSubmitting}
-          users={users}
-          projects={projects}
-          currencies={CURRENCIES}
+        <MonthlyPayrollModal
+          isOpen={showMonthlyPayrollModal}
+          onClose={() => setShowMonthlyPayrollModal(false)}
+          onGenerate={handleGenerateMonthlyBatch}
+          isGenerating={isGeneratingBatch}
         />
 
-        <PayrollStatusModal
-          isOpen={payrollStatusModal.isOpen}
-          onClose={() => setPayrollStatusModal(prev => ({ ...prev, isOpen: false }))}
-          onConfirm={handlePayrollStatusConfirm}
-          isSubmitting={isSubmitting}
-          currentStatus={payrollStatusModal.currentStatus}
-          targetStatus={payrollStatusModal.targetStatus}
-          employeeName={payrollStatusModal.employeeName}
-          period={payrollStatusModal.period}
+        <PayrollBatchDetailsDrawer
+          isOpen={showBatchDrawer}
+          onClose={() => { setShowBatchDrawer(false); setActiveBatchDetails(null); }}
+          batchDetails={activeBatchDetails}
+          loading={batchDetailsLoading}
+          onUpdateAdjustment={handleUpdateAdjustment}
+          onUploadProof={handleUploadProof}
+          onSendSinglePayslip={handleSendSinglePayslip}
+          onSendBatchPayslips={handleSendBatchPayslips}
+          isSendingBatch={isSendingBatchPayslips}
         />
       </Suspense>
     </div>
