@@ -86,10 +86,6 @@ const PayrollTab = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="secondary" className="rounded-2xl text-xs font-bold py-2.5 px-4 flex items-center gap-2 border-slate-200">
-            <Settings className="w-4 h-4 text-slate-500" />
-            Payroll Settings
-          </Button>
 
           {hasPermission('finance', 'payroll.manage') && (
             <Button

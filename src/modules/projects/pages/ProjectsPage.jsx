@@ -10,7 +10,7 @@ import {
   Loader2, Plus, X, FolderPlus, Users, Briefcase, CheckCircle2,
   AlertTriangle, TrendingUp, Link, FolderOpen, ExternalLink,
   FileText, UploadCloud, Trash2, MessageSquare, Send, Layers,
-  Lock, ShieldCheck, Phone, Mail, User, Info, Edit, Search
+  Lock, ShieldCheck, Phone, Mail, User, Info, Edit, Search, DollarSign
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ProjectTeamModal from '../components/ProjectTeamModal';
@@ -359,7 +359,7 @@ const ProjectsPage = () => {
       {/* KPI Stats Grid in Double-Bezel nested wrapper */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <KpiCard title="Total Projects" value={projects.length} icon={Briefcase} subtext="All Projects" />
-        <KpiCard title="In Progress" value={projects.filter(p => p.status === 'In Progress').length} icon={TrendingUp} trend="+2" subtext="Current velocity" />
+        <KpiCard title="In Progress" value={projects.filter(p => p.status === 'In Progress').length} icon={TrendingUp} subtext="Current velocity" />
         <KpiCard title="Completed" value={projects.filter(p => p.status === 'Completed').length} icon={CheckCircle2} subtext="Lifetime delivery" />
         <KpiCard title="Maintenance" value={projects.filter(p => p.category === 'Maintenance').length} icon={Layers} subtext="Long-term support" />
       </div>
@@ -441,15 +441,7 @@ const ProjectsPage = () => {
                           <Badge variant="secondary" className="text-xs font-semibold text-slate-500 tracking-tight py-0 px-1.5 border-slate-100">
                             {project.category || 'New Project'}
                           </Badge>
-                          {hasPermission('projects', 'budget.view') && (
-                            <>
-                              <span className="text-slate-300">•</span>
-                              <span className="text-[10px] text-primary-600 font-bold uppercase tracking-wider">
-                                {CURRENCIES.find(c => c.code === project.currency)?.symbol || '$'}
-                                {(parseFloat(project.budget) || 0).toLocaleString()}
-                              </span>
-                            </>
-                          )}
+
                           {(project.resource_links?.length > 0 || project.documents_count > 0) && (
                             <>
                               <span className="text-slate-300">•</span>
@@ -627,6 +619,16 @@ const ProjectsPage = () => {
                                   <span className="text-[11px] font-semibold text-slate-600">Source:</span>
                                   <span className="text-[11px] text-slate-900">{project.lead_source || 'Direct'}</span>
                                 </div>
+                                {hasPermission('projects', 'budget.view') && (
+                                  <div className="flex items-center gap-2">
+                                    <DollarSign className="w-3 h-3 text-amber-500" />
+                                    <span className="text-[11px] font-semibold text-slate-600">Project Fee:</span>
+                                    <span className="text-[11px] font-bold text-amber-900">
+                                      {CURRENCIES.find(c => c.code === project.currency)?.symbol || '$'}
+                                      {(parseFloat(project.budget) || 0).toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
                                 {project.reference_share_value && (
                                   <>
                                     <div className="flex items-center gap-2">

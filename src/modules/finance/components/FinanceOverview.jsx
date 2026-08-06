@@ -2,7 +2,7 @@ import React from 'react';
 import PremiumCard from '../../../components/ui/PremiumCard';
 import KpiCard from '../../../components/ui/KpiCard';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList
 } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon } from 'lucide-react';
 import { cn } from '../../../utils/cn';
@@ -16,6 +16,96 @@ const FinanceOverview = ({
 }) => {
   const currentSymbol = currencies.find(c => c.code === selectedCurrency)?.symbol || '$';
   const data = selectedCurrency === 'All' ? reportData.consolidated : reportData.byCurrency?.[selectedCurrency];
+
+  const formatCurrencyVal = (amount, symbol = '₹') => {
+    const num = parseFloat(amount) || 0;
+    const isNeg = num < 0;
+    const formatted = Math.abs(num).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    return isNeg ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
+  };
+
+  const profitVal = data?.profit || 0;
+  const isNegativeProfit = profitVal < 0;
+
+  const marginVal = data?.margin || 0;
+  const isNegativeMargin = marginVal < 0;
+
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const item = payload[0];
+      const name = item.payload.name;
+      const val = item.value;
+      const isLoss = name === 'Profit' && val < 0;
+
+      let accentColor = '#3b82f6';
+      if (name === 'Expense') accentColor = '#f59e0b';
+      else if (name === 'Profit') accentColor = isLoss ? '#ef4444' : '#10b981';
+
+      return (
+        <div 
+          className="bg-white p-3 rounded-2xl shadow-xl border border-slate-100/80 text-xs font-semibold space-y-1 min-w-[150px]"
+          style={{ borderLeft: `4px solid ${accentColor}` }}
+        >
+          <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">{name}</p>
+          <p 
+            className="text-sm font-bold font-mono"
+            style={{ color: accentColor }}
+          >
+            {formatCurrencyVal(val, selectedCurrency === 'All' ? '₹' : currentSymbol)}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const formatCompactNumber = (number, symbol = '₹') => {
+    const num = parseFloat(number) || 0;
+    const absNum = Math.abs(num);
+    const isNeg = num < 0;
+
+    let formatted = '0';
+    if (absNum >= 1e7) {
+      formatted = (absNum / 1e7).toFixed(2) + 'Cr';
+    } else if (absNum >= 1e5) {
+      formatted = (absNum / 1e5).toFixed(2) + 'L';
+    } else if (absNum >= 1e3) {
+      formatted = (absNum / 1e3).toFixed(1) + 'k';
+    } else {
+      formatted = absNum.toFixed(0);
+    }
+
+    return isNeg ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
+  };
+
+  const renderCustomBarLabel = (props) => {
+    const { x, y, width, height, value, name } = props;
+    const isLoss = name === 'Profit' && value < 0;
+    const isExpense = name === 'Expense';
+
+    let textColor = '#3b82f6';
+    if (isExpense) textColor = '#d97706';
+    else if (name === 'Profit') textColor = isLoss ? '#e11d48' : '#059669';
+
+    const formattedVal = formatCompactNumber(value, selectedCurrency === 'All' ? '₹' : currentSymbol);
+    const labelY = value < 0 ? y + height + 18 : y - 8;
+
+    return (
+      <g>
+        <text
+          x={x + width / 2}
+          y={labelY}
+          fill={textColor}
+          textAnchor="middle"
+          fontSize="11"
+          fontWeight="800"
+          fontFamily="monospace"
+        >
+          {formattedVal}
+        </text>
+      </g>
+    );
+  };
 
   return (
     <>
@@ -39,35 +129,28 @@ const FinanceOverview = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <KpiCard
           title="Total Revenue"
-          value={selectedCurrency === 'All'
-            ? `₹${reportData.consolidated?.revenue?.toLocaleString() || 0}`
-            : `${currentSymbol}${reportData.byCurrency?.[selectedCurrency]?.revenue?.toLocaleString() || 0}`
-          }
+          value={formatCurrencyVal(data?.revenue || 0, selectedCurrency === 'All' ? '₹' : currentSymbol)}
           icon={TrendingUp}
           subtext={selectedCurrency === 'All' ? "Converted to INR" : "Lifetime earnings"}
         />
         <KpiCard
           title="Expenses"
-          value={selectedCurrency === 'All'
-            ? `₹${reportData.consolidated?.expenses?.toLocaleString() || 0}`
-            : `${currentSymbol}${reportData.byCurrency?.[selectedCurrency]?.expenses?.toLocaleString() || 0}`
-          }
+          value={formatCurrencyVal(data?.expenses || 0, selectedCurrency === 'All' ? '₹' : currentSymbol)}
           icon={TrendingDown}
           subtext={selectedCurrency === 'All' ? "Converted to INR" : "Operational spend"}
         />
         <KpiCard
           title="Net Profit"
-          value={selectedCurrency === 'All'
-            ? `₹${reportData.consolidated?.profit?.toLocaleString() || 0}`
-            : `${currentSymbol}${reportData.byCurrency?.[selectedCurrency]?.profit?.toLocaleString() || 0}`
-          }
-          icon={Wallet}
-          trend="+12%"
-          subtext="After-tax liquidity"
+          value={formatCurrencyVal(profitVal, selectedCurrency === 'All' ? '₹' : currentSymbol)}
+          icon={isNegativeProfit ? TrendingDown : TrendingUp}
+          valueClassName={isNegativeProfit ? "text-rose-600" : "text-emerald-600"}
+          iconClassName={isNegativeProfit ? "bg-rose-50 border-rose-100 text-rose-600" : "bg-emerald-50 border-emerald-100 text-emerald-600"}
+          subtext={isNegativeProfit ? "Net Loss Incurred" : "Operational Liquidity"}
         />
         <KpiCard
           title="Margin"
-          value={`${(selectedCurrency === 'All' ? reportData.consolidated?.margin : reportData.byCurrency?.[selectedCurrency]?.margin)?.toFixed(1) || 0}%`}
+          value={`${marginVal.toFixed(1)}%`}
+          valueClassName={isNegativeMargin ? "text-rose-600" : "text-slate-800"}
           icon={PieIcon}
           subtext="Profitability ratio"
         />
@@ -81,29 +164,75 @@ const FinanceOverview = ({
           headerRight={
             <div className="flex gap-4 text-sm font-semibold">
               <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#3b82f6]"></div> Revenue</div>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#ef4444]"></div> Expense</div>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#10b981]"></div> Profit</div>
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#f59e0b]"></div> Expense</div>
+              <div className="flex items-center gap-1.5">
+                <div className={cn("w-2 h-2 rounded-full", isNegativeProfit ? "bg-[#ef4444]" : "bg-[#10b981]")}></div> 
+                {isNegativeProfit ? 'Profit (Loss)' : 'Profit'}
+              </div>
             </div>
           }
         >
-          <div className="h-[300px] p-6">
+          <div className="h-[340px] p-4 sm:p-6">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value) => [selectedCurrency === 'All' ? `₹${value.toLocaleString()}` : `${currentSymbol}${value.toLocaleString()}`, '']}
+              <BarChart data={chartData} margin={{ top: 25, right: 30, left: 10, bottom: 10 }}>
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0.85} />
+                  </linearGradient>
+                  <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#d97706" stopOpacity={0.9} />
+                  </linearGradient>
+                  <linearGradient id="profitPosGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#059669" stopOpacity={0.9} />
+                  </linearGradient>
+                  <linearGradient id="profitNegGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f87171" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#dc2626" stopOpacity={0.95} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#475569', fontSize: 12, fontWeight: 700 }} 
                 />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={60}>
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.color}
-                    />
-                  ))}
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  width={80}
+                  tickFormatter={(val) => formatCompactNumber(val, selectedCurrency === 'All' ? '₹' : currentSymbol)}
+                  tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600, fontFamily: 'monospace' }} 
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(241, 245, 249, 0.6)', radius: 12 }}
+                  content={<CustomTooltip />}
+                />
+                <Bar 
+                  dataKey="value" 
+                  radius={[8, 8, 8, 8]} 
+                  barSize={55}
+                  minPointSize={10}
+                >
+                  <LabelList content={renderCustomBarLabel} />
+                  {chartData.map((entry, index) => {
+                    let fillGrad = 'url(#revenueGrad)';
+                    if (entry.name === 'Expense') {
+                      fillGrad = 'url(#expenseGrad)';
+                    } else if (entry.name === 'Profit') {
+                      fillGrad = entry.value < 0 ? 'url(#profitNegGrad)' : 'url(#profitPosGrad)';
+                    }
+                    return (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={fillGrad}
+                      />
+                    );
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

@@ -17,6 +17,7 @@ const InvoiceModal = ({
   modalType = 'Outbound' // 'Outbound' or 'Inbound'
 }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [invoiceType, setInvoiceType] = useState(modalType);
   const [manualClientName, setManualClientName] = useState('');
 
@@ -25,20 +26,85 @@ const InvoiceModal = ({
   useEffect(() => {
     if (isOpen) {
       setSelectedClientId('');
+      setSelectedProjectId('');
       setInvoiceType(modalType);
       setManualClientName('');
       if (typeof onOpen === 'function') onOpen();
     }
   }, [isOpen, modalType]);
 
+  // Deduplicate client entries so each client company appears exactly once in the dropdown
+  const uniqueClients = React.useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    for (const c of clients) {
+      const key = (c.company_name || '').trim().toLowerCase() || String(c.id);
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(c);
+      }
+    }
+    return list.sort((a, b) => (a.company_name || '').localeCompare(b.company_name || ''));
+  }, [clients]);
+
+  // Find all client IDs matching the selected client company (including multi-lead entries)
+  const selectedClientObj = clients.find(c => String(c.id) === String(selectedClientId));
+  const clientIdsForCompany = React.useMemo(() => {
+    if (!selectedClientObj) return new Set();
+    const targetName = (selectedClientObj.company_name || '').trim().toLowerCase();
+    const parentId = selectedClientObj.existing_client_id || selectedClientObj.id;
+    return new Set(
+      clients
+        .filter(c => 
+          String(c.id) === String(parentId) || 
+          String(c.existing_client_id) === String(parentId) ||
+          (targetName && (c.company_name || '').trim().toLowerCase() === targetName)
+        )
+        .map(c => String(c.id))
+    );
+  }, [selectedClientObj, clients]);
+
+  // Filter projects based on selected client (1-to-Many mapping)
+  const filteredProjects = selectedClientId
+    ? projects.filter(p => clientIdsForCompany.has(String(p.client_id)))
+    : projects;
+
+  const handleClientChange = (e) => {
+    const cId = e.target.value;
+    setSelectedClientId(cId);
+    setSelectedProjectId('');
+  };
+
+  const handleProjectChange = (e) => {
+    const projId = e.target.value;
+    setSelectedProjectId(projId);
+    if (projId && projId !== 'none') {
+      const proj = projects.find(p => String(p.id) === String(projId));
+      if (proj && proj.client_id) {
+        const targetClient = clients.find(c => String(c.id) === String(proj.client_id));
+        if (targetClient) {
+          const companyName = (targetClient.company_name || '').trim().toLowerCase();
+          const parentId = targetClient.existing_client_id || targetClient.id;
+          const reprClient = uniqueClients.find(uc => 
+            String(uc.id) === String(parentId) || 
+            String(uc.existing_client_id) === String(parentId) ||
+            (companyName && (uc.company_name || '').trim().toLowerCase() === companyName)
+          );
+          if (reprClient) {
+            setSelectedClientId(String(reprClient.id));
+          } else {
+            setSelectedClientId(String(proj.client_id));
+          }
+        } else {
+          setSelectedClientId(String(proj.client_id));
+        }
+      }
+    }
+  };
+
   if (!isOpen) return null;
 
   const isOutbound = invoiceType === 'Outbound';
-
-  // Filter projects based on selected client
-  const filteredProjects = selectedClientId
-    ? projects.filter(p => String(p.client_id) === String(selectedClientId))
-    : projects;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
@@ -115,11 +181,11 @@ const InvoiceModal = ({
                   name="client_id" 
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" 
                   value={selectedClientId}
-                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  onChange={handleClientChange}
                   required
                 >
                   <option value="">Select Client...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
+                  {uniqueClients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
                 </select>
               </div>
             ) : (
@@ -139,7 +205,12 @@ const InvoiceModal = ({
             {/* Associated Project */}
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Associated Project</label>
-              <select name="project_id" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+              <select 
+                name="project_id" 
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                value={selectedProjectId}
+                onChange={handleProjectChange}
+              >
                 <option value="none">General (No project)</option>
                 {filteredProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>

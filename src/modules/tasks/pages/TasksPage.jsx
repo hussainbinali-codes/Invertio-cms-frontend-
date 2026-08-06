@@ -236,7 +236,7 @@ const TasksPage = () => {
       toast.success('Task updated successfully');
       fetchData();
     } catch (err) {
-      toast.error('Failed to update task');
+      toast.error(err.response?.data?.message || 'Failed to update task');
     } finally {
       setUpdatingTaskId(null);
     }
@@ -273,7 +273,7 @@ const TasksPage = () => {
       setTaskToComplete(null);
       fetchData();
     } catch (err) {
-      toast.error('Failed to submit completion proof');
+      toast.error(err.response?.data?.message || 'Failed to submit completion proof');
     } finally {
       setIsSubmittingProof(false);
     }
@@ -328,7 +328,7 @@ const TasksPage = () => {
       estimated_start_date: formData.get('estimated_start_date') || undefined,
       estimated_end_date: formData.get('estimated_end_date') || undefined,
       estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : undefined,
-      due_date: formData.get('estimated_end_date') || undefined, // Sync due_date with estimated_end_date
+      due_date: formData.get('due_date') || formData.get('estimated_end_date') || undefined,
 
       template_data: {
         business_objective: formData.get('business_objective') || '',
@@ -387,7 +387,7 @@ const TasksPage = () => {
       setSelectedFiles([]);
       fetchData();
     } catch (err) {
-      // Handled by global interceptor
+      // Handled by central axios interceptor
     } finally {
       setIsSubmitting(false);
     }

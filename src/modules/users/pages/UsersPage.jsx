@@ -343,8 +343,7 @@ const UsersPage = () => {
         <KpiCard 
           title="Active Users" 
           value={users.filter(u => u.status === 'Active').length} 
-          icon={UserCheck} 
-          trend="+2" 
+          icon={UserCheck}  
           subtext="Active on this page" 
         />
         <KpiCard 

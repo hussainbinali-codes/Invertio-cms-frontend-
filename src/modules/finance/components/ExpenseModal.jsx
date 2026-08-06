@@ -120,7 +120,16 @@ const ExpenseModal = ({
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Description</label>
-                <textarea name="description" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 h-24 resize-none" placeholder="Brief description of the expense..." required></textarea>
+                <textarea name="description" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 h-20 resize-none" placeholder="Brief description of the expense..." required></textarea>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Proof / Receipt Document <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
+                <input
+                  type="file"
+                  name="document"
+                  accept="image/*,application/pdf"
+                  className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer border border-slate-200 rounded-lg p-1"
+                />
               </div>
               <div className="flex gap-3 justify-end pt-4">
                 <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>

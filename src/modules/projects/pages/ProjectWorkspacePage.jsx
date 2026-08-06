@@ -8,9 +8,10 @@ import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 import SprintModal from '../components/SprintModal';
 import ImportUserStoriesModal from '../components/ImportUserStoriesModal';
 import UserStoryModal from '../components/UserStoryModal';
+import ProjectTeamModal from '../components/ProjectTeamModal';
 import {
   ArrowLeft, Plus, Edit, Trash2, Layers, Calendar, CheckSquare,
-  Users, FileText, Clock, ChevronRight, ChevronDown,
+  Users, UserPlus, FileText, Clock, ChevronRight, ChevronDown,
   FileSpreadsheet, Bookmark, CheckCircle2, Search, Filter, AlertCircle, Play
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -54,6 +55,7 @@ const ProjectWorkspacePage = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [editingStory, setEditingStory] = useState(null);
+  const [showTeamModal, setShowTeamModal] = useState(false);
 
   const role = (user.role_name || '').toLowerCase();
   const isAdminOrPM = ['super admin', 'admin', 'administrator', 'project manager', 'pm'].includes(role) || hasPermission('projects', 'edit');
@@ -778,15 +780,27 @@ const ProjectWorkspacePage = () => {
               </p>
             </div>
 
-            <div className="relative w-full sm:w-72">
-              <Users className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Filter by assigned name..."
-                value={assigneeFilter}
-                onChange={(e) => setAssigneeFilter(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              />
+            <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+              <div className="relative w-full sm:w-64">
+                <Users className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter by assigned name..."
+                  value={assigneeFilter}
+                  onChange={(e) => setAssigneeFilter(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                />
+              </div>
+
+              {isAdminOrPM && (
+                <Button
+                  onClick={() => setShowTeamModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 px-3.5 text-xs font-bold shadow-sm flex items-center gap-1.5 shrink-0"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add Member
+                </Button>
+              )}
             </div>
           </div>
 
@@ -1168,6 +1182,16 @@ const ProjectWorkspacePage = () => {
           story={editingStory}
           onClose={() => { setShowStoryModal(false); setEditingStory(null); }}
           onSuccess={refreshAllData}
+        />
+      )}
+
+      {showTeamModal && project && (
+        <ProjectTeamModal
+          project={project}
+          onClose={() => {
+            setShowTeamModal(false);
+            fetchTeamMembers();
+          }}
         />
       )}
     </div>

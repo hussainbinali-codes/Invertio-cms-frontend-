@@ -24,7 +24,7 @@ const AddTaskModal = ({
 }) => {
   useLockBodyScroll(isOpen);
 
-  const [internalTaskReferences, setInternalTaskReferences] = useState([]);
+  const [internalTaskReferences, setInternalTaskReferences] = useState('');
   const [internalSelectedFiles, setInternalSelectedFiles] = useState([]);
 
   const taskReferences = propTaskReferences !== undefined ? propTaskReferences : internalTaskReferences;
@@ -45,7 +45,7 @@ const AddTaskModal = ({
       setAcceptanceCriteria(['']);
       setSelectedStoryId(initialStoryId || '');
       setInternalSelectedFiles([]);
-      setInternalTaskReferences([]);
+      setInternalTaskReferences('');
 
       if (selectedProject?.id) {
         setLoadingStories(true);
@@ -175,17 +175,8 @@ const AddTaskModal = ({
                     <option value="Critical">Critical</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Story Points (Fibonacci)</label>
-                  <select name="story_points" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white" defaultValue="3" required>
-                    <option value="1">1 (Tiny change, 30m - 2h)</option>
-                    <option value="2">2 (Very small, up to 4h)</option>
-                    <option value="3">3 (Small, ~1 day)</option>
-                    <option value="5">5 (Medium, 2-3 days)</option>
-                    <option value="8">8 (Large, up to 1 week)</option>
-                    <option value="13">13 (Very large, &gt;1 week)</option>
-                    <option value="21">21 (Epic, must break down)</option>
-                  </select>
+                <div>
+                  <Input label="Due Date" name="due_date" type="date" required />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Assign To (Project Team)</label>
@@ -256,7 +247,7 @@ const AddTaskModal = ({
             </section>
 
             {/* SECTION 5: Technical Notes */}
-            <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
+            {/* <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
                 <span className="text-primary-600 font-bold">04.</span> Technical Notes(optional)
               </h2>
@@ -268,13 +259,13 @@ const AddTaskModal = ({
                 <Textarea label="Configurations / Env Variables" name="tech_configurations" placeholder="Define environment variables..." />
                 <Textarea label="System / Cross-team Dependencies" name="tech_dependencies" placeholder="List dependencies..." />
               </div>
-            </section>
+            </section> */}
 
             {/* SECTION 6: Acceptance Criteria */}
             <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <span className="text-primary-600 font-bold">05.</span> Acceptance Criteria
+                  <span className="text-primary-600 font-bold">04.</span> Acceptance Criteria
                 </h2>
                 <button type="button" onClick={addAcceptanceCriteria} className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
                   <Plus className="w-4 h-4" /> Add Criteria
@@ -306,13 +297,13 @@ const AddTaskModal = ({
             </section>
 
             {/* SECTION 7 & 12 & 13: Checklists & Deliverables */}
-            <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
+            {/* <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
                 <span className="text-primary-600 font-bold">06.</span> Checklists & Deliverables
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {/* Testing Required */}
+                
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-slate-900 uppercase">Required Testing</h3>
                   <div className="space-y-2">
@@ -325,7 +316,6 @@ const AddTaskModal = ({
                   </div>
                 </div>
 
-                {/* DoD */}
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-slate-900 uppercase">Definition of Done (DoD)</h3>
                   <div className="space-y-2">
@@ -338,7 +328,6 @@ const AddTaskModal = ({
                   </div>
                 </div>
 
-                {/* Deliverables */}
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-slate-900 uppercase">Deliverables</h3>
                   <div className="space-y-2">
@@ -352,11 +341,11 @@ const AddTaskModal = ({
                 </div>
 
               </div>
-            </section>
+            </section> */}
 
 
             {/* SECTION 9 & 10: Progress Updates & Blockers */}
-            <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
+            {/* <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
                 <span className="text-primary-600 font-bold">07.</span> Progress Updates & Blockers (Optional Initialization)
               </h2>
@@ -378,10 +367,10 @@ const AddTaskModal = ({
                   <Input label="Next Mandated Update Date" name="next_update_date" type="date" required />
                 </div>
               </div>
-            </section>
+            </section> */}
 
             {/* SECTION 11: Risks */}
-            <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
+            {/* <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
                 <span className="text-primary-600 font-bold">08.</span> Risks Assessment(optional)
               </h2>
@@ -391,10 +380,10 @@ const AddTaskModal = ({
                 <Textarea label="Compatibility / Integrations" name="risk_compatibility" placeholder="Compatibility concerns..." />
                 <Textarea label="Rollback Concerns & Steps" name="risk_rollback" placeholder="Rollback strategy..." />
               </div>
-            </section>
+            </section> */}
 
             {/* SECTION 14: Initial Comments */}
-            <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
+            {/* <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
                 <span className="text-primary-600 font-bold">09.</span> Initial Notes & Comments(optional)
               </h2>
@@ -403,15 +392,15 @@ const AddTaskModal = ({
                 <Textarea label="QA Comments" name="comment_qa" placeholder="Initial QA notes..." />
                 <Textarea label="Product Comments" name="comment_product" placeholder="Initial product notes..." />
               </div>
-            </section>
+            </section> */}
 
             {/* Resources & Media Section */}
             <section className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-6">
               <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="text-primary-600 font-bold">10.</span> Resources & Task Media
+                <span className="text-primary-600 font-bold">05.</span> Resources & Task Media
               </h2>
               <div className="space-y-4">
-                <div class="space-y-2">
+                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resources & Instructions</label>
                   <Textarea 
                     placeholder="Add links, examples, or specific instructions for this task..." 
