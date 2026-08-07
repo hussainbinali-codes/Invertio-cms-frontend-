@@ -691,10 +691,11 @@ const FinancePage = () => {
 
     if (data) {
       const profitVal = data.profit || 0;
+      const isLoss = profitVal < 0;
       setChartData([
         { name: 'Revenue', value: data.revenue || 0, color: '#3b82f6' },
         { name: 'Expense', value: data.expenses || 0, color: '#f59e0b' },
-        { name: 'Profit', value: profitVal, color: profitVal < 0 ? '#ef4444' : '#10b981' },
+        { name: isLoss ? 'Loss' : 'Profit', value: profitVal, color: isLoss ? '#ef4444' : '#10b981' },
       ]);
     } else {
       setChartData([

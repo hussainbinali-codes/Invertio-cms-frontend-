@@ -35,11 +35,11 @@ const FinanceOverview = ({
       const item = payload[0];
       const name = item.payload.name;
       const val = item.value;
-      const isLoss = name === 'Profit' && val < 0;
+      const isLoss = (name === 'Profit' || name === 'Loss') && val < 0;
 
       let accentColor = '#3b82f6';
       if (name === 'Expense') accentColor = '#f59e0b';
-      else if (name === 'Profit') accentColor = isLoss ? '#ef4444' : '#10b981';
+      else if (name === 'Profit' || name === 'Loss') accentColor = isLoss ? '#ef4444' : '#10b981';
 
       return (
         <div 
@@ -80,12 +80,12 @@ const FinanceOverview = ({
 
   const renderCustomBarLabel = (props) => {
     const { x, y, width, height, value, name } = props;
-    const isLoss = name === 'Profit' && value < 0;
+    const isLoss = (name === 'Profit' || name === 'Loss') && value < 0;
     const isExpense = name === 'Expense';
 
     let textColor = '#3b82f6';
     if (isExpense) textColor = '#d97706';
-    else if (name === 'Profit') textColor = isLoss ? '#e11d48' : '#059669';
+    else if (name === 'Profit' || name === 'Loss') textColor = isLoss ? '#e11d48' : '#059669';
 
     const formattedVal = formatCompactNumber(value, selectedCurrency === 'All' ? '₹' : currentSymbol);
     const labelY = value < 0 ? y + height + 18 : y - 8;
@@ -167,7 +167,7 @@ const FinanceOverview = ({
               <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#f59e0b]"></div> Expense</div>
               <div className="flex items-center gap-1.5">
                 <div className={cn("w-2 h-2 rounded-full", isNegativeProfit ? "bg-[#ef4444]" : "bg-[#10b981]")}></div> 
-                {isNegativeProfit ? 'Profit (Loss)' : 'Profit'}
+                {isNegativeProfit ? 'Loss' : 'Profit'}
               </div>
             </div>
           }
@@ -223,7 +223,7 @@ const FinanceOverview = ({
                     let fillGrad = 'url(#revenueGrad)';
                     if (entry.name === 'Expense') {
                       fillGrad = 'url(#expenseGrad)';
-                    } else if (entry.name === 'Profit') {
+                    } else if (entry.name === 'Profit' || entry.name === 'Loss') {
                       fillGrad = entry.value < 0 ? 'url(#profitNegGrad)' : 'url(#profitPosGrad)';
                     }
                     return (
