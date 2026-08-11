@@ -20,6 +20,7 @@ import {
   CalendarClock,
   Contact,
   Monitor,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "../../../utils/cn";
 import { useLockBodyScroll } from "../../../hooks/useLockBodyScroll";
@@ -150,6 +151,28 @@ const UserModal = ({
         { key: "tab.project_started", label: "Project Started" },
         { key: "tab.project_completed", label: "Project Completed" },
         { key: "tab.project_maintenance", label: "Project Maintenance" },
+      ],
+    },
+    {
+      id: "campaigns",
+      label: "Campaigns",
+      icon: <Megaphone className="w-5 h-5 text-rose-500" />,
+      description: "Campaign lead tracking, outreach pipeline, and activity management.",
+      actions: [
+        { key: "view", label: "View Campaigns" },
+        { key: "create", label: "Add Data Entry" },
+        { key: "edit", label: "Edit Lead Details" },
+        { key: "stage.edit", label: "Move Stages / Status" },
+        { key: "activities.create", label: "Log Activities" },
+        { key: "documents.upload", label: "Upload Documents" },
+        { key: "documents.delete", label: "Delete Documents" },
+      ],
+      tabs: [
+        { key: "tab.data", label: "Data" },
+        { key: "tab.prospect", label: "Prospect" },
+        { key: "tab.lead", label: "Lead" },
+        { key: "tab.qualified_lead", label: "Qualified Lead" },
+        { key: "tab.customer", label: "Customer" },
       ],
     },
     {

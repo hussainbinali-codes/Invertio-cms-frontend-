@@ -417,12 +417,12 @@ const TasksPage = () => {
       </div>
 
       {/* KPI Stats Grid in Double-Bezel nested wrapper */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         <KpiCard title="Total Backlog" value={stats.pending} icon={CheckSquare} subtext="Pending items" />
         <KpiCard title="In Progress" value={stats.in_progress} icon={TrendingUp} subtext="Active items" />
         <KpiCard title="Completed" value={stats.completed} icon={CheckCircle2} subtext="Resolved tasks" />
         <KpiCard title="Overdue" value={stats.overdue} icon={AlertTriangle} subtext="Critical attention" />
-        <KpiCard title="Backlog Velocity" value={stats.total_points || 0} icon={Target} subtext="Total story points" />
+        {/* <KpiCard title="Backlog Velocity" value={stats.total_points || 0} icon={Target} subtext="Total story points" /> */}
         <KpiCard title="Completed Pts" value={stats.completed_points || 0} icon={TrendingUp} subtext="Delivered value" />
       </div>
 

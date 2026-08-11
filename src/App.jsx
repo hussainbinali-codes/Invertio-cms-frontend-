@@ -23,6 +23,7 @@ const HRPage = lazy(() => import('./modules/hr/pages/HRPage'));
 const LeavesPage = lazy(() => import('./modules/hr/pages/LeavesPage'));
 const AttendancePage = lazy(() => import('./modules/attendance/pages/AttendancePage'));
 const ClientsPage = lazy(() => import('./modules/clients/pages/ClientsPage'));
+const CampaignsPage = lazy(() => import('./modules/campaigns/pages/CampaignsPage'));
 const ResourcesPage = lazy(() => import('./modules/resources/pages/ResourcesPage'));
 const SettingsPage = lazy(() => import('./modules/auth/pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./modules/auth/pages/ProfilePage'));
@@ -95,6 +96,10 @@ function App() {
 
               <Route element={<ProtectedRoute permission="clients" />}>
                 <Route path="/clients" element={<ClientsPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute permission="campaigns" />}>
+                <Route path="/campaigns" element={<CampaignsPage />} />
               </Route>
 
               <Route element={<ProtectedRoute permission="resources" />}>

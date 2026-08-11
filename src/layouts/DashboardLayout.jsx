@@ -13,6 +13,7 @@ import {
   Contact,
   CalendarClock,
   Monitor,
+  Megaphone,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -307,6 +308,12 @@ const DashboardLayout = () => {
       path: "/clients",
       icon: Contact,
       permission: "clients",
+    },
+    {
+      label: "Campaigns",
+      path: "/campaigns",
+      icon: Megaphone,
+      permission: "campaigns",
     },
     {
       label: "Projects",

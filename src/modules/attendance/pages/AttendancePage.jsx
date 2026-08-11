@@ -487,8 +487,8 @@ const AttendancePage = () => {
   };
 
   const getCardClasses = (d, index, isToday, customClass = "") => {
-    const baseClasses = "relative group flex flex-col justify-between h-9 sm:h-12 p-0.5 sm:p-1 border rounded-md sm:rounded-xl transition-all duration-300 md:hover:shadow-md md:hover:scale-[1.02] cursor-pointer md:hover:z-50";
-    const activeClass = isToday ? "ring-2 ring-primary-500/80 bg-primary-50/10 border-transparent shadow-md md:hover:shadow-lg" : "";
+    const baseClasses = "relative group flex flex-col justify-between min-h-[46px] sm:min-h-[56px] md:min-h-[64px] p-1 sm:p-1.5 border rounded-lg sm:rounded-xl transition-all duration-300 md:hover:shadow-md md:hover:scale-[1.02] cursor-pointer md:hover:z-50";
+    const activeClass = isToday ? "ring-2 ring-blue-500/80 bg-blue-50/20 border-blue-200 shadow-md md:hover:shadow-lg" : "";
 
     if (customClass) {
       return `${baseClasses} ${customClass} ${activeClass}`;
@@ -839,23 +839,23 @@ const AttendancePage = () => {
                         </div>
 
                         {d.isCurrentMonth && (
-                          <div className="space-y-0.5 mt-auto">
+                          <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 mt-auto pt-0.5">
                             {totalPresent > 0 && (
-                              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-600 tracking-tight">
-                                <span className="w-1 h-1 bg-emerald-500 rounded-full shrink-0"></span>
-                                <span className="truncate">{totalPresent}<span className="hidden sm:inline"> Present</span></span>
+                              <div className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50/90 px-1 sm:px-1.5 py-0.5 rounded-md border border-emerald-100/90 leading-none">
+                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shrink-0"></span>
+                                <span>{totalPresent}<span className="hidden md:inline"> Present</span></span>
                               </div>
                             )}
                             {totalLeave > 0 && (
-                              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-amber-600 tracking-tight">
-                                <span className="w-1 h-1 bg-amber-500 rounded-full shrink-0"></span>
-                                <span className="truncate">{totalLeave}<span className="hidden sm:inline"> On Leave</span></span>
+                              <div className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-amber-700 bg-amber-50/90 px-1 sm:px-1.5 py-0.5 rounded-md border border-amber-100/90 leading-none">
+                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0"></span>
+                                <span>{totalLeave}<span className="hidden md:inline"> Leave</span></span>
                               </div>
                             )}
                             {totalAbsent > 0 && (
-                              <div className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-rose-600 tracking-tight">
-                                <span className="w-1 h-1 bg-rose-500 rounded-full shrink-0"></span>
-                                {totalAbsent} Absent
+                              <div className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-rose-700 bg-rose-50/90 px-1 sm:px-1.5 py-0.5 rounded-md border border-rose-100/90 leading-none">
+                                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0"></span>
+                                <span>{totalAbsent}<span className="hidden md:inline"> Absent</span></span>
                               </div>
                             )}
                           </div>
