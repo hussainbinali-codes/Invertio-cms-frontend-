@@ -374,8 +374,8 @@ const DashboardLayout = () => {
       >
         <div
           className={cn(
-            "flex items-center justify-between h-20 border-b border-slate-100 bg-white/50 backdrop-blur-md sticky top-0 z-50 transition-all duration-300",
-            isSidebarCollapsed ? "lg:px-3 px-6" : "px-6",
+            "flex items-center justify-between h-16 border-b border-slate-100 bg-white/50 backdrop-blur-md sticky top-0 z-50 transition-all duration-300",
+            isSidebarCollapsed ? "lg:px-3 px-5" : "px-5",
           )}
         >
           <div
@@ -383,7 +383,7 @@ const DashboardLayout = () => {
               "flex items-center gap-3 overflow-hidden transition-all duration-300",
               isSidebarCollapsed
                 ? "lg:w-full lg:justify-center"
-                : "w-full justify-center px-4",
+                : "w-full justify-center px-2",
             )}
           >
             <img
@@ -395,20 +395,20 @@ const DashboardLayout = () => {
               alt="Logo"
               className={cn(
                 "object-contain transition-all duration-300",
-                isSidebarCollapsed ? "lg:h-12 lg:w-12 h-16 w-48" : "h-16 w-48",
+                isSidebarCollapsed ? "lg:h-10 lg:w-10 h-12 w-44" : "h-12 w-44",
               )}
             />
           </div>
           <button
-            className="lg:hidden p-4 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+            className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
             onClick={() => setIsSidebarOpen(false)}
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between no-scrollbar">
-          <nav className="px-3 py-4 space-y-1 no-scrollbar">
+          <nav className="px-3 py-2.5 space-y-1 no-scrollbar">
             {filteredNavItems.map((item) => (
               <NavLink
                 key={item.path}
@@ -417,7 +417,7 @@ const DashboardLayout = () => {
                 title={isSidebarCollapsed ? item.label : ""}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative",
+                    "flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 group relative",
                     isActive
                       ? "bg-primary-50 text-primary-700 shadow-sm"
                       : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
@@ -459,7 +459,7 @@ const DashboardLayout = () => {
 
           <div
             className={cn(
-              isSidebarCollapsed ? "lg:items-center lg:px-2 px-4" : "px-4",
+              isSidebarCollapsed ? "lg:items-center lg:px-2 px-3 pb-3 pt-1" : "px-3 pb-3 pt-1",
             )}
           >
             {!isSidebarCollapsed && (

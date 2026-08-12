@@ -35,6 +35,9 @@ import {
   XCircle,
   Users as UsersIcon,
   CheckCircle2,
+  FileSpreadsheet,
+  Download,
+  Upload,
 } from "lucide-react";
 import { cn } from "../../../utils/cn";
 import toast from "react-hot-toast";
@@ -57,6 +60,9 @@ import EditLeadModal from "../components/EditLeadModal";
 import MoveStageModal from "../components/MoveStageModal";
 import AddActivityModal from "../components/AddActivityModal";
 import CampaignSelectorModal from "../components/CampaignSelectorModal";
+import ImportLeadsModal from "../components/ImportLeadsModal";
+import ExportLeadsModal from "../components/ExportLeadsModal";
+import BulkMoveCampaignModal from "../components/BulkMoveCampaignModal";
 const ConfirmationModal = lazy(
   () => import("../../../components/ui/ConfirmationModal")
 );
@@ -172,6 +178,35 @@ const CampaignsPage = () => {
   const [moveTargetStage, setMoveTargetStage] = useState("");
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showCampaignSelector, setShowCampaignSelector] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedLeadIds, setSelectedLeadIds] = useState([]);
+  const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
+
+  // Filters state
+  const [sourceFilter, setSourceFilter] = useState("All");
+  const [stageFilter, setStageFilter] = useState("All");
+
+  // Prospect Filters state
+  const [prospectAssignedFilter, setProspectAssignedFilter] = useState("All");
+  const [prospectResponseFilter, setProspectResponseFilter] = useState("All");
+  const [prospectFollowupFilter, setProspectFollowupFilter] = useState("");
+
+  // Lead Filters state
+  const [leadStatusFilter, setLeadStatusFilter] = useState("All");
+  const [leadPriorityFilter, setLeadPriorityFilter] = useState("All");
+  const [leadFollowupFilter, setLeadFollowupFilter] = useState("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
 
   // Confirmation Modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -197,15 +232,29 @@ const CampaignsPage = () => {
 
   useEffect(() => {
     fetchStats();
-    fetchLeads();
-  }, [activeTab, selectedCampaignId]);
+    setCurrentPage(1);
+    setSelectedLeadIds([]);
+    fetchLeads(1);
+  }, [
+    activeTab,
+    selectedCampaignId,
+    sourceFilter,
+    stageFilter,
+    prospectAssignedFilter,
+    prospectResponseFilter,
+    prospectFollowupFilter,
+    leadStatusFilter,
+    leadPriorityFilter,
+    leadFollowupFilter,
+  ]);
 
   const fetchCampaigns = async () => {
     try {
       const res = await getCampaignsList();
-      setCampaigns(res.data?.data || []);
+      const list = res.data?.data || res.data || [];
+      setCampaigns(list);
     } catch (error) {
-      console.error("Failed to fetch campaigns list", error);
+      toast.error("Failed to load campaigns.");
     }
   };
 
@@ -240,15 +289,62 @@ const CampaignsPage = () => {
     }
   };
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (pageToFetch = currentPage) => {
     try {
       setLoading(true);
-      const params = { stage: activeTab };
+      const params = { stage: activeTab, page: pageToFetch, limit: 20 };
       if (selectedCampaignId) {
         params.campaign_id = selectedCampaignId;
       }
+      if (activeTab === "Data") {
+        if (sourceFilter && sourceFilter !== "All") params.source = sourceFilter;
+        if (stageFilter && stageFilter !== "All") params.stage_filter = stageFilter;
+      }
+      if (activeTab === "Prospect") {
+        if (prospectAssignedFilter && prospectAssignedFilter !== "All") params.assigned_to = prospectAssignedFilter;
+        if (prospectResponseFilter && prospectResponseFilter !== "All") params.response_status = prospectResponseFilter;
+        if (prospectFollowupFilter && String(prospectFollowupFilter).trim()) params.next_followup = prospectFollowupFilter;
+      }
+      if (activeTab === "Lead") {
+        if (leadStatusFilter && leadStatusFilter !== "All") params.lead_status = leadStatusFilter;
+        if (leadPriorityFilter && leadPriorityFilter !== "All") params.priority = leadPriorityFilter;
+        if (leadFollowupFilter && String(leadFollowupFilter).trim()) params.next_followup = leadFollowupFilter;
+      }
       const res = await getLeads(params);
-      setLeads(res.data?.data || []);
+      const payload = res.data?.data;
+      if (payload && Array.isArray(payload.items)) {
+        setLeads(payload.items);
+        setPagination(
+          payload.pagination || {
+            page: pageToFetch,
+            limit: 20,
+            total: payload.items.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          }
+        );
+      } else if (Array.isArray(payload)) {
+        setLeads(payload);
+        setPagination({
+          page: 1,
+          limit: 20,
+          total: payload.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        });
+      } else {
+        setLeads([]);
+        setPagination({
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        });
+      }
     } catch (error) {
       toast.error("Failed to load campaign leads.");
     } finally {
@@ -256,9 +352,16 @@ const CampaignsPage = () => {
     }
   };
 
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || (pagination.totalPages > 0 && newPage > pagination.totalPages)) return;
+    setCurrentPage(newPage);
+    setSelectedLeadIds([]);
+    fetchLeads(newPage);
+  };
+
   const refreshAll = () => {
     fetchCampaigns();
-    fetchLeads();
+    fetchLeads(currentPage);
     fetchStats();
   };
 
@@ -364,6 +467,20 @@ const CampaignsPage = () => {
     );
   });
 
+  const toggleSelectAll = () => {
+    if (selectedLeadIds.length === filteredLeads.length && filteredLeads.length > 0) {
+      setSelectedLeadIds([]);
+    } else {
+      setSelectedLeadIds(filteredLeads.map((item) => item.id));
+    }
+  };
+
+  const toggleSelectRow = (id) => {
+    setSelectedLeadIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Bar */}
@@ -405,6 +522,24 @@ const CampaignsPage = () => {
           <Button onClick={() => setShowAddModal(true)} className="gap-2 shadow-sm h-9 text-xs">
             <Plus className="w-4 h-4" /> Add Data Entry
           </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setShowImportModal(true)}
+            className="gap-1.5 text-xs h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+          >
+            <Upload className="w-3.5 h-3.5" /> Import Excel
+          </Button>
+
+          {hasPermission("campaigns", "export") && (
+            <Button
+              variant="outline"
+              onClick={() => setShowExportModal(true)}
+              className="gap-1.5 text-xs h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              <Download className="w-3.5 h-3.5" /> Export Excel
+            </Button>
+          )}
         </div>
       </div>
 
@@ -478,16 +613,144 @@ const CampaignsPage = () => {
 
         {/* Filters & Search */}
         <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`Search ${activeTab} leads...`}
-              className="pl-9 bg-white"
-            />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={`Search ${activeTab} leads...`}
+                className="pl-9 bg-white"
+              />
+            </div>
+
+            {/* Source & Stage Filters for Data Tab */}
+            {activeTab === "Data" && (
+              <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  <option value="All">All Sources</option>
+                  <option value="Reference">Reference</option>
+                  <option value="Online">Online</option>
+                  <option value="Excel Import">Excel Import</option>
+                </select>
+
+                <select
+                  value={stageFilter}
+                  onChange={(e) => setStageFilter(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  <option value="All">All Stages</option>
+                  <option value="Data">Data Stage</option>
+                  <option value="Prospect">Prospect Stage</option>
+                  <option value="Lead">Lead Stage</option>
+                  <option value="Qualified Lead">Qualified Stage</option>
+                  <option value="Customer">Customer Stage</option>
+                </select>
+              </div>
+            )}
+
+            {/* Prospect Tab Filters */}
+            {activeTab === "Prospect" && (
+              <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                <select
+                  value={prospectAssignedFilter}
+                  onChange={(e) => setProspectAssignedFilter(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  <option value="All">All Assigned Users</option>
+                  {(Array.isArray(users) ? users : []).map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={prospectResponseFilter}
+                  onChange={(e) => setProspectResponseFilter(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  <option value="All">All Response Statuses</option>
+                  <option value="Not Contacted">Not Contacted</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="No Response">No Response</option>
+                  <option value="Responded">Responded</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Not Interested">Not Interested</option>
+                </select>
+
+                <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 border border-slate-200 rounded-xl text-xs">
+                  <span className="text-slate-400 text-[11px] font-semibold">Follow-up:</span>
+                  <input
+                    type="date"
+                    value={prospectFollowupFilter}
+                    onChange={(e) => setProspectFollowupFilter(e.target.value)}
+                    className="text-xs text-slate-700 bg-transparent focus:outline-none"
+                  />
+                  {prospectFollowupFilter && (
+                    <button
+                      onClick={() => setProspectFollowupFilter("")}
+                      className="text-slate-400 hover:text-slate-600 font-bold text-xs px-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Lead Tab Filters */}
+            {activeTab === "Lead" && (
+              <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                <select
+                  value={leadStatusFilter}
+                  onChange={(e) => setLeadStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  <option value="All">All Lead Statuses</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Meeting Scheduled">Meeting Scheduled</option>
+                  <option value="Proposal">Proposal</option>
+                  <option value="Lost">Lost</option>
+                  <option value="No Response">No Response</option>
+                </select>
+
+                <select
+                  value={leadPriorityFilter}
+                  onChange={(e) => setLeadPriorityFilter(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  <option value="All">All Priorities</option>
+                  <option value="High">High Priority</option>
+                  <option value="Medium">Medium Priority</option>
+                  <option value="Low">Low Priority</option>
+                </select>
+
+                <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 border border-slate-200 rounded-xl text-xs">
+                  <span className="text-slate-400 text-[11px] font-semibold">Follow-up:</span>
+                  <input
+                    type="date"
+                    value={leadFollowupFilter}
+                    onChange={(e) => setLeadFollowupFilter(e.target.value)}
+                    className="text-xs text-slate-700 bg-transparent focus:outline-none"
+                  />
+                  {leadFollowupFilter && (
+                    <button
+                      onClick={() => setLeadFollowupFilter("")}
+                      className="text-slate-400 hover:text-slate-600 font-bold text-xs px-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <span className="text-xs font-semibold text-slate-500">
+          <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
             Showing {filteredLeads.length} entries in <strong>{activeTab}</strong> stage
           </span>
         </div>
@@ -516,11 +779,20 @@ const CampaignsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                    <TableHead className="w-10 pl-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedLeadIds.length > 0 && selectedLeadIds.length === filteredLeads.length}
+                        onChange={toggleSelectAll}
+                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                      />
+                    </TableHead>
                     <TableHead className="w-56">CONTACT & COMPANY</TableHead>
 
                     {/* Stage Specific Headers */}
                     {activeTab === "Data" && (
                       <>
+                        <TableHead>STAGE</TableHead>
                         <TableHead>DESIGNATION</TableHead>
                         <TableHead>CONTACT INFO</TableHead>
                         <TableHead>LOCATION & INDUSTRY</TableHead>
@@ -569,15 +841,25 @@ const CampaignsPage = () => {
                 </TableHeader>
                 <tbody>
                   {filteredLeads.map((item) => (
-                    <TableRow key={item.id} className={cn(item.is_rejected && "opacity-60 bg-rose-50/20")}>
+                    <TableRow key={item.id} className={cn(item.is_rejected && "opacity-60 bg-rose-50/20", selectedLeadIds.includes(item.id) && "bg-primary-50/30")}>
+                      {/* Select Checkbox */}
+                      <TableCell className="pl-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedLeadIds.includes(item.id)}
+                          onChange={() => toggleSelectRow(item.id)}
+                          className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        />
+                      </TableCell>
+
                       {/* Company & Name */}
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-sm">
+                          <div className="w-9 h-9 rounded-xl bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-sm shrink-0">
                             {item.name ? item.name.charAt(0).toUpperCase() : "L"}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                            <div className="font-semibold text-slate-900 text-sm flex items-center gap-1.5 flex-wrap">
                               {item.name}
                               {item.is_duplicate && <Badge variant="warning">Duplicate</Badge>}
                               {item.is_rejected && <Badge variant="danger">Rejected</Badge>}
@@ -590,10 +872,28 @@ const CampaignsPage = () => {
                       {/* DATA Tab Columns */}
                       {activeTab === "Data" && (
                         <>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border",
+                                item.stage === "Customer"
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                  : item.stage === "Qualified Lead"
+                                  ? "bg-amber-100 text-amber-800 border-amber-200"
+                                  : item.stage === "Lead"
+                                  ? "bg-indigo-100 text-indigo-800 border-indigo-200"
+                                  : item.stage === "Prospect"
+                                  ? "bg-sky-100 text-sky-800 border-sky-200"
+                                  : "bg-slate-100 text-slate-700 border-slate-200"
+                              )}
+                            >
+                              {item.stage || "Data"}
+                            </span>
+                          </TableCell>
                           <TableCell className="text-xs text-slate-700">{item.designation || "N/A"}</TableCell>
                           <TableCell className="text-xs">
                             <div className="text-slate-800">{item.email || "N/A"}</div>
-                            <div className="text-slate-400 text-[11px]">{item.phone || item.whatsapp || ""}</div>
+                            <div className="text-slate-400 text-[11px]">{item.phone || ""}</div>
                           </TableCell>
                           <TableCell className="text-xs text-slate-700">
                             <div>{item.country || "N/A"}</div>
@@ -717,18 +1017,83 @@ const CampaignsPage = () => {
                           {/* Move Next Stage */}
                           {activeTab === "Data" && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openMoveModal(item, "Prospect")}
-                                className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50"
-                              >
-                                Move to Prospect <ArrowRight className="w-3 h-3" />
-                              </Button>
+                              {(item.stage === "Data" || !item.stage) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={item.is_rejected}
+                                  onClick={() => {
+                                    if (item.is_rejected) {
+                                      toast.error("Rejected leads cannot be moved to further stages. Edit the lead to re-activate it.");
+                                      return;
+                                    }
+                                    openMoveModal(item, "Prospect");
+                                  }}
+                                  className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Move to Prospect <ArrowRight className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {item.stage === "Prospect" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={item.is_rejected || item.response_status === "Not Interested"}
+                                  onClick={() => {
+                                    if (item.is_rejected || item.response_status === "Not Interested") {
+                                      toast.error("Rejected/Not Interested leads cannot be moved. Edit the lead status to re-activate.");
+                                      return;
+                                    }
+                                    openMoveModal(item, "Lead");
+                                  }}
+                                  className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Move to Lead <ArrowRight className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {item.stage === "Lead" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost"}
+                                  onClick={() => {
+                                    if (item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost") {
+                                      toast.error("Lost/Rejected leads cannot be moved to Qualified Lead stage. Edit status to re-activate.");
+                                      return;
+                                    }
+                                    openMoveModal(item, "Qualified Lead");
+                                  }}
+                                  className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Move to Qualified <ArrowRight className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {item.stage === "Qualified Lead" && (
+                                <Button
+                                  size="sm"
+                                  disabled={item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost"}
+                                  onClick={() => {
+                                    if (item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost") {
+                                      toast.error("Lost/Rejected leads cannot be moved to Customer stage. Edit status to re-activate.");
+                                      return;
+                                    }
+                                    openMoveModal(item, "Customer");
+                                  }}
+                                  className="h-7 px-2 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Move to Customer <CheckCircle2 className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {item.stage === "Customer" && (
+                                <Badge variant="success" className="text-[10px]">
+                                  Customer Won
+                                </Badge>
+                              )}
                               <button
-                                title="Mark Rejected"
+                                title={item.is_rejected ? "Already Rejected" : "Mark Rejected"}
+                                disabled={item.is_rejected}
                                 onClick={() => handleReject(item)}
-                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Ban className="w-4 h-4" />
                               </button>
@@ -747,8 +1112,15 @@ const CampaignsPage = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => openMoveModal(item, "Lead")}
-                                className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50"
+                                disabled={item.is_rejected || item.response_status === "Not Interested"}
+                                onClick={() => {
+                                  if (item.is_rejected || item.response_status === "Not Interested") {
+                                    toast.error("Not Interested leads cannot be moved to Lead stage. Edit status to re-activate.");
+                                    return;
+                                  }
+                                  openMoveModal(item, "Lead");
+                                }}
+                                className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Move to Lead <ArrowRight className="w-3 h-3" />
                               </Button>
@@ -760,9 +1132,10 @@ const CampaignsPage = () => {
                                 <RotateCcw className="w-4 h-4" />
                               </button>
                               <button
-                                title="Mark Not Interested"
+                                title={item.response_status === "Not Interested" ? "Already Not Interested" : "Mark Not Interested"}
+                                disabled={item.response_status === "Not Interested"}
                                 onClick={() => handleMarkNotInterested(item)}
-                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <ThumbsDown className="w-4 h-4" />
                               </button>
@@ -774,8 +1147,15 @@ const CampaignsPage = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => openMoveModal(item, "Qualified Lead")}
-                                className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50"
+                                disabled={item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost"}
+                                onClick={() => {
+                                  if (item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost") {
+                                    toast.error("Lost/Not Interested leads cannot be moved to Qualified Lead stage. Edit status to re-activate.");
+                                    return;
+                                  }
+                                  openMoveModal(item, "Qualified Lead");
+                                }}
+                                className="h-7 px-2 text-xs gap-1 border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Move to Qualified <ArrowRight className="w-3 h-3" />
                               </Button>
@@ -790,9 +1170,10 @@ const CampaignsPage = () => {
                                 <MessageSquare className="w-4 h-4" />
                               </button>
                               <button
-                                title="Mark Lost"
+                                title={item.lead_status === "Lost" ? "Already Lost" : "Mark Lost"}
+                                disabled={item.lead_status === "Lost"}
                                 onClick={() => handleMarkLost(item)}
-                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <XCircle className="w-4 h-4" />
                               </button>
@@ -803,8 +1184,15 @@ const CampaignsPage = () => {
                             <>
                               <Button
                                 size="sm"
-                                onClick={() => openMoveModal(item, "Customer")}
-                                className="h-7 px-2 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                disabled={item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost"}
+                                onClick={() => {
+                                  if (item.is_rejected || item.response_status === "Not Interested" || item.lead_status === "Lost") {
+                                    toast.error("Lost/Not Interested leads cannot be moved to Customer stage. Edit status to re-activate.");
+                                    return;
+                                  }
+                                  openMoveModal(item, "Customer");
+                                }}
+                                className="h-7 px-2 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Move to Customer <CheckCircle2 className="w-3 h-3" />
                               </Button>
@@ -819,9 +1207,10 @@ const CampaignsPage = () => {
                                 <MessageSquare className="w-4 h-4" />
                               </button>
                               <button
-                                title="Mark Lost"
+                                title={item.lead_status === "Lost" ? "Already Lost" : "Mark Lost"}
+                                disabled={item.lead_status === "Lost"}
                                 onClick={() => handleMarkLost(item)}
-                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <XCircle className="w-4 h-4" />
                               </button>
@@ -848,6 +1237,47 @@ const CampaignsPage = () => {
               </Table>
             </div>
           )}
+
+          {/* Pagination Bar */}
+          {pagination.total > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-4 border-t border-slate-100 text-xs text-slate-600">
+              <div>
+                Showing{" "}
+                <span className="font-semibold text-slate-900">
+                  {(currentPage - 1) * pagination.limit + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-semibold text-slate-900">
+                  {Math.min(currentPage * pagination.limit, pagination.total)}
+                </span>{" "}
+                of <span className="font-semibold text-slate-900">{pagination.total}</span> entries
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.hasPreviousPage}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className="h-8 px-3 text-xs border-slate-200"
+                >
+                  Previous
+                </Button>
+                <span className="px-3 py-1 font-medium text-slate-700 bg-slate-100 rounded-lg border border-slate-200/60">
+                  Page {currentPage} of {pagination.totalPages || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.hasNextPage}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className="h-8 px-3 text-xs border-slate-200"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -860,14 +1290,20 @@ const CampaignsPage = () => {
 
       <LeadDetailModal
         isOpen={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedLead(null);
+        }}
         lead={selectedLead}
         onRefresh={refreshAll}
       />
 
       <EditLeadModal
         isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingLead(null);
+        }}
         lead={editingLead}
         users={users}
         onSuccess={refreshAll}
@@ -875,7 +1311,11 @@ const CampaignsPage = () => {
 
       <MoveStageModal
         isOpen={showMoveModal}
-        onClose={() => setShowMoveModal(false)}
+        onClose={() => {
+          setShowMoveModal(false);
+          setSelectedLead(null);
+          setMoveTargetStage("");
+        }}
         lead={selectedLead}
         targetStage={moveTargetStage}
         users={users}
@@ -884,7 +1324,10 @@ const CampaignsPage = () => {
 
       <AddActivityModal
         isOpen={showActivityModal}
-        onClose={() => setShowActivityModal(false)}
+        onClose={() => {
+          setShowActivityModal(false);
+          setSelectedLead(null);
+        }}
         lead={selectedLead}
         onSuccess={refreshAll}
       />
@@ -897,6 +1340,56 @@ const CampaignsPage = () => {
           refreshAll();
         }}
       />
+
+      <ImportLeadsModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        campaigns={campaigns}
+        onSuccess={() => {
+          setSelectedLeadIds([]);
+          refreshAll();
+        }}
+      />
+
+      <ExportLeadsModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        campaigns={campaigns}
+        selectedCampaignId={selectedCampaignId}
+      />
+
+      <BulkMoveCampaignModal
+        isOpen={showBulkMoveModal}
+        onClose={() => setShowBulkMoveModal(false)}
+        selectedLeadIds={selectedLeadIds}
+        campaigns={campaigns}
+        onSuccess={() => {
+          setSelectedLeadIds([]);
+          refreshAll();
+        }}
+      />
+
+      {/* Floating Bulk Action Bar */}
+      {selectedLeadIds.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-700 animate-in fade-in slide-in-from-bottom duration-200">
+          <span className="text-xs font-bold font-mono">
+            {selectedLeadIds.length} lead(s) selected
+          </span>
+          <Button
+            size="sm"
+            onClick={() => setShowBulkMoveModal(true)}
+            className="gap-2 bg-primary-600 hover:bg-primary-500 text-white text-xs h-8"
+          >
+            <Target className="w-3.5 h-3.5" /> Move to Campaign...
+          </Button>
+          <button
+            onClick={() => setSelectedLeadIds([])}
+            className="text-xs text-slate-400 hover:text-white underline ml-1"
+          >
+            Clear Selection
+          </button>
+        </div>
+      )}
 
       <Suspense fallback={null}>
         <ConfirmationModal

@@ -30,4 +30,19 @@ export const uploadDocuments = (id, formData) =>
   axios.post(`/campaigns/${id}/documents`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-export const deleteDocument = (docId) => axios.delete(`/campaigns/documents/${docId}`);
+export const deleteDocument = async (docId) => axios.delete(`/campaigns/documents/${docId}`);
+
+// Excel Import & Export
+export const downloadImportTemplate = () =>
+  axios.get("/campaigns/import-template", { responseType: "blob" });
+
+export const importLeads = (formData) =>
+  axios.post("/campaigns/import", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+export const exportLeads = (params) =>
+  axios.get("/campaigns/export", { params, responseType: "blob" });
+
+export const bulkMoveCampaign = (data) =>
+  axios.post("/campaigns/bulk-move-campaign", data);

@@ -72,9 +72,22 @@ const EditLeadModal = ({ isOpen, onClose, lead, users = [], onSuccess }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* DATA Fields */}
             <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-4">
-              <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider border-b pb-1">
-                Data & Contact Information
-              </h4>
+              <div className="flex items-center justify-between border-b pb-1">
+                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Data & Contact Information
+                </h4>
+                {formData.is_rejected && (
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                    <input
+                      type="checkbox"
+                      checked={!formData.is_rejected}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, is_rejected: !e.target.checked }))}
+                      className="rounded border-rose-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    Re-activate Lead (Un-reject)
+                  </label>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 mb-1 block">Name *</label>
@@ -97,10 +110,6 @@ const EditLeadModal = ({ isOpen, onClose, lead, users = [], onSuccess }) => {
                   <Input name="phone" value={formData.phone || ""} onChange={handleChange} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1 block">WhatsApp</label>
-                  <Input name="whatsapp" value={formData.whatsapp || ""} onChange={handleChange} />
-                </div>
-                <div>
                   <label className="text-xs font-semibold text-slate-700 mb-1 block">LinkedIn</label>
                   <Input name="linkedin" value={formData.linkedin || ""} onChange={handleChange} />
                 </div>
@@ -114,11 +123,33 @@ const EditLeadModal = ({ isOpen, onClose, lead, users = [], onSuccess }) => {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 mb-1 block">Industry</label>
-                  <Input name="industry" value={formData.industry || ""} onChange={handleChange} />
+                  <select
+                    name="industry"
+                    value={formData.industry || ""}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                  >
+                    <option value="">-- Select Industry --</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Software">Software</option>
+                    <option value="Logistics">Logistics</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 mb-1 block">Source</label>
-                  <Input name="source" value={formData.source || ""} onChange={handleChange} />
+                  <select
+                    name="source"
+                    value={formData.source || ""}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                  >
+                    <option value="">-- Select Data Source --</option>
+                    <option value="Reference">Reference</option>
+                    <option value="Online">Online</option>
+                    <option value="Excel Import">Excel Import</option>
+                  </select>
                 </div>
               </div>
             </div>

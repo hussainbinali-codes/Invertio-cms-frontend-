@@ -16,7 +16,6 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
     designation: "",
     email: "",
     phone: "",
-    whatsapp: "",
     linkedin: "",
     website: "",
     country: "",
@@ -32,6 +31,26 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      company: "",
+      designation: "",
+      email: "",
+      phone: "",
+      linkedin: "",
+      website: "",
+      country: "",
+      industry: "",
+      source: "",
+    });
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.company.trim()) {
@@ -43,19 +62,7 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
       setLoading(true);
       await createLead(formData);
       toast.success("Lead added to Data stage successfully!");
-      setFormData({
-        name: "",
-        company: "",
-        designation: "",
-        email: "",
-        phone: "",
-        whatsapp: "",
-        linkedin: "",
-        website: "",
-        country: "",
-        industry: "",
-        source: "",
-      });
+      resetForm();
       onSuccess();
       onClose();
     } catch (error) {
@@ -75,14 +82,11 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <CardTitle className="text-xl">Add New Marketing Data</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Enter raw marketing contact details for outreach.</p>
+              <CardTitle className="text-lg">Add Data Entry</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Create a new raw lead record in the Data stage.</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200"
-          >
+          <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600">
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
@@ -156,15 +160,6 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">WhatsApp</label>
-                  <Input
-                    name="whatsapp"
-                    value={formData.whatsapp}
-                    onChange={handleChange}
-                    placeholder="+1 234 567 890"
-                  />
-                </div>
-                <div>
                   <label className="text-xs font-semibold text-slate-700 mb-1.5 block">LinkedIn URL</label>
                   <Input
                     name="linkedin"
@@ -202,27 +197,38 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Industry</label>
-                  <Input
+                  <select
                     name="industry"
                     value={formData.industry}
                     onChange={handleChange}
-                    placeholder="e.g. Software, Healthcare"
-                  />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                  >
+                    <option value="">-- Select Industry --</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Software">Software</option>
+                    <option value="Logistics">Logistics</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Data Source</label>
-                  <Input
+                  <select
                     name="source"
                     value={formData.source}
                     onChange={handleChange}
-                    placeholder="e.g. Web Scraping, Conference"
-                  />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                  >
+                    <option value="">-- Select Data Source --</option>
+                    <option value="Reference">Reference</option>
+                    <option value="Online">Online</option>
+                  </select>
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
                 Cancel
               </Button>
               <Button type="submit" disabled={loading} className="gap-2">

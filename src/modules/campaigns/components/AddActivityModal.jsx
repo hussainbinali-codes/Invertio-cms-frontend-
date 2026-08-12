@@ -17,6 +17,11 @@ const AddActivityModal = ({ isOpen, onClose, lead, onSuccess }) => {
   });
   const [loading, setLoading] = useState(false);
 
+  const handleClose = () => {
+    setFormData({ activity_type: "Call", notes: "", scheduled_at: "" });
+    onClose();
+  };
+
   if (!isOpen || !lead) return null;
 
   const handleSubmit = async (e) => {
@@ -30,9 +35,8 @@ const AddActivityModal = ({ isOpen, onClose, lead, onSuccess }) => {
       setLoading(true);
       await addActivity(lead.id, formData);
       toast.success("Activity logged successfully!");
-      setFormData({ activity_type: "Call", notes: "", scheduled_at: "" });
-      onSuccess();
-      onClose();
+      handleClose();
+      if (onSuccess) onSuccess();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to log activity.");
     } finally {
@@ -55,7 +59,7 @@ const AddActivityModal = ({ isOpen, onClose, lead, onSuccess }) => {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600">
+          <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600">
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
@@ -99,7 +103,7 @@ const AddActivityModal = ({ isOpen, onClose, lead, onSuccess }) => {
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
                 Cancel
               </Button>
               <Button type="submit" disabled={loading} className="gap-2">

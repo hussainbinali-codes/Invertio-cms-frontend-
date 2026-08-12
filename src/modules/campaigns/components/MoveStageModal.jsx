@@ -57,11 +57,34 @@ const MoveStageModal = ({ isOpen, onClose, lead, targetStage, users = [], onSucc
     e.preventDefault();
     try {
       setLoading(true);
-      const payload = {
-        target_stage: targetStage,
-        ...extraData,
-      };
-      await moveLeadStage(lead.id, payload);
+      const stageSpecificPayload = { target_stage: targetStage };
+
+      if (targetStage === "Prospect") {
+        if (extraData.campaign_id) stageSpecificPayload.campaign_id = extraData.campaign_id;
+        if (extraData.assigned_to) stageSpecificPayload.assigned_to = extraData.assigned_to;
+        stageSpecificPayload.contact_channel = extraData.contact_channel || "Email";
+        if (extraData.outreach_date) stageSpecificPayload.outreach_date = extraData.outreach_date;
+        if (extraData.outreach_message) stageSpecificPayload.outreach_message = extraData.outreach_message;
+      } else if (targetStage === "Lead") {
+        if (extraData.interested_service) stageSpecificPayload.interested_service = extraData.interested_service;
+        stageSpecificPayload.response_channel = extraData.response_channel || "Email";
+        if (extraData.lead_date) stageSpecificPayload.lead_date = extraData.lead_date;
+        if (extraData.lead_response) stageSpecificPayload.lead_response = extraData.lead_response;
+      } else if (targetStage === "Qualified Lead") {
+        if (extraData.requirement) stageSpecificPayload.requirement = extraData.requirement;
+        if (extraData.pain_point) stageSpecificPayload.pain_point = extraData.pain_point;
+        if (extraData.decision_maker) stageSpecificPayload.decision_maker = extraData.decision_maker;
+        if (extraData.budget) stageSpecificPayload.budget = extraData.budget;
+        if (extraData.expected_project_value) stageSpecificPayload.expected_project_value = Number(extraData.expected_project_value);
+      } else if (targetStage === "Customer") {
+        if (extraData.project_name) stageSpecificPayload.project_name = extraData.project_name;
+        if (extraData.project_value) stageSpecificPayload.project_value = Number(extraData.project_value);
+        stageSpecificPayload.currency = extraData.currency || "USD";
+        if (extraData.closing_date) stageSpecificPayload.closing_date = extraData.closing_date;
+        stageSpecificPayload.customer_status = extraData.customer_status || "New Customer";
+      }
+
+      await moveLeadStage(lead.id, stageSpecificPayload);
       toast.success(`Lead successfully moved to ${targetStage} stage!`);
       onSuccess();
       onClose();

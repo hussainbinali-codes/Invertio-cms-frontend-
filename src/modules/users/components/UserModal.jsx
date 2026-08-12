@@ -166,6 +166,7 @@ const UserModal = ({
         { key: "activities.create", label: "Log Activities" },
         { key: "documents.upload", label: "Upload Documents" },
         { key: "documents.delete", label: "Delete Documents" },
+        { key: "export", label: "Export Campaign Data (Excel)" },
       ],
       tabs: [
         { key: "tab.data", label: "Data" },

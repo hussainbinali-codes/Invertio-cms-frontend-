@@ -174,10 +174,6 @@ const LeadDetailModal = ({ isOpen, onClose, lead, onRefresh }) => {
                       <span className="font-semibold text-slate-800">{lead.phone || "N/A"}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block mb-0.5">WhatsApp</span>
-                      <span className="font-semibold text-slate-800">{lead.whatsapp || "N/A"}</span>
-                    </div>
-                    <div>
                       <span className="text-slate-400 block mb-0.5">Industry</span>
                       <span className="font-semibold text-slate-800">{lead.industry || "N/A"}</span>
                     </div>
