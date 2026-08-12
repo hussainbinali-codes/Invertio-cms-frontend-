@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Table, TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
+import PaginationControls from '../../../components/ui/PaginationControls';
 import { CheckCircle2, Calendar, CheckSquare, User, Clock } from 'lucide-react';
+
+const PAGE_LIMIT = 20;
 
 const formatDateTime = (dateStr) => {
   if (!dateStr) return 'N/A';
@@ -17,11 +20,17 @@ const formatDateTime = (dateStr) => {
 };
 
 const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
+  const [currentPage, setCurrentPage] = useState(1);
   const [filterAssignedTo, setFilterAssignedTo] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateOperator, setFilterDateOperator] = useState('='); // '=', '<', '>'
   const [filterDueDate, setFilterDueDate] = useState('');
+
+  // Reset pagination to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterAssignedTo, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
 
   // Extract unique values for filters
   const uniqueAssignees = useMemo(() => {
@@ -64,101 +73,149 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
     });
   }, [tasks, filterAssignedTo, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
 
+  // Paginated tasks slice for limit 20
+  const paginatedTasks = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_LIMIT;
+    return filteredTasks.slice(start, start + PAGE_LIMIT);
+  }, [filteredTasks, currentPage]);
+
+  const paginationData = useMemo(() => {
+    const total = filteredTasks.length;
+    const totalPages = Math.ceil(total / PAGE_LIMIT) || 1;
+    return {
+      page: currentPage,
+      limit: PAGE_LIMIT,
+      total,
+      totalPages,
+      hasNextPage: currentPage < totalPages,
+      hasPreviousPage: currentPage > 1
+    };
+  }, [filteredTasks.length, currentPage]);
+
   return (
-    <div className="w-full overflow-hidden">
-      {/* Table Section - Compact Non-Scrollable Layout */}
+    <div className="w-full overflow-hidden border border-slate-200 rounded-xl bg-white shadow-sm">
+      {/* Top Filter Bar */}
+      <div className="p-3 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Assignee Filter */}
+          <select
+            value={filterAssignedTo}
+            onChange={(e) => setFilterAssignedTo(e.target.value)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 shadow-sm"
+          >
+            <option value="">All Assignees</option>
+            {uniqueAssignees.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+
+          {/* Priority Filter */}
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 shadow-sm"
+          >
+            <option value="">All Priorities</option>
+            {uniquePriorities.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 shadow-sm"
+          >
+            <option value="">All Statuses</option>
+            {uniqueStatuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+
+          {/* Due Date Filter */}
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 border border-slate-200 rounded-lg text-xs shadow-sm">
+            <span className="text-slate-400 font-semibold text-[11px]">Due:</span>
+            <select
+              value={filterDateOperator}
+              onChange={(e) => setFilterDateOperator(e.target.value)}
+              className="bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-xs font-bold text-slate-700 focus:outline-none"
+            >
+              <option value="=">=</option>
+              <option value="<">&lt;</option>
+              <option value=">">&gt;</option>
+            </select>
+            <input
+              type="date"
+              value={filterDueDate}
+              onChange={(e) => setFilterDueDate(e.target.value)}
+              className="text-xs text-slate-700 focus:outline-none bg-transparent"
+            />
+            {filterDueDate && (
+              <button
+                onClick={() => setFilterDueDate("")}
+                className="text-rose-500 font-bold hover:bg-rose-50 px-1 rounded text-xs"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {(filterAssignedTo || filterPriority || filterStatus || filterDueDate) && (
+            <button
+              onClick={() => {
+                setFilterAssignedTo("");
+                setFilterPriority("");
+                setFilterStatus("");
+                setFilterDueDate("");
+              }}
+              className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+
+        <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+          Showing <strong>{filteredTasks.length}</strong> of <strong>{tasks.length}</strong> tasks
+        </span>
+      </div>
+
+      {/* Table Section - Clean Column Headers Layout */}
       <Table className="w-full table-fixed border-collapse">
         <TableHeader>
-          <TableRow className="bg-slate-50/80">
-            <TableHead className="px-3 py-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[28%]">
+          <TableRow className="bg-slate-50/50 border-b border-slate-200">
+            <TableHead className="px-3 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[28%]">
               TASK DETAILS
             </TableHead>
-            <TableHead className="px-2 py-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[13%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
               PROJECT
             </TableHead>
-            
-            {/* ASSIGNED TO Header Dropdown */}
-            <TableHead className="px-1.5 py-2.5 w-[15%]">
-              <select 
-                className="w-full bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded px-1.5 py-1 text-[10px] font-bold text-slate-700 uppercase tracking-tighter outline-none cursor-pointer truncate"
-                value={filterAssignedTo}
-                onChange={(e) => setFilterAssignedTo(e.target.value)}
-              >
-                <option value="">ASSIGNEE: ALL</option>
-                {uniqueAssignees.map(a => (
-                  <option key={a} value={a}>{a.toUpperCase()}</option>
-                ))}
-              </select>
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[15%]">
+              ASSIGNEE
             </TableHead>
-
-            {/* PRIORITY Header Dropdown */}
-            <TableHead className="px-1.5 py-2.5 w-[12%]">
-              <select 
-                className="w-full bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded px-1.5 py-1 text-[10px] font-bold text-slate-700 uppercase tracking-tighter outline-none cursor-pointer truncate"
-                value={filterPriority}
-                onChange={(e) => setFilterPriority(e.target.value)}
-              >
-                <option value="">PRIORITY: ALL</option>
-                {uniquePriorities.map(p => (
-                  <option key={p} value={p}>{p.toUpperCase()}</option>
-                ))}
-              </select>
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+              PRIORITY
             </TableHead>
-
-            {/* STATUS Header Dropdown */}
-            <TableHead className="px-1.5 py-2.5 w-[12%]">
-              <select 
-                className="w-full bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded px-1.5 py-1 text-[10px] font-bold text-slate-700 uppercase tracking-tighter outline-none cursor-pointer truncate"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="">STATUS: ALL</option>
-                {uniqueStatuses.map(s => (
-                  <option key={s} value={s}>{s.toUpperCase()}</option>
-                ))}
-              </select>
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+              STATUS
             </TableHead>
-
-            {/* DUE DATE Header Controls */}
-            <TableHead className="px-1.5 py-2.5 w-[18%]">
-              <div className="flex items-center gap-0.5 bg-slate-100 border border-slate-200 rounded px-1.5 py-1 text-[10px] font-bold text-slate-700 uppercase tracking-tighter w-full">
-                <span className="shrink-0">DUE</span>
-                <select 
-                  className="bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] font-bold text-slate-800 outline-none cursor-pointer shrink-0"
-                  value={filterDateOperator}
-                  onChange={(e) => setFilterDateOperator(e.target.value)}
-                  title="Operator: = (On), < (Before), > (After)"
-                >
-                  <option value="=">=</option>
-                  <option value="<">&lt;</option>
-                  <option value=">">&gt;</option>
-                </select>
-                <input 
-                  type="date" 
-                  className="bg-white border border-slate-200 rounded px-1 py-0.5 text-[9px] font-medium text-slate-700 outline-none w-full min-w-0"
-                  value={filterDueDate}
-                  onChange={(e) => setFilterDueDate(e.target.value)}
-                />
-                {filterDueDate && (
-                  <button 
-                    onClick={() => setFilterDueDate('')}
-                    className="text-[9px] text-rose-600 font-bold hover:bg-rose-100 px-0.5 rounded shrink-0"
-                    title="Clear date filter"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
+              DUE DATE
             </TableHead>
-
-            {/* LAST UPDATED Header */}
-            <TableHead className="px-2 py-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[10%]">
               UPDATED
             </TableHead>
           </TableRow>
         </TableHeader>
         <tbody>
-          {filteredTasks.map((task) => (
+          {paginatedTasks.map((task) => (
             <TableRow key={task.id} className="group hover:bg-slate-50/50">
               {/* Task Details - Receives largest space */}
               <TableCell 
@@ -243,6 +300,16 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
           )}
         </tbody>
       </Table>
+
+      {/* Pagination Footer Controls */}
+      {filteredTasks.length > 0 && (
+        <PaginationControls
+          pagination={paginationData}
+          itemCount={paginatedTasks.length}
+          onPrevious={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          onNext={() => setCurrentPage(prev => Math.min(paginationData.totalPages, prev + 1))}
+        />
+      )}
     </div>
   );
 };

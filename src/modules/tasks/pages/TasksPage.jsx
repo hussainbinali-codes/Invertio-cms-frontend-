@@ -201,7 +201,8 @@ const TasksPage = () => {
       }
 
       if (allTasksResIndex > -1) {
-        setAllTasks(results[allTasksResIndex].data.data || []);
+        const rawTasks = results[allTasksResIndex].data.data || [];
+        setAllTasks(Array.isArray(rawTasks) ? rawTasks : (rawTasks.items || []));
       }
 
       setLoading(false);
