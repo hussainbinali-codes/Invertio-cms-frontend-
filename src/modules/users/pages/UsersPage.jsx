@@ -129,8 +129,8 @@ const UsersPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchUsers(currentPage);
-  }, [currentPage]);
+    fetchUsers(currentPage, searchTerm);
+  }, [currentPage, searchTerm]);
 
   const fetchSkills = async () => {
     try {
@@ -150,10 +150,13 @@ const UsersPage = () => {
     }
   };
 
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = async (page = 1, search = '') => {
     setLoading(true);
     try {
-      const res = await axios.get(`/users?page=${page}&limit=${PAGE_LIMIT}`);
+      const url = search
+        ? `/users?page=${page}&limit=${PAGE_LIMIT}&search=${encodeURIComponent(search)}`
+        : `/users?page=${page}&limit=${PAGE_LIMIT}`;
+      const res = await axios.get(url);
       const payload = res.data.data || {};
       const items = Array.isArray(payload.items)
         ? payload.items
@@ -342,14 +345,13 @@ const UsersPage = () => {
         />
         <KpiCard 
           title="Active Users" 
-          value={users.filter(u => u.status === 'Active').length} 
-          icon={UserCheck} 
-          trend="+2" 
-          subtext="Active on this page" 
+          value={pagination.activeCount ?? users.filter(u => u.status === 'Active').length} 
+          icon={UserCheck}  
+          subtext="Active system users" 
         />
         <KpiCard 
           title="Security Admins" 
-          value={users.filter(u => u.role_name === 'Admin' || u.role_name === 'Super Admin').length} 
+          value={pagination.adminCount ?? users.filter(u => u.role_name === 'Admin' || u.role_name === 'Super Admin').length} 
           icon={ShieldCheck} 
           subtext="Authorized system managers" 
         />

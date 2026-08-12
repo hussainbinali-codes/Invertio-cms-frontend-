@@ -17,7 +17,7 @@ const MyPipelineTab = ({
           <TableHead className="py-4">Task Details</TableHead>
           <TableHead className="py-4">Project</TableHead>
           <TableHead className="py-4">Priority</TableHead>
-          <TableHead className="py-4">Story Points</TableHead>
+          {/* <TableHead className="py-4">Story Points</TableHead> */}
           <TableHead className="py-4">Status</TableHead>
           <TableHead className="py-4">Due Date</TableHead>
         </TableRow>
@@ -25,24 +25,24 @@ const MyPipelineTab = ({
       <tbody>
         {tasks.map((task) => (
           <TableRow key={task.id} className="group">
-            <TableCell 
+            <TableCell
               className="py-4 cursor-pointer hover:bg-slate-50/50 transition-colors"
               onClick={() => setSelectedTaskDetail(task)}
             >
-              <div className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">{task.title}</div>
+              <div className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors max-w-[250px] overflow-hidden truncate" title={task.title}>{task.title}</div>
               <div className="text-xs text-slate-400 line-clamp-1 max-w-[200px] mt-0.5">{task.description || 'No description'}</div>
             </TableCell>
             <TableCell className="py-4">
               <Badge variant="secondary" className="text-xs font-medium">{task.project_name}</Badge>
             </TableCell>
             <TableCell className="py-4">
-              <Badge 
+              <Badge
                 variant={
-                  task.priority === 'Urgent' ? 'default' : 
-                  task.priority === 'High' ? 'warning' : 
-                  task.priority === 'Medium' ? 'primary' : 
-                  'secondary'
-                } 
+                  task.priority === 'Urgent' ? 'default' :
+                    task.priority === 'High' ? 'warning' :
+                      task.priority === 'Medium' ? 'primary' :
+                        'secondary'
+                }
                 className={
                   task.priority === 'Urgent'
                     ? 'text-xs font-medium bg-rose-100 text-rose-700 border-none'
@@ -52,17 +52,17 @@ const MyPipelineTab = ({
                 {task.priority || 'Medium'}
               </Badge>
             </TableCell>
-            <TableCell className="py-4">
+            {/* <TableCell className="py-4">
               <div className="flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-xs font-medium text-slate-600">{task.story_points || 0} pts</span>
               </div>
-            </TableCell>
+            </TableCell> */}
             <TableCell className="py-4">
               {task.status === 'Pending' && (
-                <Button 
-                  size="sm" 
-                  variant="outline" 
+                <Button
+                  size="sm"
+                  variant="outline"
                   className="h-7 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
                   onClick={() => handleUpdateTask(task.id, { status: 'In Progress' })}
                   disabled={updatingTaskId === task.id}
@@ -71,8 +71,8 @@ const MyPipelineTab = ({
                 </Button>
               )}
               {task.status === 'In Progress' && (
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="h-7 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => handleUpdateTask(task.id, { status: 'Completed' })}
                   disabled={updatingTaskId === task.id}

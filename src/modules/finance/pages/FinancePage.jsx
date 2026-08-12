@@ -677,7 +677,7 @@ const FinancePage = () => {
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('All');
   const [chartData, setChartData] = useState([
     { name: 'Revenue', value: 0, color: '#3b82f6' },
-    { name: 'Expense', value: 0, color: '#ef4444' },
+    { name: 'Expense', value: 0, color: '#f59e0b' },
     { name: 'Profit', value: 0, color: '#10b981' },
   ]);
 
@@ -690,15 +690,17 @@ const FinancePage = () => {
     }
 
     if (data) {
+      const profitVal = data.profit || 0;
+      const isLoss = profitVal < 0;
       setChartData([
         { name: 'Revenue', value: data.revenue || 0, color: '#3b82f6' },
-        { name: 'Expense', value: data.expenses || 0, color: '#ef4444' },
-        { name: 'Profit', value: data.profit || 0, color: '#10b981' },
+        { name: 'Expense', value: data.expenses || 0, color: '#f59e0b' },
+        { name: isLoss ? 'Loss' : 'Profit', value: profitVal, color: isLoss ? '#ef4444' : '#10b981' },
       ]);
     } else {
       setChartData([
         { name: 'Revenue', value: 0, color: '#3b82f6' },
-        { name: 'Expense', value: 0, color: '#ef4444' },
+        { name: 'Expense', value: 0, color: '#f59e0b' },
         { name: 'Profit', value: 0, color: '#10b981' },
       ]);
     }
@@ -904,7 +906,14 @@ const FinancePage = () => {
       const formData = new FormData();
       formData.append('status', data.status);
       if (data.notes) formData.append('payment_notes', data.notes);
-      if (data.proof) formData.append('proof', data.proof);
+      if (data.proofs && data.proofs.length > 0) {
+        data.proofs.forEach(file => {
+          formData.append('proofs', file);
+          formData.append('proof', file);
+        });
+      } else if (data.proof) {
+        formData.append('proof', data.proof);
+      }
 
       await axios.patch(`/finance/invoices/${id}/status`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -947,20 +956,17 @@ const FinancePage = () => {
     e.preventDefault();
     setIsSubmitting(true);
     const formData = new FormData(e.target);
-    const payload = Object.fromEntries(formData);
 
     try {
-      await axios.post('/finance/expenses', {
-        ...payload,
-        amount: parseFloat(payload.amount),
-        project_id: payload.project_id || null
+      await axios.post('/finance/expenses', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       toast.success('Expense recorded');
       setShowExpenseModal(false);
       fetchExpenses();
       fetchFinanceData();
     } catch (err) {
-      toast.error('Failed to record expense');
+      toast.error(err.response?.data?.message || 'Failed to record expense');
     } finally {
       setIsSubmitting(false);
     }
@@ -1200,6 +1206,7 @@ const FinancePage = () => {
             currencies={CURRENCIES}
             categories={expenseCategories}
             onCategoriesChange={setExpenseCategories}
+            fileBaseUrl={FILE_BASE_URL}
           />
         )}
 

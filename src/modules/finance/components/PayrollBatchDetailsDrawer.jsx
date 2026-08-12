@@ -197,7 +197,7 @@ const PayrollBatchDetailsDrawer = ({
                       const unpaidLeavesNum = parseFloat(emp.unpaid_leaves || 0);
                       const daysAdjNum = parseFloat(emp.days_adjustment || 0);
                       const actualWorkedDays = emp.worked_days !== undefined && emp.worked_days !== null && emp.worked_days !== ''
-                        ? Math.max(0, parseFloat(emp.worked_days) + daysAdjNum)
+                        ? Math.max(0, parseFloat(emp.worked_days))
                         : Math.max(0, activeDaysNum - unpaidLeavesNum + daysAdjNum);
 
                       return (
@@ -215,7 +215,7 @@ const PayrollBatchDetailsDrawer = ({
                             </div>
                           </td>
 
-                          {/* Worked Days (Actual Worked Days = Active Days - Unpaid Leaves + Adjustments) */}
+                          {/* Worked Days */}
                           <td className="py-3.5 px-3 text-center font-mono font-bold text-slate-700">
                             {actualWorkedDays}
                           </td>

@@ -174,7 +174,22 @@ const InvoicesTab = ({
                           <FileText className="w-3 h-3" /> VIEW PDF
                         </a>
                       )}
-                      {inv.payment_proof_url && (
+                      {inv.payment_proof_urls && inv.payment_proof_urls.length > 0 ? (
+                        <div className="flex flex-col gap-1 mt-1">
+                          {inv.payment_proof_urls.map((proofUrl, idx) => (
+                            <a
+                              key={idx}
+                              href={resolveFileUrl(proofUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="w-3 h-3 shrink-0" />
+                              <span>{inv.payment_proof_urls.length > 1 ? `PROOF #${idx + 1}` : 'VIEW PROOF'}</span>
+                            </a>
+                          ))}
+                        </div>
+                      ) : inv.payment_proof_url ? (
                         <a
                           href={resolveFileUrl(inv.payment_proof_url)}
                           target="_blank"
@@ -183,7 +198,7 @@ const InvoicesTab = ({
                         >
                           <CheckCircle2 className="w-3 h-3" /> VIEW PROOF
                         </a>
-                      )}
+                      ) : null}
                     </TableCell>
                     <TableCell className="py-5">
                       <div className="text-sm font-semibold text-slate-900">{inv.client_name || 'Vendor'}</div>

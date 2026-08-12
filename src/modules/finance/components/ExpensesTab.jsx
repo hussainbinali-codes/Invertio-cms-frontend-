@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import PremiumCard from '../../../components/ui/PremiumCard';
 import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
-import { Search, TrendingDown, Tag } from 'lucide-react';
+import { Search, TrendingDown, Tag, FileText } from 'lucide-react';
 import CategoryManagerModal from './CategoryManagerModal';
 
 const ExpensesTab = ({
@@ -13,9 +13,15 @@ const ExpensesTab = ({
   setExpenseCategoryFilter,
   currencies,
   categories = [],
-  onCategoriesChange
+  onCategoriesChange,
+  fileBaseUrl
 }) => {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+
+  const resolveFileUrl = (url) => {
+    if (!url) return null;
+    return url.startsWith('http') ? url : `${fileBaseUrl || ''}${url}`;
+  };
 
   // Derive unique categories from categories prop or expenses list
   const categoryOptions = React.useMemo(() => {
@@ -82,11 +88,12 @@ const ExpensesTab = ({
                   <TableHead className="py-4">Description</TableHead>
                   <TableHead className="py-4">Amount</TableHead>
                   <TableHead className="py-4">Date</TableHead>
+                  <TableHead className="py-4">Proof / Document</TableHead>
                 </TableRow>
               </TableHeader>
               <tbody>
                 {filteredExpenses.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="h-24 text-center text-slate-500">No expenses found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="h-24 text-center text-slate-500">No expenses found.</TableCell></TableRow>
                 ) : (
                   filteredExpenses.map(exp => (
                     <TableRow key={exp.id}>
@@ -98,6 +105,20 @@ const ExpensesTab = ({
                         {exp.amount?.toLocaleString()}
                       </TableCell>
                       <TableCell className="py-5 text-sm font-normal text-slate-500 font-mono">{new Date(exp.date).toLocaleDateString()}</TableCell>
+                      <TableCell className="py-5">
+                        {exp.document_url ? (
+                          <a
+                            href={resolveFileUrl(exp.document_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] font-bold text-primary-600 hover:underline inline-flex items-center gap-1 bg-primary-50 px-2.5 py-1 rounded-md border border-primary-100"
+                          >
+                            <FileText className="w-3.5 h-3.5" /> VIEW PROOF
+                          </a>
+                        ) : (
+                          <span className="text-[10px] font-medium text-slate-400">—</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

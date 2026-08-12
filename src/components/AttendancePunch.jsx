@@ -62,9 +62,9 @@ const AttendancePunch = ({
     );
 
   return (
-    <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-1">
-      <div className="bg-white p-4 rounded-[calc(1rem)] border border-slate-200/25 shadow-sm text-center">
-        <div className="mb-3">
+    <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-0.5">
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200/25 shadow-sm text-center">
+        <div className="mb-2">
           <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
             <Clock className="w-2.5 h-2.5 text-blue-600" />
             Live Time
@@ -77,7 +77,7 @@ const AttendancePunch = ({
               timeZone: "Asia/Kolkata",
             })}
           </p>
-          <p className="text-xs font-medium text-slate-500 mt-1.5">
+          <p className="text-xs font-medium text-slate-500 mt-1">
             {currentTime.toLocaleDateString("en-IN", {
               weekday: "short",
               month: "short",
@@ -87,7 +87,7 @@ const AttendancePunch = ({
           </p>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
             <Button
               onClick={handlePunchButtonClick}

@@ -201,7 +201,8 @@ const TasksPage = () => {
       }
 
       if (allTasksResIndex > -1) {
-        setAllTasks(results[allTasksResIndex].data.data || []);
+        const rawTasks = results[allTasksResIndex].data.data || [];
+        setAllTasks(Array.isArray(rawTasks) ? rawTasks : (rawTasks.items || []));
       }
 
       setLoading(false);
@@ -236,7 +237,7 @@ const TasksPage = () => {
       toast.success('Task updated successfully');
       fetchData();
     } catch (err) {
-      toast.error('Failed to update task');
+      toast.error(err.response?.data?.message || 'Failed to update task');
     } finally {
       setUpdatingTaskId(null);
     }
@@ -273,7 +274,7 @@ const TasksPage = () => {
       setTaskToComplete(null);
       fetchData();
     } catch (err) {
-      toast.error('Failed to submit completion proof');
+      toast.error(err.response?.data?.message || 'Failed to submit completion proof');
     } finally {
       setIsSubmittingProof(false);
     }
@@ -328,7 +329,7 @@ const TasksPage = () => {
       estimated_start_date: formData.get('estimated_start_date') || undefined,
       estimated_end_date: formData.get('estimated_end_date') || undefined,
       estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : undefined,
-      due_date: formData.get('estimated_end_date') || undefined, // Sync due_date with estimated_end_date
+      due_date: formData.get('due_date') || formData.get('estimated_end_date') || undefined,
 
       template_data: {
         business_objective: formData.get('business_objective') || '',
@@ -387,7 +388,7 @@ const TasksPage = () => {
       setSelectedFiles([]);
       fetchData();
     } catch (err) {
-      // Handled by global interceptor
+      // Handled by central axios interceptor
     } finally {
       setIsSubmitting(false);
     }
@@ -417,12 +418,12 @@ const TasksPage = () => {
       </div>
 
       {/* KPI Stats Grid in Double-Bezel nested wrapper */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         <KpiCard title="Total Backlog" value={stats.pending} icon={CheckSquare} subtext="Pending items" />
         <KpiCard title="In Progress" value={stats.in_progress} icon={TrendingUp} subtext="Active items" />
         <KpiCard title="Completed" value={stats.completed} icon={CheckCircle2} subtext="Resolved tasks" />
         <KpiCard title="Overdue" value={stats.overdue} icon={AlertTriangle} subtext="Critical attention" />
-        <KpiCard title="Backlog Velocity" value={stats.total_points || 0} icon={Target} subtext="Total story points" />
+        {/* <KpiCard title="Backlog Velocity" value={stats.total_points || 0} icon={Target} subtext="Total story points" /> */}
         <KpiCard title="Completed Pts" value={stats.completed_points || 0} icon={TrendingUp} subtext="Delivered value" />
       </div>
 

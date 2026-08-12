@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 
-export const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
+export const KpiCard = ({ title, value, icon: Icon, subtext, trend, valueClassName, iconClassName }) => {
   return (
     <div className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 hover:bg-slate-200/60 active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group hover:-translate-y-0.5 flex-1 min-w-0">
       <div className="bg-white p-5 rounded-[calc(1.75rem-0.375rem)] border border-slate-200/25 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_8px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between text-left">
@@ -11,7 +11,7 @@ export const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
               {title}
             </span>
             {Icon && (
-              <div className="p-2 bg-slate-50 border border-slate-100/60 rounded-xl group-hover:scale-105 transition-transform duration-300">
+              <div className={cn("p-2 bg-slate-50 border border-slate-100/60 rounded-xl group-hover:scale-105 transition-transform duration-300", iconClassName)}>
                 <Icon className="w-3.5 h-3.5 text-slate-500" />
               </div>
             )}
@@ -19,7 +19,7 @@ export const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
           
           <div className="mt-3 min-w-0">
             <span 
-              className="text-2xl 2xl:text-3xl font-bold text-slate-800 tracking-tight font-mono block truncate" 
+              className={cn("text-2xl 2xl:text-3xl font-bold text-slate-800 tracking-tight font-mono block truncate", valueClassName)} 
               title={typeof value === 'string' || typeof value === 'number' ? value : ''}
             >
               {value}

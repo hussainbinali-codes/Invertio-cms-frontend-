@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Textarea from '../../../components/ui/Textarea';
 import Button from '../../../components/ui/Button';
@@ -15,22 +15,49 @@ const InvoiceStatusModal = ({
   invoiceNumber
 }) => {
   const [notes, setNotes] = useState('');
-  const [proofFile, setProofFile] = useState(null);
+  const [proofFiles, setProofFiles] = useState([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setNotes('');
+      setProofFiles([]);
+    }
+  }, [isOpen, invoiceNumber]);
 
   useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    setNotes('');
+    setProofFiles([]);
+    onClose();
+  };
+
   // The proof is only required if we are transitioning TO 'Paid' from a different status.
   const isTransitioningToPaid = targetStatus === 'Paid' && currentStatus !== 'Paid';
-  const isValid = !isTransitioningToPaid || (notes.trim() !== '' && proofFile !== null);
+  const isValid = !isTransitioningToPaid || (notes.trim() !== '' && proofFiles.length > 0);
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFiles = Array.from(e.target.files);
+      setProofFiles((prev) => [...prev, ...selectedFiles]);
+    }
+    e.target.value = null;
+  };
+
+  const handleRemoveFile = (index) => {
+    setProofFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = () => {
     if (isTransitioningToPaid && !isValid) return;
     onConfirm({
       status: targetStatus,
       notes,
-      proof: proofFile
+      proofs: proofFiles,
+      proof: proofFiles[0] || null
     });
+    handleClose();
   };
 
   return (
@@ -44,7 +71,7 @@ const InvoiceStatusModal = ({
             </CardTitle>
             <p className="text-xs text-slate-500 mt-1">Changing {invoiceNumber} to <span className="font-bold text-primary-600">{targetStatus}</span></p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200">
+          <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200">
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
@@ -72,37 +99,44 @@ const InvoiceStatusModal = ({
               <input
                 type="file"
                 id="invoice-proof-input"
+                multiple
                 className="hidden"
-                onChange={(e) => setProofFile(e.target.files[0])}
+                onChange={handleFileChange}
               />
               <Button
                 variant="outline"
-                className={`w-full h-12 border-dashed border-2 bg-slate-50/50 hover:bg-slate-50 ${isTransitioningToPaid && !proofFile ? 'border-rose-200' : 'border-slate-200'}`}
+                type="button"
+                className={`w-full h-12 border-dashed border-2 bg-slate-50/50 hover:bg-slate-50 ${isTransitioningToPaid && proofFiles.length === 0 ? 'border-rose-200' : 'border-slate-200'}`}
                 onClick={() => document.getElementById('invoice-proof-input').click()}
               >
-                <UploadCloud className={`w-5 h-5 mr-2 ${isTransitioningToPaid && !proofFile ? 'text-rose-500' : 'text-primary-600'}`} />
-                {proofFile ? proofFile.name : "Upload Payment Receipt/Proof"}
+                <UploadCloud className={`w-5 h-5 mr-2 ${isTransitioningToPaid && proofFiles.length === 0 ? 'text-rose-500' : 'text-primary-600'}`} />
+                {proofFiles.length > 0 ? `Add More Files (${proofFiles.length} selected)` : "Upload Payment Receipt/Proof (Multiple allowed)"}
               </Button>
-              {isTransitioningToPaid && !proofFile && (
+              {isTransitioningToPaid && proofFiles.length === 0 && (
                 <p className="text-[10px] text-rose-500 font-bold italic">Payment proof document is required.</p>
               )}
 
-              {proofFile && (
-                <div className="flex items-center justify-between bg-primary-50 px-3 py-2 rounded-lg text-[10px] font-bold text-primary-700 border border-primary-100">
-                  <div className="flex items-center gap-2 truncate">
-                    <FileText className="w-3.5 h-3.5" />
-                    <span className="truncate">{proofFile.name}</span>
-                  </div>
-                  <button onClick={() => setProofFile(null)}>
-                    <X className="w-3 h-3 hover:text-rose-500" />
-                  </button>
+              {proofFiles.length > 0 && (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {proofFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-primary-50 px-3 py-2 rounded-lg text-[10px] font-bold text-primary-700 border border-primary-100">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{file.name}</span>
+                        <span className="text-[9px] text-slate-400 shrink-0">({(file.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                      <button type="button" onClick={() => handleRemoveFile(idx)} className="p-0.5 hover:text-rose-500 transition-colors">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-slate-50">
-            <Button variant="ghost" className="flex-1" onClick={onClose}>
+            <Button variant="ghost" className="flex-1" onClick={handleClose}>
               Cancel
             </Button>
             <Button
@@ -116,8 +150,6 @@ const InvoiceStatusModal = ({
         </CardContent>
       </Card>
     </div>
-
-
   );
 };
 
