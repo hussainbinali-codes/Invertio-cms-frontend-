@@ -77,28 +77,7 @@ const STAGE_PERMISSION_KEY = {
   "Customer": "tab.customer",
 };
 
-const getPermittedStages = () => {
-  const userStr = localStorage.getItem("user");
-  if (!userStr) return STAGES;
-
-  try {
-    const user = JSON.parse(userStr);
-    const role = (user.role_name || "").toLowerCase();
-    if (role === "super admin" || role === "admin" || role === "administrator") {
-      return STAGES;
-    }
-
-    const campaignModules = user.modules?.campaigns || {};
-    const hasAnyTabKey = Object.keys(campaignModules).some((k) => k.startsWith("tab."));
-    if (!hasAnyTabKey) return STAGES;
-
-    return STAGES.filter(
-      (stage) => campaignModules[STAGE_PERMISSION_KEY[stage]] === true
-    );
-  } catch {
-    return STAGES;
-  }
-};
+const getPermittedStages = () => STAGES;
 
 // Premium Double-Bezel KPI Card
 const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
@@ -275,12 +254,11 @@ const CampaignsPage = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("/users?limit=1000");
-      const payload = res.data?.data || res.data || {};
-      const userList = Array.isArray(payload.items)
-        ? payload.items
-        : Array.isArray(payload)
-        ? payload
+      const res = await axios.get("/users/selection");
+      const userList = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
         : [];
       setUsers(userList);
     } catch (error) {

@@ -185,8 +185,26 @@ const UsersPage = () => {
     setSelectedUser(user);
     setIsEditing(true);
     setSelectedSkills(user.skills || []);
-    setPages(user.permissions_json || {});
-    setModules(user.module_permissions || {});
+    const userPages = { ...(user.permissions_json || {}) };
+    const userModules = { ...(user.module_permissions || {}) };
+
+    // Auto-populate pipeline tab access when campaigns is selected/enabled
+    if (userPages.campaigns || userModules.campaigns) {
+      const campTabs = ["tab.data", "tab.prospect", "tab.lead", "tab.qualified_lead", "tab.customer"];
+      userModules.campaigns = {
+        view: true,
+        ...(userModules.campaigns || {}),
+      };
+      const hasAnyCampTab = campTabs.some((t) => userModules.campaigns[t] !== undefined);
+      if (!hasAnyCampTab) {
+        campTabs.forEach((t) => {
+          userModules.campaigns[t] = true;
+        });
+      }
+    }
+
+    setPages(userPages);
+    setModules(userModules);
     setShowAddModal(true);
   };
 

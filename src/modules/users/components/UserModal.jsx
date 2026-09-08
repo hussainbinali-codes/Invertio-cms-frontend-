@@ -168,13 +168,6 @@ const UserModal = ({
         { key: "documents.delete", label: "Delete Documents" },
         { key: "export", label: "Export Campaign Data (Excel)" },
       ],
-      tabs: [
-        { key: "tab.data", label: "Data" },
-        { key: "tab.prospect", label: "Prospect" },
-        { key: "tab.lead", label: "Lead" },
-        { key: "tab.qualified_lead", label: "Qualified Lead" },
-        { key: "tab.customer", label: "Customer" },
-      ],
     },
     {
       id: "resources",
@@ -435,9 +428,10 @@ const UserModal = ({
                               const isChecked = e.target.checked;
                               setPages({ ...pages, [mod.id]: isChecked });
 
-                              if (isChecked && !modules[mod.id]) {
-                                const defaults = { view: true };
-                                // Auto-enable all tab permissions when Clients is toggled on
+                              if (isChecked) {
+                                const current = modules[mod.id] || {};
+                                const defaults = { view: true, ...current };
+                                // Auto-enable all pipeline tab permissions when module is toggled on
                                 if (mod.tabs) {
                                   mod.tabs.forEach((tab) => {
                                     defaults[tab.key] = true;
