@@ -6,11 +6,20 @@ import { X, Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertCircl
 import toast from "react-hot-toast";
 import { downloadImportTemplate, importLeads } from "../../../api/campaignsApi";
 
+const CAMPAIGN_TYPES = [
+  "Cold Outreach",
+  "LinkedIn",
+  "Other",
+  "Event",
+  "Email Campaign"
+];
+
 const ImportLeadsModal = ({ isOpen, onClose, onSuccess, campaigns = [] }) => {
   useLockBodyScroll(isOpen);
 
   const [file, setFile] = useState(null);
-  const [defaultCampaignId, setDefaultCampaignId] = useState("");
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [campaignType, setCampaignType] = useState("Cold Outreach");
   const [loading, setLoading] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [resultSummary, setResultSummary] = useState(null);
@@ -36,6 +45,20 @@ const ImportLeadsModal = ({ isOpen, onClose, onSuccess, campaigns = [] }) => {
     }
   };
 
+  const handleCampaignSelectChange = (e) => {
+    const val = e.target.value;
+    setSelectedCampaignId(val);
+    if (val) {
+      const found = campaigns.find((c) => String(c.id) === String(val));
+      if (found && found.type) {
+        const matchedType = CAMPAIGN_TYPES.find(
+          (t) => t.toLowerCase() === found.type.toLowerCase()
+        );
+        setCampaignType(matchedType || found.type);
+      }
+    }
+  };
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
@@ -44,16 +67,28 @@ const ImportLeadsModal = ({ isOpen, onClose, onSuccess, campaigns = [] }) => {
 
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
+    if (!selectedCampaignId) {
+      toast.error("Please select a campaign from the dropdown to proceed.");
+      return;
+    }
+    if (!campaignType) {
+      toast.error("Please select a campaign type.");
+      return;
+    }
     if (!file) {
       toast.error("Please select an Excel or CSV file to import.");
       return;
     }
 
+    const selectedCampaign = campaigns.find((c) => String(c.id) === String(selectedCampaignId));
+
     const formData = new FormData();
     formData.append("file", file);
-    if (defaultCampaignId) {
-      formData.append("default_campaign_id", defaultCampaignId);
+    formData.append("default_campaign_id", selectedCampaignId);
+    if (selectedCampaign) {
+      formData.append("campaign_name", selectedCampaign.name);
     }
+    formData.append("campaign_type", campaignType);
 
     try {
       setLoading(true);
@@ -70,7 +105,8 @@ const ImportLeadsModal = ({ isOpen, onClose, onSuccess, campaigns = [] }) => {
 
   const handleClose = () => {
     setFile(null);
-    setDefaultCampaignId("");
+    setSelectedCampaignId("");
+    setCampaignType("Cold Outreach");
     setResultSummary(null);
     onClose();
   };
@@ -105,7 +141,7 @@ const ImportLeadsModal = ({ isOpen, onClose, onSuccess, campaigns = [] }) => {
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">Need the correct column format?</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">Download sample template with pre-formatted headers.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Download sample template (Data Source and Campaign Name are defined below).</p>
                 </div>
                 <Button
                   type="button"
@@ -120,25 +156,49 @@ const ImportLeadsModal = ({ isOpen, onClose, onSuccess, campaigns = [] }) => {
                 </Button>
               </div>
 
-              {/* Default Campaign Selector */}
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                  Default Campaign (Optional)
-                </label>
-                <select
-                  value={defaultCampaignId}
-                  onChange={(e) => setDefaultCampaignId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  <option value="">No Campaign (Import into Data Stage)</option>
-                  {campaigns.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.type || "General"}) — Import to Prospect Stage
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Note: If your Excel sheet contains a <strong>Campaign Name</strong> column, matching records will automatically move to the <strong>Prospect</strong> stage under that campaign.
+              {/* Campaign Definition (Select Campaign & Type) */}
+              <div className="space-y-3 p-4 bg-slate-50/80 rounded-xl border border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
+                      Select Campaign <span className="text-emerald-600 font-bold">*</span>
+                    </label>
+                    <select
+                      value={selectedCampaignId}
+                      onChange={handleCampaignSelectChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      required
+                    >
+                      <option value="">-- Select Campaign --</option>
+                      {campaigns.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.type || "General"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
+                      Campaign Type <span className="text-emerald-600 font-bold">*</span>
+                    </label>
+                    <select
+                      value={campaignType}
+                      onChange={(e) => setCampaignType(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      required
+                    >
+                      <option value="Cold Outreach">Cold Outreach</option>
+                      <option value="LinkedIn">LinkedIn</option>
+                      <option value="Other">Other</option>
+                      <option value="Event">Event</option>
+                      <option value="Email Campaign">Email Campaign</option>
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  Select a campaign to import leads into. A campaign must be selected from the dropdown to proceed.
                 </p>
               </div>
 
@@ -163,7 +223,7 @@ const ImportLeadsModal = ({ isOpen, onClose, onSuccess, campaigns = [] }) => {
                 <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!file || loading} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Button type="submit" disabled={!file || !selectedCampaignId || loading} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Start Import
                 </Button>

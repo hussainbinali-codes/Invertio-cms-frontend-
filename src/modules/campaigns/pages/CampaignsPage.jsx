@@ -69,6 +69,14 @@ const ConfirmationModal = lazy(
 
 const STAGES = ["Data", "Prospect", "Lead", "Qualified Lead", "Customer"];
 
+const CAMPAIGN_TYPES = [
+  "Cold Outreach",
+  "LinkedIn",
+  "Other",
+  "Event",
+  "Email Campaign"
+];
+
 const STAGE_PERMISSION_KEY = {
   "Data": "tab.data",
   "Prospect": "tab.prospect",
@@ -163,7 +171,7 @@ const CampaignsPage = () => {
   const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
 
   // Filters state
-  const [sourceFilter, setSourceFilter] = useState("All");
+  const [campaignTypeFilter, setCampaignTypeFilter] = useState("All");
   const [stageFilter, setStageFilter] = useState("All");
 
   // Prospect Filters state
@@ -217,7 +225,7 @@ const CampaignsPage = () => {
   }, [
     activeTab,
     selectedCampaignId,
-    sourceFilter,
+    campaignTypeFilter,
     stageFilter,
     prospectAssignedFilter,
     prospectResponseFilter,
@@ -275,7 +283,7 @@ const CampaignsPage = () => {
         params.campaign_id = selectedCampaignId;
       }
       if (activeTab === "Data") {
-        if (sourceFilter && sourceFilter !== "All") params.source = sourceFilter;
+        if (campaignTypeFilter && campaignTypeFilter !== "All") params.campaign_type = campaignTypeFilter;
         if (stageFilter && stageFilter !== "All") params.stage_filter = stageFilter;
       }
       if (activeTab === "Prospect") {
@@ -434,7 +442,22 @@ const CampaignsPage = () => {
     setShowMoveModal(true);
   };
 
+  const getLeadCampaignType = (item) => {
+    return (
+      item.campaign_type ||
+      campaigns.find((c) => String(c.id) === String(item.campaign_id))?.type ||
+      item.campaign?.type ||
+      ""
+    );
+  };
+
   const filteredLeads = leads.filter((item) => {
+    if (activeTab === "Data" && campaignTypeFilter !== "All") {
+      const cType = getLeadCampaignType(item);
+      if (cType && cType.toLowerCase() !== campaignTypeFilter.toLowerCase()) {
+        return false;
+      }
+    }
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -602,18 +625,20 @@ const CampaignsPage = () => {
               />
             </div>
 
-            {/* Source & Stage Filters for Data Tab */}
+            {/* Campaign Type & Stage Filters for Data Tab */}
             {activeTab === "Data" && (
               <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
                 <select
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
+                  value={campaignTypeFilter}
+                  onChange={(e) => setCampaignTypeFilter(e.target.value)}
                   className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                 >
-                  <option value="All">All Sources</option>
-                  <option value="Reference">Reference</option>
-                  <option value="Online">Online</option>
-                  <option value="Excel Import">Excel Import</option>
+                  <option value="All">All Campaign Types</option>
+                  {CAMPAIGN_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
                 </select>
 
                 <select
@@ -774,7 +799,7 @@ const CampaignsPage = () => {
                         <TableHead>DESIGNATION</TableHead>
                         <TableHead>CONTACT INFO</TableHead>
                         <TableHead>LOCATION & INDUSTRY</TableHead>
-                        <TableHead>SOURCE</TableHead>
+                        <TableHead>CAMPAIGN TYPE</TableHead>
                       </>
                     )}
 
@@ -877,7 +902,15 @@ const CampaignsPage = () => {
                             <div>{item.country || "N/A"}</div>
                             <div className="text-slate-400 text-[11px]">{item.industry || ""}</div>
                           </TableCell>
-                          <TableCell className="text-xs text-slate-700">{item.source || "N/A"}</TableCell>
+                          <TableCell className="text-xs">
+                            {getLeadCampaignType(item) ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-50 text-primary-700 border border-primary-100">
+                                {getLeadCampaignType(item)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">N/A</span>
+                            )}
+                          </TableCell>
                         </>
                       )}
 
@@ -1317,6 +1350,7 @@ const CampaignsPage = () => {
           setSelectedCampaignId(campaign.id);
           refreshAll();
         }}
+        createOnly={true}
       />
 
       <ImportLeadsModal

@@ -211,19 +211,6 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
                     <option value="Manufacturing">Manufacturing</option>
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Data Source</label>
-                  <select
-                    name="source"
-                    value={formData.source}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-                  >
-                    <option value="">-- Select Data Source --</option>
-                    <option value="Reference">Reference</option>
-                    <option value="Online">Online</option>
-                  </select>
-                </div>
               </div>
             </div>
 
