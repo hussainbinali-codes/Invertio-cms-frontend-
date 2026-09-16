@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import axios from "../api/axios";
-import NotificationDropdown from "../components/NotificationDropdown";
-import UserDropdown from "../components/UserDropdown";
+import SidebarNotification from "../components/SidebarNotification";
+import SidebarProfile from "../components/SidebarProfile";
 import AttendancePunch from "../components/AttendancePunch";
 import {
   LocationAccessDialog,
@@ -407,14 +407,13 @@ const DashboardLayout = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between no-scrollbar">
-          <nav className="px-3 py-2.5 space-y-1 no-scrollbar">
+        <div className={cn("flex-1 flex flex-col justify-between no-scrollbar", isSidebarCollapsed ? "lg:overflow-visible overflow-y-auto" : "overflow-y-auto overscroll-contain")}>
+          <nav className={cn("px-3 py-2.5 space-y-1 no-scrollbar", isSidebarCollapsed && "lg:overflow-visible")}>
             {filteredNavItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 onClick={() => setIsSidebarOpen(false)}
-                title={isSidebarCollapsed ? item.label : ""}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 group relative",
@@ -451,10 +450,33 @@ const DashboardLayout = () => {
                         )}
                       />
                     )}
+
+                    {/* Styled Floating Tooltip on Hover when Collapsed */}
+                    {isSidebarCollapsed && (
+                      <div className="hidden lg:block absolute left-full top-1/2 -translate-y-1/2 ml-3.5 pointer-events-none z-50 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150 ease-out">
+                        <div className="relative flex items-center">
+                          <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mr-1 shadow-xs" />
+                          <div className="bg-slate-900/95 text-white text-xs font-semibold px-2.5 py-1 rounded-lg shadow-xl border border-slate-800 whitespace-nowrap tracking-wide">
+                            {item.label}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </NavLink>
             ))}
+
+            {/* Notification in Navigation Space */}
+            <SidebarNotification isCollapsed={isSidebarCollapsed} />
+
+            {/* Profile with Option 1 Popover in Navigation Space */}
+            <SidebarProfile
+              user={user}
+              onLogout={handleLogout}
+              isCollapsed={isSidebarCollapsed}
+              onMobileClose={() => setIsSidebarOpen(false)}
+            />
           </nav>
 
           <div
@@ -533,33 +555,17 @@ const DashboardLayout = () => {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 glass-effect sticky top-0 flex items-center justify-between px-4 sm:px-8 z-30 shadow-sm shadow-slate-200/20">
-          <div className="flex items-center gap-4">
-            <button
-              className="lg:hidden p-2.5 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl shadow-sm border border-slate-100 transition-all active:scale-95"
-              onClick={() => setIsSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          </div>
+        {/* Mobile Hamburger (Only visible on mobile screens where sidebar is hidden) */}
+        <button
+          className="lg:hidden fixed top-3 left-3 z-40 p-2 text-slate-600 bg-white/95 backdrop-blur-md rounded-xl shadow-md border border-slate-200 transition-all active:scale-95"
+          onClick={() => setIsSidebarOpen(true)}
+          title="Open Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden xs:flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold text-slate-500 rounded-full border border-emerald-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse" />
-              Online
-            </div>
-
-            <div className="h-8 w-px bg-slate-200 mx-1 hidden sm:block" />
-
-            <div className="flex items-center gap-1.5 sm:gap-3">
-              <NotificationDropdown />
-              <UserDropdown user={user} onLogout={handleLogout} />
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50">
-          <div className="p-4 sm:p-6 lg:p-6 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50 flex flex-col">
+          <div className="p-3 sm:p-4 lg:p-5 w-full flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />
           </div>
         </main>

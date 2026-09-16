@@ -74,10 +74,10 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1 rounded-[1.5rem] border border-slate-200/10", className)}>
-      <div className="bg-white rounded-[calc(1.5rem-0.25rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-visible h-full flex flex-col">
+    <div className={cn("bg-slate-200/30 p-1 rounded-[1.5rem] border border-slate-200/10 flex-1 h-full flex flex-col min-h-0", className)}>
+      <div className="bg-white rounded-[calc(1.5rem-0.25rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-visible flex-1 h-full flex flex-col min-h-0">
         {(title || subtitle) && (
-          <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+          <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 shrink-0">
             <div className="flex items-center gap-2.5">
               {Icon && (
                 <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100 shrink-0">
@@ -96,7 +96,7 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
             )}
           </div>
         )}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 h-full flex flex-col min-h-0">
           {children}
         </div>
       </div>
@@ -486,17 +486,42 @@ const AttendancePage = () => {
     return `${vClass} ${hClass}`;
   };
 
+  const getAttHours = (attRecord) => {
+    if (!attRecord || !attRecord.check_in) return "8 h";
+    if (!attRecord.check_out) {
+      const todayStr = getKolkataToday();
+      const dateKey = parseDbDateKey(attRecord.date || attRecord.check_in);
+      if (dateKey === todayStr) {
+        const checkInTime = new Date(attRecord.check_in).getTime();
+        const nowTime = new Date().getTime();
+        const diffHours = (nowTime - checkInTime) / (1000 * 60 * 60);
+        if (diffHours > 0 && diffHours < 24) {
+          const rounded = Math.round(diffHours * 10) / 10;
+          return `${rounded} h`;
+        }
+      }
+      return "8 h";
+    }
+    const diffMs = new Date(attRecord.check_out).getTime() - new Date(attRecord.check_in).getTime();
+    if (diffMs > 0) {
+      const hours = diffMs / (1000 * 60 * 60);
+      const rounded = Math.round(hours * 10) / 10;
+      return `${rounded} h`;
+    }
+    return "8 h";
+  };
+
   const getCardClasses = (d, index, isToday, customClass = "") => {
-    const baseClasses = "relative group flex flex-col justify-between min-h-[46px] sm:min-h-[56px] md:min-h-[64px] p-1 sm:p-1.5 border rounded-lg sm:rounded-xl transition-all duration-300 md:hover:shadow-md md:hover:scale-[1.02] cursor-pointer md:hover:z-50";
-    const activeClass = isToday ? "ring-2 ring-blue-500/80 bg-blue-50/20 border-blue-200 shadow-md md:hover:shadow-lg" : "";
+    const baseClasses = "relative group flex flex-col justify-between h-full min-h-0 p-2 sm:p-2.5 transition-all duration-150 cursor-pointer overflow-hidden";
+    const activeClass = isToday ? "bg-blue-50/20" : "";
 
     if (customClass) {
       return `${baseClasses} ${customClass} ${activeClass}`;
     }
 
     const defaultMonthClass = d.isCurrentMonth
-      ? "bg-white border-slate-100 md:hover:border-slate-200/80 shadow-sm"
-      : "border-slate-50/40 opacity-40 bg-slate-50/50 text-slate-400";
+      ? "bg-white hover:bg-slate-50/70"
+      : "bg-slate-50/40 opacity-40 text-slate-400";
 
     return `${baseClasses} ${defaultMonthClass} ${activeClass}`;
   };
@@ -639,10 +664,10 @@ const AttendancePage = () => {
   const selectedDetail = selectedDay !== null ? getDayDetail(calendarDays[selectedDay], selectedDay) : null;
 
   return (
-    <div className="space-y-2 max-w-[1400px] mx-auto py-0 px-2 sm:px-4 lg:px-0">
+    <div className="flex-1 h-full min-h-0 flex flex-col w-full pt-0 pb-4 sm:pb-6 px-1 sm:px-2 gap-2 overflow-hidden">
 
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
         <div>
           <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
             {getPageTitle()}
@@ -706,6 +731,7 @@ const AttendancePage = () => {
 
       {/* Full-width Calendar with inline KPI strip */}
       <PremiumCard
+        className="flex-1 h-full flex flex-col min-h-0"
         icon={CalendarClock}
         headerRight={
           <div className="flex items-center gap-0 divide-x divide-slate-100 w-max sm:w-auto">
@@ -768,344 +794,361 @@ const AttendancePage = () => {
           <div className="text-slate-300 normal-case font-medium tracking-normal ml-auto">Tap a day for details</div>
         </div>
 
-        <div className="flex-1 p-2 sm:p-3">
-              {/* Weekday header row */}
-              <div className="grid grid-cols-7 gap-1 mb-1 bg-slate-50/70 p-0.5 sm:p-1 rounded-lg border border-slate-100/50">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
-                  <div key={day} className="text-center text-[10px] sm:text-xs font-semibold text-slate-400 tracking-widest py-0.5">
-                    <span className="sm:hidden">{day.charAt(0)}</span>
-                    <span className="hidden sm:inline">{day}</span>
-                  </div>
-                ))}
-              </div>
+        <div className="flex-1 h-full flex flex-col min-h-0 p-1.5 sm:p-2.5 pb-3 sm:pb-4 overflow-hidden">
+          <div className="border-2 border-slate-300 rounded-2xl overflow-hidden bg-white shadow-xs flex-1 h-full flex flex-col min-h-0">
+            {/* Weekday header row */}
+            <div className="grid grid-cols-7 border-b-2 border-slate-300 bg-slate-100/90 divide-x-2 divide-slate-300 shrink-0">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+                <div key={day} className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-left text-[11px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <span className="sm:hidden">{day.charAt(0)}</span>
+                  <span className="hidden sm:inline">{day.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
 
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((d, index) => {
-                  const dateKey = formatDateKey(new Date(d.year, d.month, d.day));
-                  const holiday = holidays.find(h => parseDbDateKey(h.date) === dateKey);
-                  const dayOfWeek = new Date(d.year, d.month, d.day).getDay();
-                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                  const todayStr = getKolkataToday();
-                  const isPast = dateKey < todayStr;
-                  const isToday = dateKey === todayStr;
-                  const isSelected = selectedDay === index;
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 grid-rows-6 flex-1 h-full min-h-0 divide-x-2 divide-y-2 divide-slate-200">
+              {calendarDays.map((d, index) => {
+                const dateKey = formatDateKey(new Date(d.year, d.month, d.day));
+                const holiday = holidays.find(h => parseDbDateKey(h.date) === dateKey);
+                const dayOfWeek = new Date(d.year, d.month, d.day).getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const todayStr = getKolkataToday();
+                const isPast = dateKey < todayStr;
+                const isToday = dateKey === todayStr;
+                const isSelected = selectedDay === index;
 
-                  if (selectedEmployeeId === "all") {
-                    const presentList = [];
-                    const leaveList = [];
-                    const absentList = [];
+                if (selectedEmployeeId === "all") {
+                  const presentList = [];
+                  const leaveList = [];
+                  const absentList = [];
 
-                    if (d.isCurrentMonth) {
-                      employees.forEach(emp => {
-                        const empAtt = attendance.find(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
-                        const empLeave = allLeaves.find(l => {
-                          if (l.status !== 'Approved') return false;
-                          if (l.user_id !== emp.user_id) return false;
-                          const start = parseDbDateKey(l.start_date);
-                          const end = parseDbDateKey(l.end_date);
-                          return dateKey >= start && dateKey <= end;
-                        });
-
-                        if (empAtt) {
-                          presentList.push(emp);
-                        } else if (empLeave) {
-                          leaveList.push({ ...emp, leave: empLeave });
-                        } else if (isPast && !isWeekend && !holiday) {
-                          absentList.push(emp);
-                        }
+                  if (d.isCurrentMonth) {
+                    employees.forEach(emp => {
+                      const empAtt = attendance.find(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
+                      const empLeave = allLeaves.find(l => {
+                        if (l.status !== 'Approved') return false;
+                        if (l.user_id !== emp.user_id) return false;
+                        const start = parseDbDateKey(l.start_date);
+                        const end = parseDbDateKey(l.end_date);
+                        return dateKey >= start && dateKey <= end;
                       });
-                    }
 
-                    const totalPresent = presentList.length;
-                    const totalLeave = leaveList.length;
-                    const totalAbsent = absentList.length;
-
-                    return (
-                      <div
-                        key={index}
-                        onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
-                        className={cn(getCardClasses(d, index, isToday), isSelected && "ring-2 ring-blue-500 z-10")}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className={`text-xs sm:text-sm font-semibold ${isToday ? "text-primary-600 font-bold" : "text-slate-700"}`}>
-                            {d.day}
-                          </span>
-                          {holiday && (
-                            <Badge variant="outline" className="hidden sm:inline-flex text-[10px] bg-blue-50 text-blue-600 border-blue-200 py-0 px-1 scale-90">
-                              Holiday
-                            </Badge>
-                          )}
-                        </div>
-
-                        {d.isCurrentMonth && (
-                          <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 mt-auto pt-0.5">
-                            {totalPresent > 0 && (
-                              <div className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50/90 px-1 sm:px-1.5 py-0.5 rounded-md border border-emerald-100/90 leading-none">
-                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shrink-0"></span>
-                                <span>{totalPresent}<span className="hidden md:inline"> Present</span></span>
-                              </div>
-                            )}
-                            {totalLeave > 0 && (
-                              <div className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-amber-700 bg-amber-50/90 px-1 sm:px-1.5 py-0.5 rounded-md border border-amber-100/90 leading-none">
-                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0"></span>
-                                <span>{totalLeave}<span className="hidden md:inline"> Leave</span></span>
-                              </div>
-                            )}
-                            {totalAbsent > 0 && (
-                              <div className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-rose-700 bg-rose-50/90 px-1 sm:px-1.5 py-0.5 rounded-md border border-rose-100/90 leading-none">
-                                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0"></span>
-                                <span>{totalAbsent}<span className="hidden md:inline"> Absent</span></span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Hover tooltip: desktop only */}
-                        {d.isCurrentMonth && (
-                          <div className={`hidden md:block absolute ${getTooltipPositionClasses(index)} w-72 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-xs border border-slate-800 pointer-events-none`}>
-                            <div className="font-bold border-b border-slate-800 pb-2 mb-2 flex justify-between items-center text-slate-300">
-                              <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-                              {holiday && <span className="text-blue-400 font-bold">{holiday.name}</span>}
-                            </div>
-                            <div className="space-y-3">
-                              <div>
-                                <div className="text-xs font-semibold text-emerald-400 mb-1">
-                                  Present ({totalPresent})
-                                </div>
-                                {presentList.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {presentList.map(e => (
-                                      <span key={e.user_id} className="bg-emerald-950/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-emerald-900/30">
-                                        {e.name}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-slate-500 text-[10px] italic">None</div>
-                                )}
-                              </div>
-
-                              <div>
-                                <div className="text-xs font-semibold text-amber-400 mb-1">
-                                  On Leave ({totalLeave})
-                                </div>
-                                {leaveList.length > 0 ? (
-                                  <div className="space-y-1">
-                                    {leaveList.map(e => (
-                                      <div key={e.user_id} className="flex justify-between items-center bg-amber-950/30 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-amber-900/30 font-bold">
-                                        <span>{e.name}</span>
-                                        <span className="text-slate-400 italic font-normal text-[8px]">({e.leave.leave_type || "Leave"})</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-slate-500 text-[10px] italic">None</div>
-                                )}
-                              </div>
-
-                              <div>
-                                <div className="text-xs font-semibold text-rose-400 mb-1">
-                                  Absent ({totalAbsent})
-                                </div>
-                                {absentList.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {absentList.map(e => (
-                                      <span key={e.user_id} className="bg-rose-950/50 text-rose-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-rose-900/30 font-bold">
-                                        {e.name}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-slate-500 text-[10px] italic">None</div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  } else {
-                    const attRecord = attendance.find(a => parseDbDateKey(a.date) === dateKey);
-                    const targetUserId = selectedEmployeeId === "my" ? null : selectedEmployeeId;
-                    const leaveRecord = allLeaves.find(l => {
-                      if (l.status !== 'Approved') return false;
-                      if (targetUserId && l.user_id !== targetUserId) return false;
-                      const start = parseDbDateKey(l.start_date);
-                      const end = parseDbDateKey(l.end_date);
-                      return dateKey >= start && dateKey <= end;
-                    });
-
-                    let status = "None";
-                    let bgClass = "bg-white border-slate-100 md:hover:border-slate-300";
-                    let textClass = "text-slate-800";
-
-                    if (d.isCurrentMonth) {
-                      if (attRecord) {
-                        status = "Present";
-                        bgClass = "bg-white border-l-4 border-l-emerald-500 border-y-slate-100 border-r-slate-100 md:hover:border-slate-200/80 shadow-sm";
-                      } else if (leaveRecord) {
-                        status = "Leave";
-                        bgClass = "bg-white border-l-4 border-l-amber-500 border-y-slate-100 border-r-slate-100 md:hover:border-slate-200/80 shadow-sm";
-                      } else if (holiday) {
-                        status = "Holiday";
-                        bgClass = "bg-white border-l-4 border-l-blue-500 border-y-slate-100 border-r-slate-100 md:hover:border-slate-200/80 shadow-sm";
-                      } else if (isWeekend) {
-                        status = "Weekend";
-                        bgClass = "bg-slate-50/30 border-slate-200/60 text-slate-500";
-                      } else if (isPast) {
-                        status = "Absent";
-                        bgClass = "bg-white border-l-4 border-l-rose-500 border-y-slate-100 border-r-slate-100 md:hover:border-slate-200/80 shadow-sm";
+                      if (empAtt) {
+                        presentList.push(emp);
+                      } else if (empLeave) {
+                        leaveList.push({ ...emp, leave: empLeave });
+                      } else if (isPast && !isWeekend && !holiday) {
+                        absentList.push(emp);
                       }
-                    } else {
-                      bgClass = "border-slate-50 opacity-40 bg-slate-50/50";
-                      textClass = "text-slate-400";
-                    }
+                    });
+                  }
 
-                    return (
-                      <div
-                        key={index}
-                        onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
-                        className={cn(getCardClasses(d, index, isToday, bgClass), isSelected && "ring-2 ring-blue-500 z-10")}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className={`text-xs sm:text-sm font-semibold ${isToday ? "text-primary-600 font-bold" : textClass}`}>
+                  const totalPresent = presentList.length;
+                  const totalLeave = leaveList.length;
+                  const totalAbsent = absentList.length;
+
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
+                      className={cn(
+                        getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/30" : ""),
+                        isSelected && "ring-2 ring-inset ring-blue-500 z-10"
+                      )}
+                    >
+                      {/* Cell Top: Day number & status counter */}
+                      <div className="flex items-center justify-between">
+                        {isToday ? (
+                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                            {d.day}
+                          </div>
+                        ) : (
+                          <span className={cn(
+                            "text-xs sm:text-sm font-semibold",
+                            d.isCurrentMonth ? "text-slate-700" : "text-slate-300"
+                          )}>
                             {d.day}
                           </span>
-                          {status !== "None" && status !== "Weekend" && d.isCurrentMonth && (
-                            <span className={`hidden sm:inline text-xs font-semibold ${
-                              status === "Present" ? "text-emerald-600" :
-                              status === "Leave" ? "text-amber-600" :
-                              status === "Holiday" ? "text-blue-600" : "text-rose-600"
-                            }`}>
-                              {status}
+                        )}
+
+                        {holiday ? (
+                          <Badge variant="outline" className="hidden sm:inline-flex text-[9px] sm:text-[10px] bg-blue-50 text-blue-700 border-blue-200/80 py-0 px-1.5 rounded-full scale-90">
+                            Holiday
+                          </Badge>
+                        ) : (
+                          d.isCurrentMonth && totalPresent > 0 && (
+                            <span className="hidden sm:inline text-[11px] font-medium text-slate-400 font-mono">
+                              {totalPresent} in
                             </span>
-                          )}
-                          {status !== "None" && status !== "Weekend" && d.isCurrentMonth && (
-                            <span className={`sm:hidden w-1.5 h-1.5 rounded-full shrink-0 ${
-                              status === "Present" ? "bg-emerald-500" :
-                              status === "Leave" ? "bg-amber-500" :
-                              status === "Holiday" ? "bg-blue-500" : "bg-rose-500"
-                            }`} />
-                          )}
-                          {status === "Weekend" && d.isCurrentMonth && (
-                            <span className="hidden sm:inline text-[10px] font-bold text-slate-400 uppercase tracking-wider">WE</span>
-                          )}
-                        </div>
-
-                        {d.isCurrentMonth && attRecord && (
-                          <div className="mt-auto hidden sm:block">
-                            <div className="text-[10px] font-bold text-emerald-600 tracking-tight flex items-center gap-1">
-                              <span className="w-1 h-1 bg-emerald-500 rounded-full"></span>
-                              {new Date(attRecord.check_in).toLocaleTimeString("en-IN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                                timeZone: "Asia/Kolkata",
-                              })}
-                              {attRecord.check_out && ` - ${new Date(attRecord.check_out).toLocaleTimeString("en-IN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                                timeZone: "Asia/Kolkata",
-                              })}`}
-                            </div>
-                          </div>
-                        )}
-
-                        {d.isCurrentMonth && leaveRecord && (
-                          <div className="mt-auto hidden sm:flex text-[10px] font-bold text-amber-600 tracking-tight items-center gap-1 truncate">
-                            <span className="w-1 h-1 bg-amber-500 rounded-full"></span>
-                            {leaveRecord.leave_type || "On Leave"}
-                          </div>
-                        )}
-
-                        {d.isCurrentMonth && holiday && (
-                          <div className="mt-auto hidden sm:flex text-[10px] font-bold text-blue-600 tracking-tight items-center gap-1 truncate">
-                            <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                            {holiday.name}
-                          </div>
-                        )}
-
-                        {/* Hover tooltip: desktop only */}
-                        {d.isCurrentMonth && (
-                          <div className={`hidden md:block absolute ${getTooltipPositionClasses(index)} w-64 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-xs border border-slate-800 pointer-events-none space-y-2`}>
-                            <div className="font-bold border-b border-slate-800 pb-2 flex justify-between items-center text-slate-300">
-                              <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-                            </div>
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Status:</span>
-                                <span className={`font-bold ${
-                                  status === "Present" ? "text-emerald-400" :
-                                  status === "Leave" ? "text-amber-400" :
-                                  status === "Holiday" ? "text-blue-400" :
-                                  status === "Absent" ? "text-rose-400" : "text-slate-400"
-                                }`}>{status}</span>
-                              </div>
-
-                              {attRecord && (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Punch In:</span>
-                                    <span className="font-bold text-slate-200">
-                                      {attRecord.check_in ? new Date(attRecord.check_in).toLocaleTimeString("en-IN", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                        hour12: true,
-                                        timeZone: "Asia/Kolkata",
-                                      }) : "--:--"}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Punch Out:</span>
-                                    <span className="font-bold text-slate-200">
-                                      {attRecord.check_out ? new Date(attRecord.check_out).toLocaleTimeString("en-IN", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                        hour12: true,
-                                        timeZone: "Asia/Kolkata",
-                                      }) : "Not logged"}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between items-start gap-2">
-                                    <span className="text-slate-400 whitespace-nowrap">Location:</span>
-                                    <span className="font-semibold text-slate-300 text-right truncate max-w-[140px] uppercase text-[10px]">
-                                      {attRecord.location || "Unknown"}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-
-                              {leaveRecord && (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Leave Type:</span>
-                                    <span className="font-bold text-amber-300">{leaveRecord.leave_type || "Available"}</span>
-                                  </div>
-                                  <div className="flex justify-between items-start gap-2">
-                                    <span className="text-slate-400 whitespace-nowrap">Reason:</span>
-                                    <span className="font-semibold text-slate-300 text-right italic break-words max-w-[140px]">
-                                      {leaveRecord.reason || "No reason given"}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-
-                              {holiday && (
-                                <div className="flex justify-between items-start gap-2">
-                                  <span className="text-slate-400 whitespace-nowrap">Holiday:</span>
-                                  <span className="font-bold text-blue-300 text-right max-w-[140px]">{holiday.name}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          )
                         )}
                       </div>
-                    );
+
+                      {/* All-employees task bars - Full Width */}
+                      {d.isCurrentMonth && (
+                        <div className="flex flex-col gap-1 mt-auto pt-1 w-full">
+                          {totalPresent > 0 && (
+                            <div className="w-full rounded-xl bg-[#E6F7ED] text-[#0E7044] border border-[#B7E9C9] px-2 sm:px-2.5 py-1 flex items-center justify-between text-[11px] font-semibold shadow-2xs">
+                              <span className="truncate">Present</span>
+                              <span className="font-mono text-[11px] text-[#0E7044] shrink-0 font-bold ml-1">{totalPresent}</span>
+                            </div>
+                          )}
+                          {totalLeave > 0 && (
+                            <div className="w-full rounded-xl bg-[#FEF3E6] text-[#A35200] border border-[#FCD8B0] px-2 sm:px-2.5 py-1 flex items-center justify-between text-[11px] font-semibold shadow-2xs">
+                              <span className="truncate">Leave</span>
+                              <span className="font-mono text-[11px] text-[#A35200] shrink-0 font-bold ml-1">{totalLeave}</span>
+                            </div>
+                          )}
+                          {totalAbsent > 0 && (
+                            <div className="w-full rounded-xl bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2 sm:px-2.5 py-1 flex items-center justify-between text-[11px] font-semibold shadow-2xs">
+                              <span className="truncate">Absent</span>
+                              <span className="font-mono text-[11px] text-[#991B1B] shrink-0 font-bold ml-1">{totalAbsent}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Hover tooltip: desktop only */}
+                      {d.isCurrentMonth && (
+                        <div className={`hidden md:block absolute ${getTooltipPositionClasses(index)} w-72 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-xs border border-slate-800 pointer-events-none`}>
+                          <div className="font-bold border-b border-slate-800 pb-2 mb-2 flex justify-between items-center text-slate-300">
+                            <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+                            {holiday && <span className="text-blue-400 font-bold">{holiday.name}</span>}
+                          </div>
+                          <div className="space-y-3">
+                            <div>
+                              <div className="text-xs font-semibold text-emerald-400 mb-1">
+                                Present ({totalPresent})
+                              </div>
+                              {presentList.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {presentList.map(e => (
+                                    <span key={e.user_id} className="bg-emerald-950/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-emerald-900/30">
+                                      {e.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-slate-500 text-[10px] italic">None</div>
+                              )}
+                            </div>
+
+                            <div>
+                              <div className="text-xs font-semibold text-amber-400 mb-1">
+                                On Leave ({totalLeave})
+                              </div>
+                              {leaveList.length > 0 ? (
+                                <div className="space-y-1">
+                                  {leaveList.map(e => (
+                                    <div key={e.user_id} className="flex justify-between items-center bg-amber-950/30 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-amber-900/30 font-bold">
+                                      <span>{e.name}</span>
+                                      <span className="text-slate-400 italic font-normal text-[8px]">({e.leave.leave_type || "Leave"})</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-slate-500 text-[10px] italic">None</div>
+                              )}
+                            </div>
+
+                            <div>
+                              <div className="text-xs font-semibold text-rose-400 mb-1">
+                                Absent ({totalAbsent})
+                              </div>
+                              {absentList.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {absentList.map(e => (
+                                    <span key={e.user_id} className="bg-rose-950/50 text-rose-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-rose-900/30 font-bold">
+                                      {e.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-slate-500 text-[10px] italic">None</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                } else {
+                  const attRecord = attendance.find(a => parseDbDateKey(a.date) === dateKey);
+                  const targetUserId = selectedEmployeeId === "my" ? null : selectedEmployeeId;
+                  const leaveRecord = allLeaves.find(l => {
+                    if (l.status !== 'Approved') return false;
+                    if (targetUserId && l.user_id !== targetUserId) return false;
+                    const start = parseDbDateKey(l.start_date);
+                    const end = parseDbDateKey(l.end_date);
+                    return dateKey >= start && dateKey <= end;
+                  });
+
+                  let status = "None";
+                  if (d.isCurrentMonth) {
+                    if (attRecord) {
+                      status = "Present";
+                    } else if (leaveRecord) {
+                      status = "Leave";
+                    } else if (holiday) {
+                      status = "Holiday";
+                    } else if (isWeekend) {
+                      status = "Weekend";
+                    } else if (isPast) {
+                      status = "Absent";
+                    }
                   }
-                })}
-              </div>
+
+                  const dayDuration = attRecord ? getAttHours(attRecord) : (leaveRecord ? "8 h" : null);
+
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
+                      className={cn(
+                        getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/30" : ""),
+                        isSelected && "ring-2 ring-inset ring-blue-500 z-10"
+                      )}
+                    >
+                      {/* Cell Top: Day number & top-right hours (matching reference image) */}
+                      <div className="flex items-center justify-between">
+                        {isToday ? (
+                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                            {d.day}
+                          </div>
+                        ) : (
+                          <span className={cn(
+                            "text-xs sm:text-sm font-semibold",
+                            d.isCurrentMonth ? "text-slate-700" : "text-slate-300"
+                          )}>
+                            {d.day}
+                          </span>
+                        )}
+
+                        {d.isCurrentMonth && dayDuration && (
+                          <span className="text-[11px] font-medium text-slate-400 font-mono">
+                            {dayDuration}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Event Task Bar - Full Width matching Picture 1 */}
+                      {d.isCurrentMonth && attRecord && (
+                        <div className="mt-auto w-full rounded-xl bg-[#E6F7ED] text-[#0E7044] border border-[#B7E9C9] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
+                          <span className="truncate">Present</span>
+                          <span className="font-mono text-[11px] text-[#0E7044] shrink-0 ml-1.5 font-bold">
+                            {getAttHours(attRecord)}
+                          </span>
+                        </div>
+                      )}
+
+                      {d.isCurrentMonth && leaveRecord && (
+                        <div className="mt-auto w-full rounded-xl bg-[#FEF3E6] text-[#A35200] border border-[#FCD8B0] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
+                          <span className="truncate">{leaveRecord.leave_type || "Unpaid leave"}</span>
+                          <span className="font-mono text-[11px] text-[#A35200] shrink-0 ml-1.5 font-bold">
+                            8 h
+                          </span>
+                        </div>
+                      )}
+
+                      {d.isCurrentMonth && holiday && (
+                        <div className="mt-auto w-full rounded-xl bg-[#EFF4FF] text-[#1E40AF] border border-[#BFDBFE] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
+                          <span className="truncate">{holiday.name}</span>
+                          <span className="font-mono text-[11px] text-[#1E40AF] shrink-0 ml-1.5 font-bold">
+                            Holiday
+                          </span>
+                        </div>
+                      )}
+
+                      {d.isCurrentMonth && !attRecord && !leaveRecord && !holiday && isPast && !isWeekend && (
+                        <div className="mt-auto w-full rounded-xl bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
+                          <span className="truncate">Absent</span>
+                          <span className="font-mono text-[11px] text-[#991B1B] shrink-0 ml-1.5 font-bold">
+                            0 h
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Hover tooltip: desktop only */}
+                      {d.isCurrentMonth && (
+                        <div className={`hidden md:block absolute ${getTooltipPositionClasses(index)} w-64 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-xs border border-slate-800 pointer-events-none space-y-2`}>
+                          <div className="font-bold border-b border-slate-800 pb-2 flex justify-between items-center text-slate-300">
+                            <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Status:</span>
+                              <span className={`font-bold ${
+                                status === "Present" ? "text-emerald-400" :
+                                status === "Leave" ? "text-amber-400" :
+                                status === "Holiday" ? "text-blue-400" :
+                                status === "Absent" ? "text-rose-400" : "text-slate-400"
+                              }`}>{status}</span>
+                            </div>
+
+                            {attRecord && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Punch In:</span>
+                                  <span className="font-bold text-slate-200">
+                                    {attRecord.check_in ? new Date(attRecord.check_in).toLocaleTimeString("en-IN", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                      timeZone: "Asia/Kolkata",
+                                    }) : "--:--"}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Punch Out:</span>
+                                  <span className="font-bold text-slate-200">
+                                    {attRecord.check_out ? new Date(attRecord.check_out).toLocaleTimeString("en-IN", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                      timeZone: "Asia/Kolkata",
+                                    }) : "Not logged"}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-start gap-2">
+                                  <span className="text-slate-400 whitespace-nowrap">Location:</span>
+                                  <span className="font-semibold text-slate-300 text-right truncate max-w-[140px] uppercase text-[10px]">
+                                    {attRecord.location || "Unknown"}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+
+                            {leaveRecord && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Leave Type:</span>
+                                  <span className="font-bold text-amber-300">{leaveRecord.leave_type || "Available"}</span>
+                                </div>
+                                <div className="flex justify-between items-start gap-2">
+                                  <span className="text-slate-400 whitespace-nowrap">Reason:</span>
+                                  <span className="font-semibold text-slate-300 text-right italic break-words max-w-[140px]">
+                                    {leaveRecord.reason || "No reason given"}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+
+                            {holiday && (
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="text-slate-400 whitespace-nowrap">Holiday:</span>
+                                <span className="font-bold text-blue-300 text-right max-w-[140px]">{holiday.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+              })}
+            </div>
+          </div>
 
               {/* Mobile / touch detail panel: replaces hover tooltip below sm breakpoint effectively (md) */}
               {selectedDetail && (

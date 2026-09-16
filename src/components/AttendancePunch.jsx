@@ -63,82 +63,78 @@ const AttendancePunch = ({
 
   return (
     <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-0.5">
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200/25 shadow-sm text-center">
-        <div className="mb-2">
-          <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-            <Clock className="w-2.5 h-2.5 text-blue-600" />
-            Live Time
-          </div>
-          <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none mt-1">
-            {currentTime.toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-              timeZone: "Asia/Kolkata",
-            })}
-          </p>
-          <p className="text-xs font-medium text-slate-500 mt-1">
-            {currentTime.toLocaleDateString("en-IN", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-              timeZone: "Asia/Kolkata",
-            })}
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
-            <Button
-              onClick={handlePunchButtonClick}
-              disabled={actionLoading || isDetectingLocation || status === "out"}
-              className={cn(
-                "w-full h-9 text-xs font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5",
-                status === "in"
-                  ? "bg-rose-600 hover:bg-rose-700 text-white"
-                  : status === "out"
-                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                    : "bg-blue-600 hover:bg-blue-700 text-white",
-              )}
-            >
-              {isDetectingLocation ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Detecting...
-                </>
-              ) : actionLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : status === "in" ? (
-                <>
-                  <LogOut className="w-3.5 h-3.5" /> Punch Out
-                </>
-              ) : status === "out" ? (
-                <>
-                  <Clock className="w-3.5 h-3.5" /> Day Ended
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-3.5 h-3.5" /> Punch In
-                </>
-              )}
-            </Button>
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200/25 shadow-xs">
+        {/* Top Info Row: Left = Time & Full Day Name, Right = GPS Required */}
+        <div className="flex items-start justify-between mb-3 px-0.5">
+          <div>
+            <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none">
+              {currentTime.toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: "Asia/Kolkata",
+              })}
+            </p>
+            <p className="text-xs font-semibold text-slate-500 mt-1">
+              {currentTime.toLocaleDateString("en-IN", {
+                weekday: "long",
+                timeZone: "Asia/Kolkata",
+              })}
+            </p>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400">
+          <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
             <MapPin
               className={cn(
                 "w-2.5 h-2.5",
-                location ? "text-emerald-500" : "text-slate-300",
+                location ? "text-emerald-500" : "text-slate-400",
               )}
             />
-            <span>
+            <span className="lowercase">
               {isDetectingLocation
-                ? "detecting location"
+                ? "detecting..."
                 : location
                   ? "verified"
                   : "gps required"}
             </span>
           </div>
+        </div>
+
+        {/* After Text: Punch In / Out Button */}
+        <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+          <Button
+            onClick={handlePunchButtonClick}
+            disabled={actionLoading || isDetectingLocation || status === "out"}
+            className={cn(
+              "w-full h-9 text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5",
+              status === "in"
+                ? "bg-rose-600 hover:bg-rose-700 text-white"
+                : status === "out"
+                  ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                  : "bg-blue-600 hover:bg-blue-700 text-white",
+            )}
+          >
+            {isDetectingLocation ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Detecting...
+              </>
+            ) : actionLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : status === "in" ? (
+              <>
+                <LogOut className="w-3.5 h-3.5" /> Punch Out
+              </>
+            ) : status === "out" ? (
+              <>
+                <Clock className="w-3.5 h-3.5" /> Day Ended
+              </>
+            ) : (
+              <>
+                <LogIn className="w-3.5 h-3.5" /> Punch In
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </div>
