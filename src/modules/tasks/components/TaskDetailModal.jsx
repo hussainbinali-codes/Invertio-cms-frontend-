@@ -6,7 +6,7 @@ import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
 import Input from '../../../components/ui/Input';
 import Textarea from '../../../components/ui/Textarea';
-import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2, GitBranch, Trash2, CheckSquare, Layers, ShieldAlert, Target } from 'lucide-react';
+import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2, GitBranch, Trash2, CheckSquare, Layers, ShieldAlert, Target, Building2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import Button from '../../../components/ui/Button';
@@ -432,6 +432,11 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             <div>
               <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">{taskData.title}</CardTitle>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                {taskData.client_name && (
+                  <Badge variant="outline" className="text-xs font-semibold text-indigo-700 border-indigo-200 bg-indigo-50 flex items-center gap-1">
+                    <Building2 className="w-3 h-3 text-indigo-500" /> Client: {taskData.client_name}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-xs font-semibold text-slate-600">
                   {taskData.project_name || 'Individual Task'}
                 </Badge>
@@ -1020,6 +1025,26 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             {/* Right 1/3 Sidebar: Assignment, Due Date, Status, Activity */}
             <div className="md:w-1/3 bg-slate-50/50 p-5 sm:p-8 space-y-8">
               
+              {/* Project & Client */}
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-slate-400">
+                  <Building2 className="w-4 h-4" />
+                  <span className="text-xs font-semibold text-slate-500">Project & Client</span>
+                </div>
+                <div className="space-y-2 bg-white p-3.5 rounded-xl border border-slate-100">
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Project</div>
+                    <div className="text-xs font-bold text-slate-800">{taskData.project_name || 'Individual Task'}</div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Client</div>
+                    <div className="text-xs font-semibold text-indigo-700">
+                      {taskData.client_name || 'Internal / N/A'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Assignee & Reassignment */}
               <div>
                 <div className="flex items-center gap-2 mb-3 text-slate-400">

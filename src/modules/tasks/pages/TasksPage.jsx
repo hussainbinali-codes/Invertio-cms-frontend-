@@ -109,6 +109,7 @@ const TasksPage = () => {
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
+  const [tasksModalStatusFilter, setTasksModalStatusFilter] = useState('all');
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectTeam, setProjectTeam] = useState([]);
   const [isFetchingTeam, setIsFetchingTeam] = useState(false);
@@ -124,6 +125,8 @@ const TasksPage = () => {
   const [completionFiles, setCompletionFiles] = useState([]);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [boardsSortField, setBoardsSortField] = useState('name');
+  const [boardsSortDirection, setBoardsSortDirection] = useState('asc'); // 'asc' | 'desc'
   const [showKpiStats, setShowKpiStats] = useState(false);
   const [progressFilter, setProgressFilter] = useState('all'); // 'all', 'in_progress', 'completed', 'not_started'
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -333,8 +336,9 @@ const TasksPage = () => {
     }
   };
 
-  const handleViewTasks = (project) => {
+  const handleViewTasks = (project, statusFilter = 'all') => {
     setSelectedProject(project);
+    setTasksModalStatusFilter(statusFilter || 'all');
     setShowTasksModal(true);
   };
 
@@ -752,6 +756,10 @@ const TasksPage = () => {
                   handleViewTasks={handleViewTasks}
                   handleCreateTask={handleCreateTask}
                   setSelectedTaskDetail={setSelectedTaskDetail}
+                  sortField={boardsSortField}
+                  setSortField={setBoardsSortField}
+                  sortDirection={boardsSortDirection}
+                  setSortDirection={setBoardsSortDirection}
                 />
               )}
             </Suspense>
@@ -789,7 +797,11 @@ const TasksPage = () => {
         {showTasksModal && selectedProject && (
           <TaskViewModal
             project={selectedProject}
-            onClose={() => setShowTasksModal(false)}
+            initialStatusFilter={tasksModalStatusFilter}
+            onClose={() => {
+              setShowTasksModal(false);
+              setTasksModalStatusFilter('all');
+            }}
           />
         )}
 

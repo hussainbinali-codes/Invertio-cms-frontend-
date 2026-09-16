@@ -1,20 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
-import { X, Loader2, Calendar, User, ClipboardList, FolderOpen } from 'lucide-react';
+import { X, Loader2, Calendar, User, ClipboardList, FolderOpen, CheckCircle2 } from 'lucide-react';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import TaskDetailModal from './TaskDetailModal';
 import Button from '../../../components/ui/Button';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
+import { cn } from '../../../utils/cn';
 
-const TaskViewModal = ({ project, onClose }) => {
+const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
   useLockBodyScroll(true);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showResources, setShowResources] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'all');
+
+  useEffect(() => {
+    setStatusFilter(initialStatusFilter || 'all');
+  }, [initialStatusFilter, project]);
 
   useEffect(() => {
     if (project) {
@@ -44,6 +50,20 @@ const TaskViewModal = ({ project, onClose }) => {
       prevTask?.id === updatedTask.id ? { ...prevTask, ...updatedTask } : prevTask
     ));
   };
+
+  const yetToStartTasks = useMemo(
+    () => tasks.filter((t) => t.status !== 'In Progress' && t.status !== 'Completed'),
+    [tasks]
+  );
+  const inProgressTasks = useMemo(() => tasks.filter((t) => t.status === 'In Progress'), [tasks]);
+  const completedTasks = useMemo(() => tasks.filter((t) => t.status === 'Completed'), [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    if (statusFilter === 'Yet to Start' || statusFilter === 'Pending') return yetToStartTasks;
+    if (statusFilter === 'In Progress') return inProgressTasks;
+    if (statusFilter === 'Completed') return completedTasks;
+    return tasks;
+  }, [tasks, statusFilter, yetToStartTasks, inProgressTasks, completedTasks]);
 
   if (!project) return null;
 
@@ -78,6 +98,95 @@ const TaskViewModal = ({ project, onClose }) => {
             </button>
           </div>
         </CardHeader>
+
+        {/* Status Filter Selector */}
+        {!loading && tasks.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-2.5 bg-slate-50/70 border-b border-slate-200/80 shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('all')}
+                className={cn(
+                  "px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
+                  statusFilter === 'all'
+                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                )}
+              >
+                <span>All Tasks</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                  statusFilter === 'all' ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-500"
+                )}>
+                  {tasks.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter('Yet to Start')}
+                className={cn(
+                  "px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
+                  statusFilter === 'Yet to Start' || statusFilter === 'Pending'
+                    ? "bg-amber-50 text-amber-700 shadow-sm border border-amber-200"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                )}
+              >
+                <span>Yet to Start</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                  statusFilter === 'Yet to Start' || statusFilter === 'Pending' ? "bg-amber-100 text-amber-700" : "bg-slate-200/60 text-slate-500"
+                )}>
+                  {yetToStartTasks.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter('In Progress')}
+                className={cn(
+                  "px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
+                  statusFilter === 'In Progress'
+                    ? "bg-blue-50 text-blue-700 shadow-sm border border-blue-200"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                )}
+              >
+                <span>In Progress</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                  statusFilter === 'In Progress' ? "bg-blue-100 text-blue-700" : "bg-slate-200/60 text-slate-500"
+                )}>
+                  {inProgressTasks.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter('Completed')}
+                className={cn(
+                  "px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
+                  statusFilter === 'Completed'
+                    ? "bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-200"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                )}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Completed</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                  statusFilter === 'Completed' ? "bg-emerald-100 text-emerald-700" : "bg-slate-200/60 text-slate-500"
+                )}>
+                  {completedTasks.length}
+                </span>
+              </button>
+            </div>
+
+            <span className="text-xs text-slate-400 font-medium">
+              Showing <strong>{filteredTasks.length}</strong> of <strong>{tasks.length}</strong> tasks
+            </span>
+          </div>
+        )}
+
         <CardContent className="p-0 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -94,26 +203,45 @@ const TaskViewModal = ({ project, onClose }) => {
                 This project doesn't have any tasks documented yet. Click "Add Task" to start work.
               </p>
             </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <ClipboardList className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900">No {statusFilter} tasks found</h3>
+              <p className="text-sm text-slate-500 mt-1 max-w-xs">
+                There are no tasks with status &quot;{statusFilter}&quot; in this project.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4 text-xs font-semibold"
+                onClick={() => setStatusFilter('all')}
+              >
+                View All Project Tasks
+              </Button>
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50">
-                  <TableHead className="w-[30%]">Task Title</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Due Date</TableHead>
+                  <TableHead className="w-[28%] text-[11px] sm:text-[11px]">Task Title</TableHead>
+                  <TableHead className="text-[11px] sm:text-[11px]">Client</TableHead>
+                  <TableHead className="text-[11px] sm:text-[11px]">Assigned To</TableHead>
+                  <TableHead className="text-[11px] sm:text-[11px]">Priority</TableHead>
+                  <TableHead className="text-[11px] sm:text-[11px]">Points</TableHead>
+                  <TableHead className="text-[11px] sm:text-[11px]">Status</TableHead>
+                  <TableHead className="text-[11px] sm:text-[11px]">Due Date</TableHead>
                 </TableRow>
               </TableHeader>
               <tbody>
-                {tasks.map((task) => (
+                {filteredTasks.map((task) => (
                   <TableRow 
                     key={task.id} 
                     className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                     onClick={() => setSelectedTask(task)}
                   >
-                    <TableCell className="py-4 max-w-[300px]">
+                    <TableCell className="py-4 max-w-[280px]">
                       <div className="flex flex-col gap-1 overflow-hidden">
                         <span 
                           className="font-semibold text-slate-900 leading-none truncate group-hover:text-primary-600 transition-colors" 
@@ -130,6 +258,15 @@ const TaskViewModal = ({ project, onClose }) => {
                           </span>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {task.client_name ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 truncate max-w-[120px]" title={task.client_name}>
+                          {task.client_name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Internal</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-slate-600">

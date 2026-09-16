@@ -62,23 +62,34 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="w-full mt-6">
-      <form className="space-y-5" onSubmit={handleSubmit}>
+    <div className="w-full">
+      {/* Form Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-black tracking-tight text-slate-900">
+          Welcome Back
+        </h2>
+        <p className="text-xs text-slate-500 font-medium mt-1">
+          Sign in to your Invertio workspace to manage projects, clients, and pipelines.
+        </p>
+      </div>
+
+      <form className="space-y-4" onSubmit={handleSubmit}>
         {error && (
-          <div className="p-3 text-xs font-semibold text-slate-500 text-rose-600 bg-rose-50 border border-rose-100 rounded-xl animate-in fade-in slide-in-from-top-1 font-mono">
+          <div className="p-3 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl animate-in fade-in slide-in-from-top-1">
             {error}
           </div>
         )}
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           <Input
             label="Email Address"
             name="email"
+            type="email"
             required
-            placeholder="you@company.com"
+            placeholder="name@company.com"
             icon={Mail}
             value={formData.email}
             onChange={handleChange}
-            className="rounded-xl border-slate-200 text-sm font-normal focus:ring-2 focus:ring-blue-500 font-mono"
+            className="rounded-xl border-slate-200 text-sm focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500"
           />
           <Input
             label="Password"
@@ -89,31 +100,36 @@ const LoginPage = () => {
             icon={Lock}
             value={formData.password}
             onChange={handleChange}
-            className="rounded-xl border-slate-200 text-sm font-normal focus:ring-2 focus:ring-blue-500"
+            className="rounded-xl border-slate-200 text-sm focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500"
           />
         </div>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end pt-0.5">
           <Link
             to="/forgot-password"
-            className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 uppercase tracking-widest transition-colors font-mono"
+            className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
           >
             Forgot password?
           </Link>
         </div>
 
-        <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full flex justify-center py-2.5 px-4 text-xs font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm disabled:opacity-75 uppercase tracking-wider"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
-            ) : (
-              "Sign in to Dashboard"
-            )}
-          </button>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full flex items-center justify-center py-2.5 px-4 text-xs font-bold rounded-xl text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-500/20 transition-all duration-150 shadow-md shadow-primary-500/20 disabled:opacity-75 uppercase tracking-wider active:scale-[0.99] cursor-pointer"
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
+          ) : (
+            "Sign in to Dashboard"
+          )}
+        </button>
+
+        {/* Security badge */}
+        <div className="pt-2 text-center">
+          <p className="text-[11px] text-slate-400 font-medium">
+            Protected by enterprise multi-factor authentication
+          </p>
         </div>
       </form>
     </div>

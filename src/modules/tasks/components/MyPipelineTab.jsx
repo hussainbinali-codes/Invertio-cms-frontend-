@@ -54,103 +54,133 @@ const MyPipelineTab = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="py-2.5 px-4 text-xs">Task Details</TableHead>
-              <TableHead className="py-2.5 px-4 text-xs">Project</TableHead>
-              <TableHead className="py-2.5 px-4 text-xs">Priority</TableHead>
-              <TableHead className="py-2.5 px-4 text-xs">Status</TableHead>
-              <TableHead className="py-2.5 px-4 text-xs">Due Date</TableHead>
+              <TableHead className="py-2 sm:py-2.5 px-4 text-[11px] sm:text-[11px] w-[36%] max-w-[240px] sm:max-w-[300px] md:max-w-[360px]">Task Details</TableHead>
+              <TableHead className="py-2 sm:py-2.5 px-4 text-[11px] sm:text-[11px] text-center w-[13%]">Client</TableHead>
+              <TableHead className="py-2 sm:py-2.5 px-4 text-[11px] sm:text-[11px] text-center w-[15%]">Project</TableHead>
+              <TableHead className="py-2 sm:py-2.5 px-4 text-[11px] sm:text-[11px] text-center w-[12%]">Priority</TableHead>
+              <TableHead className="py-2 sm:py-2.5 px-4 text-[11px] sm:text-[11px] text-center w-[12%]">Status</TableHead>
+              <TableHead className="py-2 sm:py-2.5 px-4 text-[11px] sm:text-[11px] text-center w-[12%]">Due Date</TableHead>
             </TableRow>
           </TableHeader>
           <tbody>
             {paginatedTasks.map((task) => (
-          <TableRow key={task.id} className="group">
-            <TableCell
-              className="py-4 cursor-pointer hover:bg-slate-50/50 transition-colors"
-              onClick={() => setSelectedTaskDetail(task)}
-            >
-              <div className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors max-w-xl overflow-hidden truncate" title={task.title}>{task.title}</div>
-              <div className="text-xs text-slate-400 line-clamp-1 max-w-lg mt-0.5">{task.description || 'No description'}</div>
-            </TableCell>
-            <TableCell className="py-4">
-              <Badge variant="secondary" className="text-xs font-medium">{task.project_name}</Badge>
-            </TableCell>
-            <TableCell className="py-4">
-              <Badge
-                variant={
-                  task.priority === 'Urgent' ? 'default' :
-                    task.priority === 'High' ? 'warning' :
-                      task.priority === 'Medium' ? 'primary' :
-                        'secondary'
-                }
-                className={
-                  task.priority === 'Urgent'
-                    ? 'text-xs font-medium bg-rose-100 text-rose-700 border-none'
-                    : 'text-xs font-medium border-none'
-                }
-              >
-                {task.priority || 'Medium'}
-              </Badge>
-            </TableCell>
-            {/* <TableCell className="py-4">
-              <div className="flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs font-medium text-slate-600">{task.story_points || 0} pts</span>
-              </div>
-            </TableCell> */}
-            <TableCell className="py-4">
-              {task.status === 'Pending' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
-                  onClick={() => handleUpdateTask(task.id, { status: 'In Progress' })}
-                  disabled={updatingTaskId === task.id}
+              <TableRow key={task.id} className="group hover:bg-slate-50/60 transition-colors">
+                {/* Column 1: Task Details (Title & Description Truncated) */}
+                <TableCell
+                  className="py-2.5 sm:py-3 px-4 max-w-[200px] sm:max-w-[280px] md:max-w-[340px] lg:max-w-[420px] overflow-hidden cursor-pointer hover:bg-slate-50/80 transition-colors"
+                  onClick={() => setSelectedTaskDetail(task)}
+                  title="Click to view full task details"
                 >
-                  <TrendingUp className="w-3 h-3 mr-1" /> Start Progress
-                </Button>
-              )}
-              {task.status === 'In Progress' && (
-                <Button
-                  size="sm"
-                  className="h-7 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => handleUpdateTask(task.id, { status: 'Completed' })}
-                  disabled={updatingTaskId === task.id}
-                >
-                  <CheckCircle2 className="w-3 h-3 mr-1" /> Mark as Complete
-                </Button>
-              )}
-              {task.status === 'Completed' && (
-                <Badge variant="success" className="text-xs font-medium flex items-center gap-1 w-fit border-none">
-                  <CheckCircle2 className="w-3 h-3" /> Completed
-                </Badge>
-              )}
-            </TableCell>
-            <TableCell className="py-4">
-              <div className="flex items-center gap-1.5 text-slate-500">
-                <Calendar className="w-3.5 h-3.5" />
-                <span className="text-xs font-normal">
-                  {task.due_date ? new Date(task.due_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'Flexible'}
-                </span>
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-        {tasks.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={6} className="p-12 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center">
-                  <CheckSquare className="w-6 h-6 text-slate-200" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-800">All caught up!</h3>
-                <p className="text-xs text-slate-400 font-normal">No tasks are currently assigned to you.</p>
-              </div>
-            </TableCell>
-          </TableRow>
-        )}
-      </tbody>
-    </Table>
-  </div>
+                  <div className="font-semibold text-sm text-slate-800 group-hover:text-blue-600 transition-colors truncate" title={task.title}>
+                    {task.title}
+                  </div>
+                  <div className="text-xs text-slate-400 truncate mt-0.5" title={task.description || 'No description'}>
+                    {task.description || 'No description'}
+                  </div>
+                </TableCell>
+
+                {/* Column 2: Client */}
+                <TableCell className="py-2.5 sm:py-3 px-4 text-center">
+                  <div className="flex justify-center">
+                    {task.client_name ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 truncate max-w-[130px]" title={task.client_name}>
+                        {task.client_name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">Internal</span>
+                    )}
+                  </div>
+                </TableCell>
+
+                {/* Column 3: Project */}
+                <TableCell className="py-2.5 sm:py-3 px-4 text-center">
+                  <div className="flex justify-center">
+                    <Badge variant="secondary" className="text-xs font-medium truncate max-w-[140px]" title={task.project_name}>
+                      {task.project_name}
+                    </Badge>
+                  </div>
+                </TableCell>
+
+                {/* Column 4: Priority */}
+                <TableCell className="py-2.5 sm:py-3 px-4 text-center">
+                  <div className="flex justify-center">
+                    <Badge
+                      variant={
+                        task.priority === 'Urgent' ? 'default' :
+                          task.priority === 'High' ? 'warning' :
+                            task.priority === 'Medium' ? 'primary' :
+                              'secondary'
+                      }
+                      className={
+                        task.priority === 'Urgent'
+                          ? 'text-xs font-medium bg-rose-100 text-rose-700 border-none'
+                          : 'text-xs font-medium border-none'
+                      }
+                    >
+                      {task.priority || 'Medium'}
+                    </Badge>
+                  </div>
+                </TableCell>
+
+                {/* Column 5: Status & Action Button */}
+                <TableCell className="py-2.5 sm:py-3 px-4 text-center">
+                  <div className="flex justify-center">
+                    {task.status === 'Pending' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
+                        onClick={() => handleUpdateTask(task.id, { status: 'In Progress' })}
+                        disabled={updatingTaskId === task.id}
+                      >
+                        <TrendingUp className="w-3 h-3 mr-1" /> Start Progress
+                      </Button>
+                    )}
+                    {task.status === 'In Progress' && (
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => handleUpdateTask(task.id, { status: 'Completed' })}
+                        disabled={updatingTaskId === task.id}
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-1" /> Mark as Complete
+                      </Button>
+                    )}
+                    {task.status === 'Completed' && (
+                      <Badge variant="success" className="text-xs font-medium flex items-center gap-1 w-fit border-none">
+                        <CheckCircle2 className="w-3 h-3" /> Completed
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+
+                {/* Column 6: Due Date */}
+                <TableCell className="py-2.5 sm:py-3 px-4 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-slate-500">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span className="text-xs font-normal">
+                      {task.due_date ? new Date(task.due_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'Flexible'}
+                    </span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {tasks.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="p-12 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center">
+                      <CheckSquare className="w-6 h-6 text-slate-200" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-800">All caught up!</h3>
+                    <p className="text-xs text-slate-400 font-normal">No tasks are currently assigned to you.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </tbody>
+        </Table>
+      </div>
 
   {/* Pagination Footer Controls */}
   {tasks.length > 0 && (

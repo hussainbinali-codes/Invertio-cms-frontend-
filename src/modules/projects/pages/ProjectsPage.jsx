@@ -127,6 +127,7 @@ const ProjectsPage = () => {
   const [expandedConfidential, setExpandedConfidential] = useState(null); // ID of project with visible confidential info
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [clientFilter, setClientFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
   // Sprint planning state for project creation
@@ -299,7 +300,11 @@ const ProjectsPage = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, clientFilter]);
+
+  const uniqueClients = React.useMemo(() => {
+    return [...new Set(projects.map(p => p.client_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [projects]);
 
   const filteredProjects = projects.filter(project => {
     const matchesSearch =
@@ -315,7 +320,13 @@ const ProjectsPage = () => {
         matchesStatus = project.status === statusFilter;
       }
     }
-    return matchesSearch && matchesStatus;
+
+    let matchesClient = true;
+    if (clientFilter !== 'All') {
+      matchesClient = (project.client_name || 'Internal') === clientFilter;
+    }
+
+    return matchesSearch && matchesStatus && matchesClient;
   });
 
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);

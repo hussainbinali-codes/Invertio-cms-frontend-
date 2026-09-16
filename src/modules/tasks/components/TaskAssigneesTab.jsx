@@ -30,6 +30,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
   const [pageLimit, setPageLimit] = useState(getDynamicPageLimit);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterAssignedTo, setFilterAssignedTo] = useState('');
+  const [filterClient, setFilterClient] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateOperator, setFilterDateOperator] = useState('='); // '=', '<', '>'
@@ -44,11 +45,15 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
   // Reset pagination to page 1 whenever filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterAssignedTo, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
+  }, [filterAssignedTo, filterClient, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
 
   // Extract unique values for filters
   const uniqueAssignees = useMemo(() => {
     return [...new Set(tasks.map(t => t.assigned_to_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [tasks]);
+
+  const uniqueClients = useMemo(() => {
+    return [...new Set(tasks.map(t => t.client_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }, [tasks]);
 
   const uniquePriorities = useMemo(() => {
@@ -62,6 +67,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
   const filteredTasks = useMemo(() => {
     const result = tasks.filter(task => {
       if (filterAssignedTo && task.assigned_to_name !== filterAssignedTo) return false;
+      if (filterClient && task.client_name !== filterClient) return false;
       if (filterPriority && task.priority !== filterPriority) return false;
       if (filterStatus && task.status !== filterStatus) return false;
 
@@ -108,6 +114,20 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
             {uniqueAssignees.map((a) => (
               <option key={a} value={a}>
                 {a}
+              </option>
+            ))}
+          </select>
+
+          {/* Client Filter */}
+          <select
+            value={filterClient}
+            onChange={(e) => setFilterClient(e.target.value)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 shadow-sm"
+          >
+            <option value="">All Clients</option>
+            {uniqueClients.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
@@ -168,10 +188,11 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
             )}
           </div>
 
-          {(filterAssignedTo || filterPriority || filterStatus || filterDueDate) && (
+          {(filterAssignedTo || filterClient || filterPriority || filterStatus || filterDueDate) && (
             <button
               onClick={() => {
                 setFilterAssignedTo("");
+                setFilterClient("");
                 setFilterPriority("");
                 setFilterStatus("");
                 setFilterDueDate("");
@@ -193,19 +214,22 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
         <Table className="w-full table-fixed border-collapse">
         <TableHeader>
           <TableRow className="bg-slate-50/50 border-b border-slate-200">
-            <TableHead className="px-3 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[28%]">
+            <TableHead className="px-3 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[23%]">
               TASK DETAILS
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
+              CLIENT
+            </TableHead>
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
               PROJECT
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[15%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[13%]">
               ASSIGNEE
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[10%]">
               PRIORITY
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
               STATUS
             </TableHead>
             <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
@@ -228,7 +252,19 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
                 <div className="text-[10px] text-slate-400 line-clamp-1 font-medium italic">{task.description || 'No description'}</div>
               </TableCell>
               <TableCell className="px-2 py-3 truncate">
-                <Badge variant="secondary" className="text-[10px] font-bold truncate max-w-full block">{task.project_name}</Badge>
+                {task.client_name ? (
+                  <span 
+                    className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 max-w-full truncate"
+                    title={task.client_name}
+                  >
+                    {task.client_name}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400 italic">Internal</span>
+                )}
+              </TableCell>
+              <TableCell className="px-2 py-3 truncate">
+                <Badge variant="secondary" className="text-[10px] font-bold truncate max-w-full block" title={task.project_name}>{task.project_name}</Badge>
               </TableCell>
               <TableCell className="px-1.5 py-3 truncate">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -289,7 +325,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
           ))}
           {filteredTasks.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="p-10 text-center">
+              <TableCell colSpan={8} className="p-10 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center">
                     <CheckSquare className="w-5 h-5 text-slate-300" />

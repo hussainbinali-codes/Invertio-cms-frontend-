@@ -10,7 +10,7 @@ const Input = React.forwardRef(({ className, label, error, icon: Icon, type, ...
   return (
     <div className="w-full group/input">
       {label && (
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label className="block text-sm font-semibold text-slate-800 mb-1.5">
           {label}
         </label>
       )}
