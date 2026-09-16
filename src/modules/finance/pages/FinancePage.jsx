@@ -730,6 +730,30 @@ const FinancePage = () => {
     }
   }, [activeView]);
 
+  // Auto-poll invoices silently if any Outbound invoice is still generating its PDF
+  useEffect(() => {
+    if (activeView !== 'Invoices') return;
+
+    const hasPendingPdf = invoices.some(
+      (inv) => inv.type === 'Outbound' && !inv.generated_pdf_url && inv.status !== 'Cancelled'
+    );
+
+    if (!hasPendingPdf) return;
+
+    let pollCount = 0;
+    const maxPolls = 15; // Poll up to 30 seconds
+
+    const interval = setInterval(() => {
+      pollCount += 1;
+      fetchInvoices(true);
+      if (pollCount >= maxPolls) {
+        clearInterval(interval);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [invoices, activeView]);
+
   const fetchPayrollBatches = async () => {
     setIsRefreshing(true);
     try {
@@ -831,15 +855,15 @@ const FinancePage = () => {
     }
   };
 
-  const fetchInvoices = async () => {
-    setIsRefreshing(true);
+  const fetchInvoices = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
     try {
       const res = await axios.get('/finance/invoices');
       setInvoices(res.data.data || []);
     } catch (err) {
-      toast.error('Failed to fetch invoices');
+      if (!silent) toast.error('Failed to fetch invoices');
     } finally {
-      setIsRefreshing(false);
+      if (!silent) setIsRefreshing(false);
     }
   };
 
@@ -943,8 +967,13 @@ const FinancePage = () => {
       toast.success('Invoice created');
       setShowInvoiceModal(false);
 
-      fetchInvoices();
+      await fetchInvoices();
       fetchFinanceData();
+
+      // Trigger a rapid follow-up check after 1.5s
+      setTimeout(() => {
+        fetchInvoices(true);
+      }, 1500);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Creation failed');
     } finally {
@@ -1088,53 +1117,57 @@ const FinancePage = () => {
             Institutional liquidity, institutional billing, and performance analytics.
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-2.5 w-full md:w-auto">
+        <div className="flex items-center flex-nowrap gap-1.5 sm:gap-2">
           {hasPermission('finance', 'expenses.create') && (
-            <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+            <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => setShowExpenseModal(true)}
-                className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-2 px-3 sm:px-5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 w-full"
+                className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
               >
                 <TrendingDown className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Add Expense</span>
+                <span className="whitespace-nowrap">Add Expense</span>
               </Button>
             </div>
           )}
           {hasPermission('finance', 'payroll.manage') && (
-            <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+            <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => setShowMonthlyPayrollModal(true)}
-                className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-2 px-3 sm:px-5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 w-full"
+                className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
               >
                 <Wallet className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Generate Payroll</span>
+                <span className="whitespace-nowrap">Generate Payroll</span>
               </Button>
             </div>
           )}
           {hasPermission('finance', 'invoices.create') && (
-            <div className="col-span-2 sm:col-auto flex flex-col xs:flex-row sm:flex-row items-stretch sm:items-center gap-2">
-              <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 flex-1">
+            <>
+              <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
                 <Button
+                  size="sm"
                   onClick={() => { setInvoiceModalType('Outbound'); setShowInvoiceModal(true); }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-3 sm:px-5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 w-full"
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">New Outbound Invoice</span>
+                  <span className="whitespace-nowrap">New Outbound Invoice</span>
                 </Button>
               </div>
-              <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 flex-1">
+              <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
                 <Button
                   variant="secondary"
+                  size="sm"
                   onClick={() => { setInvoiceModalType('Inbound'); setShowInvoiceModal(true); }}
-                  className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-2 px-3 sm:px-5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 w-full"
+                  className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
                 >
                   <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span className="truncate">Record Inbound Invoice</span>
+                  <span className="whitespace-nowrap">Record Inbound Invoice</span>
                 </Button>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>

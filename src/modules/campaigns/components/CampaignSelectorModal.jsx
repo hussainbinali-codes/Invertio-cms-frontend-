@@ -7,15 +7,23 @@ import { X, Plus, Target, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCampaignsList, createCampaign } from "../../../api/campaignsApi";
 
-const CampaignSelectorModal = ({ isOpen, onClose, onSelectCampaign }) => {
+const CAMPAIGN_TYPES = [
+  "Cold Outreach",
+  "LinkedIn",
+  "Other",
+  "Event",
+  "Email Campaign"
+];
+
+const CampaignSelectorModal = ({ isOpen, onClose, onSelectCampaign, createOnly = false }) => {
   useLockBodyScroll(isOpen);
 
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(createOnly);
   const [newCampaign, setNewCampaign] = useState({
     name: "",
-    type: "",
+    type: "Cold Outreach",
     description: "",
     start_date: "",
     end_date: "",
@@ -23,9 +31,21 @@ const CampaignSelectorModal = ({ isOpen, onClose, onSelectCampaign }) => {
 
   useEffect(() => {
     if (isOpen) {
-      fetchCampaigns();
+      if (createOnly) {
+        setIsCreating(true);
+      } else {
+        setIsCreating(false);
+        fetchCampaigns();
+      }
+      setNewCampaign({
+        name: "",
+        type: "Cold Outreach",
+        description: "",
+        start_date: new Date().toISOString().split("T")[0],
+        end_date: "",
+      });
     }
-  }, [isOpen]);
+  }, [isOpen, createOnly]);
 
   const fetchCampaigns = async () => {
     try {
@@ -51,8 +71,8 @@ const CampaignSelectorModal = ({ isOpen, onClose, onSelectCampaign }) => {
       toast.success("Campaign created successfully!");
       const created = res.data?.data;
       setIsCreating(false);
-      setNewCampaign({ name: "", type: "", description: "", start_date: "", end_date: "" });
-      fetchCampaigns();
+      setNewCampaign({ name: "", type: "Cold Outreach", description: "", start_date: "", end_date: "" });
+      if (!createOnly) fetchCampaigns();
       if (created) {
         onSelectCampaign(created);
         onClose();
@@ -68,15 +88,19 @@ const CampaignSelectorModal = ({ isOpen, onClose, onSelectCampaign }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
-      <Card className="w-full max-w-xl shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col">
+      <Card className={`w-full ${createOnly ? "max-w-lg" : "max-w-xl"} shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col`}>
         <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-50 rounded-xl text-primary-600 border border-primary-100">
               <Target className="w-5 h-5" />
             </div>
             <div>
-              <CardTitle className="text-lg">Select or Create Campaign</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Link lead to an outreach campaign.</p>
+              <CardTitle className="text-lg">
+                {createOnly || isCreating ? "Create New Campaign" : "Select or Create Campaign"}
+              </CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {createOnly || isCreating ? "Set up a new outreach campaign." : "Link lead to an outreach campaign."}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600">
@@ -125,38 +149,44 @@ const CampaignSelectorModal = ({ isOpen, onClose, onSelectCampaign }) => {
               )}
             </>
           ) : (
-            <form onSubmit={handleCreateSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Campaign Name *</label>
-                <Input
-                  value={newCampaign.name}
-                  onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
-                  placeholder="e.g. Q3 Tech Summit Outreach"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCreateSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1 block">Type</label>
+                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                    Campaign Name <span className="text-rose-500">*</span>
+                  </label>
                   <Input
+                    value={newCampaign.name}
+                    onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
+                    placeholder="e.g. Q3 Tech Summit Outreach"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Type</label>
+                  <select
                     value={newCampaign.type}
                     onChange={(e) => setNewCampaign({ ...newCampaign, type: e.target.value })}
-                    placeholder="e.g. Email Campaign, Cold Outreach"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1 block">Start Date</label>
-                  <Input
-                    type="date"
-                    value={newCampaign.start_date}
-                    onChange={(e) => setNewCampaign({ ...newCampaign, start_date: e.target.value })}
-                  />
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all shadow-sm h-[42px]"
+                  >
+                    {CAMPAIGN_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsCreating(false)}>
-                  Back
-                </Button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                {createOnly ? (
+                  <Button type="button" variant="outline" size="sm" onClick={onClose}>
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsCreating(false)}>
+                    Back
+                  </Button>
+                )}
                 <Button type="submit" size="sm" disabled={loading}>
                   Save Campaign
                 </Button>

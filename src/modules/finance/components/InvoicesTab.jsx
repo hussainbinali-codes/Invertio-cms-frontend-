@@ -234,8 +234,8 @@ const InvoicesTab = ({
                               Download Invoice
                             </button>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                              <Download className="w-3 h-3 text-slate-400" />
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500 bg-slate-100/80 border border-slate-200/60 px-2 py-0.5 rounded uppercase tracking-wider">
+                              <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
                               Generating PDF...
                             </span>
                           )
