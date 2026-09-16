@@ -1079,36 +1079,36 @@ const FinancePage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 pb-10 px-4 sm:px-6 lg:px-0">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-          <div className="space-y-2">
+      <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 w-full min-w-0">
+          <div className="space-y-2 w-full max-w-md">
             <Skeleton className="h-8 w-48 sm:w-64" />
             <Skeleton className="h-4 w-full max-w-xs sm:w-96" />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-10 w-28 sm:w-32 rounded-lg" />
-            <Skeleton className="h-10 w-20 sm:w-24 rounded-lg" />
-            <Skeleton className="h-10 w-28 sm:w-32 rounded-lg" />
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Skeleton className="h-9 sm:h-10 w-28 sm:w-32 rounded-lg" />
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg" />
+            <Skeleton className="h-9 sm:h-10 w-28 sm:w-32 rounded-lg" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="lg:col-span-2 h-[400px] rounded-2xl" />
-          <Skeleton className="h-[400px] rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
+          <Skeleton className="lg:col-span-2 h-[400px] rounded-2xl w-full" />
+          <Skeleton className="h-[400px] rounded-2xl w-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-10 max-w-[1400px] mx-auto py-2 px-4 sm:px-6 lg:px-0">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
       {/* Header section with Asymmetric Layout */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full min-w-0">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight mt-1">
             Financial Hub

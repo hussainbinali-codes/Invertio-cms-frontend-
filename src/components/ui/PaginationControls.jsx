@@ -1,5 +1,6 @@
 import React from 'react';
 import Button from './Button';
+import { cn } from '../../utils/cn';
 
 const PaginationControls = ({
   pagination,
@@ -19,7 +20,7 @@ const PaginationControls = ({
   }
 
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4 px-6 border-t border-slate-100 bg-slate-50/30 ${className}`.trim()}>
+    <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 py-2 sm:py-2.5 px-4 sm:px-6 border-t border-slate-100 bg-slate-50/40 shrink-0", className)}>
       <div className="space-y-1">
         <div className="text-sm font-normal text-slate-500 uppercase tracking-wider">
           Showing {itemCount} of {total} records

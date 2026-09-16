@@ -72,17 +72,17 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
-      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 w-full min-w-0", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col w-full min-w-0">
         {(title || subtitle) && (
           <div className="px-5 py-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               {Icon && (
-                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 shrink-0">
                   <Icon className="w-4 h-4 text-slate-500" />
                 </div>
               )}
-              <div>
+              <div className="min-w-0">
                 {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
                 {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
               </div>
@@ -90,7 +90,7 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
             {headerRight}
           </div>
         )}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col w-full min-w-0 overflow-x-auto">
           {children}
         </div>
       </div>
@@ -484,22 +484,21 @@ const TasksPage = () => {
   });
 
   return (
-    <div className="flex flex-col gap-4 pb-8 max-w-[1400px] mx-auto pt-0 -mt-2 sm:-mt-4">
-      {/* Header section */}
-      <div className="m-0 p-0">
-        <h1 className="text-xl font-bold text-slate-950 tracking-tight m-0 p-0">
-          Tasks & Workspaces
-        </h1>
-        <p className="text-xs text-slate-500 mt-0.5 font-normal">
-          Manage project boards, sprint backlogs, and team deliverables.
-        </p>
-      </div>
+    <div className="flex-1 min-h-0 flex flex-col w-full h-full gap-2.5 overflow-hidden">
+      {/* Header section with Project Boards and Pipeline tabs aligned at the end */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 m-0 p-0 shrink-0">
+        <div className="m-0 p-0">
+          <h1 className="text-xl font-bold text-slate-950 tracking-tight m-0 p-0">
+            Tasks & Workspaces
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-normal">
+            Manage project boards, sprint backlogs, and team deliverables.
+          </p>
+        </div>
 
-      {/* Navigation Row: Smooth Slider on Left + Manage Board on Right */}
-      {showBoardsTab && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Smooth Toggle Slider Tabs */}
-          <div className="relative bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 flex items-center overflow-x-auto no-scrollbar shadow-inner">
+        {/* Smooth Toggle Slider Tabs at the end of header */}
+        {showBoardsTab && (
+          <div className="relative bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 flex items-center overflow-x-auto no-scrollbar shadow-inner shrink-0">
             {/* Smooth Sliding Background Pill */}
             <div
               className={cn(
@@ -541,26 +540,29 @@ const TasksPage = () => {
               );
             })}
           </div>
+        )}
+      </div>
 
-          {/* Manage Board Toggle Button */}
-          <button
-            type="button"
-            onClick={() => setShowKpiStats(prev => !prev)}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-all duration-200 shadow-sm shrink-0",
-              showKpiStats
-                ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-            )}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Manage Board</span>
-            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showKpiStats && "rotate-180")} />
-          </button>
-        </div>
-      )}
+      {/* Manage Board Toggle Button (Commented out) */}
+      {/*
+      <button
+        type="button"
+        onClick={() => setShowKpiStats(prev => !prev)}
+        className={cn(
+          "flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-all duration-200 shadow-sm shrink-0",
+          showKpiStats
+            ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800"
+            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+        )}
+      >
+        <BarChart3 className="w-3.5 h-3.5" />
+        <span>Manage Board</span>
+        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showKpiStats && "rotate-180")} />
+      </button>
+      */}
 
-      {/* KPI Stats Grid with Smooth Collapse Transition (Horizontal hidden metrics) */}
+      {/* KPI Stats Grid with Smooth Collapse Transition (Commented out) */}
+      {/*
       <div
         className={cn(
           "grid transition-all duration-300 ease-in-out overflow-hidden",
@@ -579,9 +581,11 @@ const TasksPage = () => {
           </div>
         </div>
       </div>
+      */}
 
       {/* Main Container Card in Double-Bezel layout */}
       <PremiumCard
+        className="flex-1 min-h-0 flex flex-col overflow-hidden"
         title={activeTab === 'boards' ? 'Project Boards' : (activeTab === 'assignees' && isAdmin) ? 'Manage Task Assignees' : 'Personal Pipeline'}
         subtitle={
           activeTab === 'boards'
@@ -708,7 +712,7 @@ const TasksPage = () => {
           </div>
         }
       >
-        <div className="flex-1">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {loading ? (
             <div className="divide-y divide-slate-100">
               {[...Array(5)].map((_, i) => (

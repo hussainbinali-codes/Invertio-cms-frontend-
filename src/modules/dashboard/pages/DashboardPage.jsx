@@ -144,20 +144,20 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
-        <div className="flex justify-between items-center">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64 rounded-xl" />
-            <Skeleton className="h-4 w-96 rounded-lg" />
+      <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full min-w-0">
+          <div className="space-y-2 w-full max-w-md">
+            <Skeleton className="h-8 w-48 sm:w-64 rounded-xl" />
+            <Skeleton className="h-4 w-full max-w-sm sm:w-96 rounded-lg" />
           </div>
-          <Skeleton className="h-8 w-32 rounded-full" />
+          <Skeleton className="h-8 w-32 rounded-full shrink-0" />
         </div>
 
         <Skeleton className="h-32 w-full rounded-[2.25rem]" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <Skeleton className="lg:col-span-8 h-[450px] rounded-[2.5rem]" />
-          <Skeleton className="lg:col-span-4 h-[450px] rounded-[2.5rem]" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 w-full min-w-0">
+          <Skeleton className="lg:col-span-8 h-[450px] rounded-[2.5rem] w-full" />
+          <Skeleton className="lg:col-span-4 h-[450px] rounded-[2.5rem] w-full" />
         </div>
       </div>
     );
@@ -176,18 +176,18 @@ const DashboardPage = () => {
   const attendancePercentage = Math.round((stats?.users?.present_today / stats?.users?.total_users) * 100 || 0);
 
   return (
-    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
       {/* Header section with Executive Live Badge */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full min-w-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-950 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight">
             Enterprise Operational Intelligence
           </h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
             Real-time executive performance monitoring across core business pillars.
           </p>
         </div>
-        <div className="bg-slate-200/30 p-1 rounded-2xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+        <div className="bg-slate-200/30 p-1 rounded-2xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
           <Badge variant="outline" className="bg-white text-slate-700 border-transparent py-1.5 px-3.5 rounded-[calc(1rem-0.25rem)] shadow-sm font-mono font-bold text-[10px] uppercase tracking-wider flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             LIVE SYSTEM FEED • {new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' })}
@@ -196,8 +196,8 @@ const DashboardPage = () => {
       </div>
 
       {/* Unified Executive Metric Dock (Replaces Card Overload) */}
-      <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)] rounded-[2.25rem] p-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-0 md:divide-x divide-slate-100">
+      <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)] rounded-[2.25rem] p-5 sm:p-6 w-full min-w-0">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 sm:gap-6 md:gap-0 md:divide-x divide-slate-100">
           
           {/* Active Projects */}
           <div className="md:px-6 first:pl-0 space-y-1">
@@ -283,10 +283,10 @@ const DashboardPage = () => {
       </div>
 
       {/* Primary Bento Grid 2.0 (8 Cols / 4 Cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start w-full min-w-0">
         
         {/* Left Primary Stream (8 Cols) */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-6 sm:space-y-8 w-full min-w-0">
           
           {/* Liquidity Chart Card */}
           {hasPermission('finance', 'report.view') && (
@@ -467,7 +467,7 @@ const DashboardPage = () => {
         </div>
 
         {/* Right Operations Stream (4 Cols) */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="lg:col-span-4 space-y-6 sm:space-y-8 w-full min-w-0">
           
           {/* Live Workforce Attendance Card */}
           <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.03)] p-2 overflow-hidden">

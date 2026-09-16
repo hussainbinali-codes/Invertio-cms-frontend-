@@ -1,36 +1,75 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Table, TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Button from '../../../components/ui/Button';
+import PaginationControls from '../../../components/ui/PaginationControls';
 import { TrendingUp, CheckCircle2, Calendar, CheckSquare } from 'lucide-react';
 
+const getDynamicPageLimit = () => {
+  if (typeof window === 'undefined') return 6;
+  const h = window.innerHeight;
+  if (h < 720) return 5;
+  if (h < 820) return 6;
+  if (h < 920) return 7;
+  return 8;
+};
+
 const MyPipelineTab = ({
-  tasks,
+  tasks = [],
   handleUpdateTask,
   updatingTaskId,
   setSelectedTaskDetail
 }) => {
+  const [pageLimit, setPageLimit] = useState(getDynamicPageLimit);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => setPageLimit(getDynamicPageLimit());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Reset to page 1 if tasks count changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tasks.length]);
+
+  const totalPages = Math.ceil(tasks.length / pageLimit) || 1;
+  const paginatedTasks = useMemo(() => {
+    const start = (currentPage - 1) * pageLimit;
+    return tasks.slice(start, start + pageLimit);
+  }, [tasks, currentPage, pageLimit]);
+
+  const paginationData = {
+    page: currentPage,
+    total: tasks.length,
+    totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages
+  };
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="py-4">Task Details</TableHead>
-          <TableHead className="py-4">Project</TableHead>
-          <TableHead className="py-4">Priority</TableHead>
-          {/* <TableHead className="py-4">Story Points</TableHead> */}
-          <TableHead className="py-4">Status</TableHead>
-          <TableHead className="py-4">Due Date</TableHead>
-        </TableRow>
-      </TableHeader>
-      <tbody>
-        {tasks.map((task) => (
+    <div className="flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="py-2.5 px-4 text-xs">Task Details</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs">Project</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs">Priority</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs">Status</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs">Due Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <tbody>
+            {paginatedTasks.map((task) => (
           <TableRow key={task.id} className="group">
             <TableCell
               className="py-4 cursor-pointer hover:bg-slate-50/50 transition-colors"
               onClick={() => setSelectedTaskDetail(task)}
             >
-              <div className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors max-w-[250px] overflow-hidden truncate" title={task.title}>{task.title}</div>
-              <div className="text-xs text-slate-400 line-clamp-1 max-w-[200px] mt-0.5">{task.description || 'No description'}</div>
+              <div className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors max-w-xl overflow-hidden truncate" title={task.title}>{task.title}</div>
+              <div className="text-xs text-slate-400 line-clamp-1 max-w-lg mt-0.5">{task.description || 'No description'}</div>
             </TableCell>
             <TableCell className="py-4">
               <Badge variant="secondary" className="text-xs font-medium">{task.project_name}</Badge>
@@ -111,7 +150,20 @@ const MyPipelineTab = ({
         )}
       </tbody>
     </Table>
-  );
+  </div>
+
+  {/* Pagination Footer Controls */}
+  {tasks.length > 0 && (
+    <PaginationControls
+      pagination={paginationData}
+      itemCount={paginatedTasks.length}
+      onPrevious={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+      onNext={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+      className="border-t border-slate-100 bg-white"
+    />
+  )}
+</div>
+);
 };
 
 export default MyPipelineTab;

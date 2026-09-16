@@ -74,10 +74,10 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1 rounded-[1.5rem] border border-slate-200/10 flex-1 h-full flex flex-col min-h-0", className)}>
-      <div className="bg-white rounded-[calc(1.5rem-0.25rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-visible flex-1 h-full flex flex-col min-h-0">
+    <div className={cn("bg-slate-200/30 p-1 rounded-[1.5rem] border border-slate-200/10 flex-1 flex flex-col min-h-0", className)}>
+      <div className="bg-white rounded-[calc(1.5rem-0.25rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-visible flex-1 flex flex-col min-h-0">
         {(title || subtitle) && (
-          <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 shrink-0">
+          <div className="px-3 sm:px-4 py-2 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 shrink-0">
             <div className="flex items-center gap-2.5">
               {Icon && (
                 <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100 shrink-0">
@@ -96,7 +96,7 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
             )}
           </div>
         )}
-        <div className="flex-1 h-full flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0">
           {children}
         </div>
       </div>
@@ -512,7 +512,7 @@ const AttendancePage = () => {
   };
 
   const getCardClasses = (d, index, isToday, customClass = "") => {
-    const baseClasses = "relative group flex flex-col justify-between h-full min-h-0 p-2 sm:p-2.5 transition-all duration-150 cursor-pointer overflow-hidden";
+    const baseClasses = "relative group flex flex-col justify-between h-full min-h-0 p-1.5 sm:p-2 transition-all duration-150 cursor-pointer overflow-hidden";
     const activeClass = isToday ? "bg-blue-50/20" : "";
 
     if (customClass) {
@@ -664,7 +664,7 @@ const AttendancePage = () => {
   const selectedDetail = selectedDay !== null ? getDayDetail(calendarDays[selectedDay], selectedDay) : null;
 
   return (
-    <div className="flex-1 h-full min-h-0 flex flex-col w-full pt-0 pb-4 sm:pb-6 px-1 sm:px-2 gap-2 overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col w-full gap-2 overflow-hidden">
 
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
@@ -678,10 +678,11 @@ const AttendancePage = () => {
         </div>
 
         {/* Toolbar controls in header */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full md:w-auto">
-          <div className="flex bg-white border border-slate-200/60 p-1 rounded-xl shadow-sm flex-1 min-w-[160px] sm:flex-initial">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 w-full md:w-auto">
+          <div className="flex items-center bg-white border border-slate-200/70 p-0.5 rounded-xl shadow-2xs flex-1 min-w-[160px] sm:flex-initial">
+            <Calendar className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
             <select
-              className="bg-transparent border-none text-xs font-bold text-slate-700 pl-2 sm:px-3 py-2 outline-none cursor-pointer focus:ring-0 flex-1 min-w-0"
+              className="bg-transparent border-none text-xs font-bold text-slate-700 pl-1.5 sm:px-2.5 py-1.5 outline-none cursor-pointer focus:ring-0 flex-1 min-w-0"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
             >
@@ -690,7 +691,7 @@ const AttendancePage = () => {
               ))}
             </select>
             <select
-              className="bg-transparent border-none text-xs font-bold text-slate-700 px-2 sm:px-3 py-2 outline-none cursor-pointer border-l border-slate-200 focus:ring-0"
+              className="bg-transparent border-none text-xs font-bold text-slate-700 px-2 sm:px-2.5 py-1.5 outline-none cursor-pointer border-l border-slate-200 focus:ring-0"
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             >
@@ -704,7 +705,7 @@ const AttendancePage = () => {
             <div className="relative flex-1 min-w-[160px] sm:flex-initial">
               <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 z-10" />
               <select
-                className="pl-9 pr-6 h-10 w-full bg-white border border-slate-200/60 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer shadow-sm"
+                className="pl-8.5 pr-6 h-9 w-full bg-white border border-slate-200/70 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer shadow-2xs"
                 onChange={(e) => setSelectedEmployeeId(e.target.value)}
                 value={selectedEmployeeId}
               >
@@ -720,9 +721,9 @@ const AttendancePage = () => {
           <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
             <Button
               onClick={handleExport}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 px-3 sm:px-4 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 w-full"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-1.5 px-3 sm:px-3.5 text-xs font-semibold shadow-2xs flex items-center justify-center gap-1.5 w-full h-9"
             >
-              <FileSpreadsheet className="w-4 h-4 shrink-0" />
+              <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden xs:inline sm:inline">Export</span>
             </Button>
           </div>
@@ -731,54 +732,60 @@ const AttendancePage = () => {
 
       {/* Full-width Calendar with inline KPI strip */}
       <PremiumCard
-        className="flex-1 h-full flex flex-col min-h-0"
+        className="flex-1 min-h-0 flex flex-col"
         icon={CalendarClock}
         headerRight={
-          <div className="flex items-center gap-0 divide-x divide-slate-100 w-max sm:w-auto">
-            {/* KPI Stat 1 */}
-            <div className="flex flex-col items-center px-3 sm:px-4 first:pl-0">
-              <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none whitespace-nowrap">
-                {selectedEmployeeId === "all" ? "Employees" : "Present"}
-              </span>
-              <span className="text-base sm:text-lg font-bold text-slate-800 font-mono leading-tight mt-0.5">
-                {activeStats.card1Value}
-              </span>
+          <div className="flex items-center gap-1.5 sm:gap-2 w-max sm:w-auto">
+            {/* KPI Stat 1: Present */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-emerald-50/80 border border-emerald-200/60 rounded-xl shadow-2xs">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider leading-none whitespace-nowrap">
+                  {selectedEmployeeId === "all" ? "Employees" : "Present"}
+                </span>
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-950 font-mono leading-tight mt-0.5">
+                  {activeStats.card1Value}
+                </span>
+              </div>
             </div>
-            {/* KPI Stat 2 */}
-            <div className="flex flex-col items-center px-3 sm:px-4">
-              <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none whitespace-nowrap">
-                {selectedEmployeeId === "all" ? "Avg Rate" : "Avg In"}
-              </span>
-              <span className="text-base sm:text-lg font-bold text-slate-800 font-mono leading-tight mt-0.5">
-                {activeStats.card2Value}
-              </span>
+
+            {/* KPI Stat 2: Rate / In */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-blue-50/80 border border-blue-200/60 rounded-xl shadow-2xs">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider leading-none whitespace-nowrap">
+                  {selectedEmployeeId === "all" ? "Avg Rate" : "Avg In"}
+                </span>
+                <span className="text-xs sm:text-sm font-extrabold text-blue-950 font-mono leading-tight mt-0.5">
+                  {activeStats.card2Value}
+                </span>
+              </div>
             </div>
-            {/* KPI Stat 3 */}
-            <div className="flex flex-col items-center px-3 sm:px-4">
-              <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none whitespace-nowrap">
-                {selectedEmployeeId === "all" ? "Leaves" : "On Leave"}
-              </span>
-              <span className="text-base sm:text-lg font-bold text-slate-800 font-mono leading-tight mt-0.5">
-                {activeStats.card3Value}
-              </span>
+
+            {/* KPI Stat 3: Leaves */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-amber-50/80 border border-amber-200/60 rounded-xl shadow-2xs">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[9px] font-bold text-amber-800 uppercase tracking-wider leading-none whitespace-nowrap">
+                  {selectedEmployeeId === "all" ? "Leaves" : "On Leave"}
+                </span>
+                <span className="text-xs sm:text-sm font-extrabold text-amber-950 font-mono leading-tight mt-0.5">
+                  {activeStats.card3Value}
+                </span>
+              </div>
             </div>
-            {/* KPI Stat 4 */}
-            <div className="flex flex-col items-center px-3 sm:px-4">
-              <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none whitespace-nowrap">
-                {selectedEmployeeId === "all" ? "Holidays" : "Absent"}
-              </span>
-              <span className="text-base sm:text-lg font-bold text-slate-800 font-mono leading-tight mt-0.5">
-                {activeStats.card4Value}
-              </span>
-            </div>
-            {/* Divider */}
-            <div className="w-px h-8 bg-slate-100 mx-2 hidden sm:block" />
-            {/* Legend pills */}
-            <div className="hidden sm:flex items-center gap-3 pl-4 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-emerald-500 rounded-full"></div> In</div>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-amber-500 rounded-full"></div> Leave</div>
-              {selectedEmployeeId !== "all" && <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-blue-400 rounded-full"></div> Holiday</div>}
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-rose-500 rounded-full"></div> Out</div>
+
+            {/* KPI Stat 4: Holidays / Absent */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-rose-50/80 border border-rose-200/60 rounded-xl shadow-2xs">
+              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[9px] font-bold text-rose-800 uppercase tracking-wider leading-none whitespace-nowrap">
+                  {selectedEmployeeId === "all" ? "Holidays" : "Absent"}
+                </span>
+                <span className="text-xs sm:text-sm font-extrabold text-rose-950 font-mono leading-tight mt-0.5">
+                  {activeStats.card4Value}
+                </span>
+              </div>
             </div>
           </div>
         }
@@ -794,12 +801,15 @@ const AttendancePage = () => {
           <div className="text-slate-300 normal-case font-medium tracking-normal ml-auto">Tap a day for details</div>
         </div>
 
-        <div className="flex-1 h-full flex flex-col min-h-0 p-1.5 sm:p-2.5 pb-3 sm:pb-4 overflow-hidden">
-          <div className="border-2 border-slate-300 rounded-2xl overflow-hidden bg-white shadow-xs flex-1 h-full flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 p-1 sm:p-2 overflow-hidden">
+          <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs flex-1 flex flex-col min-h-0">
             {/* Weekday header row */}
-            <div className="grid grid-cols-7 border-b-2 border-slate-300 bg-slate-100/90 divide-x-2 divide-slate-300 shrink-0">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
-                <div key={day} className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-left text-[11px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider">
+            <div className="grid grid-cols-7 border-b border-slate-200/90 bg-slate-50/90 divide-x divide-slate-200/60 shrink-0">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, dIdx) => (
+                <div key={day} className={cn(
+                  "px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] font-bold uppercase tracking-wider",
+                  dIdx === 0 || dIdx === 6 ? "text-slate-400 bg-slate-100/40" : "text-slate-600"
+                )}>
                   <span className="sm:hidden">{day.charAt(0)}</span>
                   <span className="hidden sm:inline">{day.toUpperCase()}</span>
                 </div>
@@ -807,7 +817,7 @@ const AttendancePage = () => {
             </div>
 
             {/* Calendar grid */}
-            <div className="grid grid-cols-7 grid-rows-6 flex-1 h-full min-h-0 divide-x-2 divide-y-2 divide-slate-200">
+            <div className="grid grid-cols-7 grid-rows-6 flex-1 min-h-0 divide-x divide-y divide-slate-100">
               {calendarDays.map((d, index) => {
                 const dateKey = formatDateKey(new Date(d.year, d.month, d.day));
                 const holiday = holidays.find(h => parseDbDateKey(h.date) === dateKey);
@@ -853,14 +863,14 @@ const AttendancePage = () => {
                       key={index}
                       onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
                       className={cn(
-                        getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/30" : ""),
+                        getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/40" : ""),
                         isSelected && "ring-2 ring-inset ring-blue-500 z-10"
                       )}
                     >
                       {/* Cell Top: Day number & status counter */}
                       <div className="flex items-center justify-between">
                         {isToday ? (
-                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs ring-2 ring-blue-100">
                             {d.day}
                           </div>
                         ) : (
@@ -885,25 +895,34 @@ const AttendancePage = () => {
                         )}
                       </div>
 
-                      {/* All-employees task bars - Full Width */}
+                      {/* All-employees task bars - Full Width with clean indicator dot */}
                       {d.isCurrentMonth && (
-                        <div className="flex flex-col gap-1 mt-auto pt-1 w-full">
+                        <div className="flex flex-col gap-0.5 sm:gap-1 mt-auto pt-0.5 sm:pt-1 w-full">
                           {totalPresent > 0 && (
-                            <div className="w-full rounded-xl bg-[#E6F7ED] text-[#0E7044] border border-[#B7E9C9] px-2 sm:px-2.5 py-1 flex items-center justify-between text-[11px] font-semibold shadow-2xs">
-                              <span className="truncate">Present</span>
-                              <span className="font-mono text-[11px] text-[#0E7044] shrink-0 font-bold ml-1">{totalPresent}</span>
+                            <div className="w-full rounded-md sm:rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
+                              <div className="flex items-center gap-1 truncate">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span className="truncate">Present</span>
+                              </div>
+                              <span className="font-mono text-[10px] sm:text-[11px] text-emerald-700 shrink-0 font-bold ml-1">{totalPresent}</span>
                             </div>
                           )}
                           {totalLeave > 0 && (
-                            <div className="w-full rounded-xl bg-[#FEF3E6] text-[#A35200] border border-[#FCD8B0] px-2 sm:px-2.5 py-1 flex items-center justify-between text-[11px] font-semibold shadow-2xs">
-                              <span className="truncate">Leave</span>
-                              <span className="font-mono text-[11px] text-[#A35200] shrink-0 font-bold ml-1">{totalLeave}</span>
+                            <div className="w-full rounded-md sm:rounded-lg bg-amber-50 text-amber-800 border border-amber-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
+                              <div className="flex items-center gap-1 truncate">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                <span className="truncate">Leave</span>
+                              </div>
+                              <span className="font-mono text-[10px] sm:text-[11px] text-amber-700 shrink-0 font-bold ml-1">{totalLeave}</span>
                             </div>
                           )}
                           {totalAbsent > 0 && (
-                            <div className="w-full rounded-xl bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2 sm:px-2.5 py-1 flex items-center justify-between text-[11px] font-semibold shadow-2xs">
-                              <span className="truncate">Absent</span>
-                              <span className="font-mono text-[11px] text-[#991B1B] shrink-0 font-bold ml-1">{totalAbsent}</span>
+                            <div className="w-full rounded-md sm:rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
+                              <div className="flex items-center gap-1 truncate">
+                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                <span className="truncate">Absent</span>
+                              </div>
+                              <span className="font-mono text-[10px] sm:text-[11px] text-rose-700 shrink-0 font-bold ml-1">{totalAbsent}</span>
                             </div>
                           )}
                         </div>
@@ -1010,10 +1029,10 @@ const AttendancePage = () => {
                         isSelected && "ring-2 ring-inset ring-blue-500 z-10"
                       )}
                     >
-                      {/* Cell Top: Day number & top-right hours (matching reference image) */}
+                      {/* Cell Top: Day number & top-right hours */}
                       <div className="flex items-center justify-between">
                         {isToday ? (
-                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs ring-2 ring-blue-100">
                             {d.day}
                           </div>
                         ) : (
@@ -1026,44 +1045,56 @@ const AttendancePage = () => {
                         )}
 
                         {d.isCurrentMonth && dayDuration && (
-                          <span className="text-[11px] font-medium text-slate-400 font-mono">
+                          <span className="text-[10px] font-semibold text-slate-400 font-mono bg-slate-100/80 px-1.5 py-0.5 rounded-md">
                             {dayDuration}
                           </span>
                         )}
                       </div>
 
-                      {/* Event Task Bar - Full Width matching Picture 1 */}
+                      {/* Event Task Bar - Full Width with Micro Dot */}
                       {d.isCurrentMonth && attRecord && (
-                        <div className="mt-auto w-full rounded-xl bg-[#E6F7ED] text-[#0E7044] border border-[#B7E9C9] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
-                          <span className="truncate">Present</span>
-                          <span className="font-mono text-[11px] text-[#0E7044] shrink-0 ml-1.5 font-bold">
+                        <div className="mt-auto w-full rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            <span className="truncate">Present</span>
+                          </div>
+                          <span className="font-mono text-[11px] text-emerald-700 shrink-0 ml-1.5 font-bold">
                             {getAttHours(attRecord)}
                           </span>
                         </div>
                       )}
 
                       {d.isCurrentMonth && leaveRecord && (
-                        <div className="mt-auto w-full rounded-xl bg-[#FEF3E6] text-[#A35200] border border-[#FCD8B0] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
-                          <span className="truncate">{leaveRecord.leave_type || "Unpaid leave"}</span>
-                          <span className="font-mono text-[11px] text-[#A35200] shrink-0 ml-1.5 font-bold">
+                        <div className="mt-auto w-full rounded-lg bg-amber-50 text-amber-800 border border-amber-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                            <span className="truncate">{leaveRecord.leave_type || "Unpaid leave"}</span>
+                          </div>
+                          <span className="font-mono text-[11px] text-amber-700 shrink-0 ml-1.5 font-bold">
                             8 h
                           </span>
                         </div>
                       )}
 
                       {d.isCurrentMonth && holiday && (
-                        <div className="mt-auto w-full rounded-xl bg-[#EFF4FF] text-[#1E40AF] border border-[#BFDBFE] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
-                          <span className="truncate">{holiday.name}</span>
-                          <span className="font-mono text-[11px] text-[#1E40AF] shrink-0 ml-1.5 font-bold">
+                        <div className="mt-auto w-full rounded-lg bg-blue-50 text-blue-800 border border-blue-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                            <span className="truncate">{holiday.name}</span>
+                          </div>
+                          <span className="font-mono text-[11px] text-blue-700 shrink-0 ml-1.5 font-bold">
                             Holiday
                           </span>
                         </div>
                       )}
 
                       {d.isCurrentMonth && !attRecord && !leaveRecord && !holiday && isPast && !isWeekend && (
-                        <div className="mt-auto w-full rounded-xl bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-95 shadow-2xs">
-                          <span className="truncate">Absent</span>
-                          <span className="font-mono text-[11px] text-[#991B1B] shrink-0 ml-1.5 font-bold">
+                        <div className="mt-auto w-full rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                            <span className="truncate">Absent</span>
+                          </div>
+                          <span className="font-mono text-[11px] text-rose-700 shrink-0 ml-1.5 font-bold">
                             0 h
                           </span>
                         </div>

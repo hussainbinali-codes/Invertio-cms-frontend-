@@ -77,13 +77,13 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
-      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-2xl border border-slate-200/10", className)}>
+      <div className="bg-white rounded-[calc(1rem-0.125rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
         {(title || subtitle) && (
-          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2.5">
               {Icon && (
-                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100">
                   <Icon className="w-4 h-4 text-slate-500" />
                 </div>
               )}
@@ -187,66 +187,64 @@ const LeavesPage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 pb-10">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-96" />
+      <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10">
+        <div className="space-y-2 w-full max-w-md">
+          <Skeleton className="h-8 w-48 sm:w-64" />
+          <Skeleton className="h-4 w-full max-w-sm sm:w-96" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-6">
-            <Skeleton className="h-32 rounded-2xl" />
-            <Skeleton className="h-[400px] rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0">
+          <div className="lg:col-span-1 space-y-5 w-full min-w-0">
+            <Skeleton className="h-32 rounded-2xl w-full" />
+            <Skeleton className="h-[400px] rounded-2xl w-full" />
           </div>
-          <Skeleton className="lg:col-span-2 h-[550px] rounded-2xl" />
+          <Skeleton className="lg:col-span-2 h-[550px] rounded-2xl w-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+    <div className="w-full min-w-0 space-y-5 pb-8 py-1">
       {/* Header section with Asymmetric Layout */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 w-full min-w-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+          <h1 className="text-xl font-bold text-slate-950 tracking-tight">
             Time Off & Holidays
           </h1>
-          <p className="text-sm text-slate-500 mt-1 font-normal">
+          <p className="text-xs text-slate-500 mt-0.5 font-normal">
             Manage your annual leave balance and request time off.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6">
-          <div className="space-y-4">
-            <PremiumCard 
-              title="Monthly Allowance" 
-              subtitle="Reset every 1st of the month"
-              icon={Calendar}
-            >
-              <div className="p-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <span className="text-xs font-medium text-slate-600">
-                      Paid Leave / Sick Leave
-                    </span>
-                    <span className="text-sm font-normal text-blue-600 bg-blue-50/50 px-3 py-1 rounded-lg border border-blue-100/30 font-mono">
-                      1 Day / Month
-                    </span>
-                  </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0">
+        <div className="lg:col-span-1 space-y-4 w-full min-w-0">
+          <PremiumCard 
+            title="Monthly Allowance" 
+            subtitle="Reset every 1st of the month"
+            icon={Calendar}
+          >
+            <div className="p-4 sm:p-5">
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  <span className="text-xs font-medium text-slate-600">
+                    Paid Leave / Sick Leave
+                  </span>
+                  <span className="text-xs font-semibold text-blue-600 bg-blue-50/70 px-2.5 py-1 rounded-lg border border-blue-100/40 font-mono">
+                    1 Day / Month
+                  </span>
                 </div>
-
-                <p className="text-xs text-slate-400 mt-4 leading-relaxed font-normal italic">
-                  * Allowances do not carry forward. Any additional requests within the same month will be marked as Unpaid Leave.
-                </p>
               </div>
-            </PremiumCard>
-          </div>
+
+              <p className="text-[11px] text-slate-400 mt-3 leading-relaxed font-normal italic">
+                * Allowances do not carry forward. Any additional requests within the same month will be marked as Unpaid Leave.
+              </p>
+            </div>
+          </PremiumCard>
 
           <PremiumCard title="Apply for Leave" subtitle="Submit request for authorization" icon={Calendar}>
-            <div className="p-6">
-              <form onSubmit={handleApply} className="space-y-4">
+            <div className="p-4 sm:p-5">
+              <form onSubmit={handleApply} className="space-y-3.5">
                 {/* Selection toggle capsule */}
                 <div className="bg-slate-100 border border-slate-200/50 rounded-xl p-1 flex items-center gap-1">
                   <button
@@ -258,7 +256,7 @@ const LeavesPage = () => {
                     className={cn(
                       "flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 active:scale-[0.98]",
                       selectionType === "single"
-                        ? "bg-white text-blue-600 shadow-sm border border-slate-200/20"
+                        ? "bg-white text-blue-600 shadow-sm border border-slate-200/20 font-semibold"
                         : "text-slate-500 hover:text-slate-700",
                     )}
                   >
@@ -273,7 +271,7 @@ const LeavesPage = () => {
                     className={cn(
                       "flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 active:scale-[0.98]",
                       selectionType === "range"
-                        ? "bg-white text-blue-600 shadow-sm border border-slate-200/20"
+                        ? "bg-white text-blue-600 shadow-sm border border-slate-200/20 font-semibold"
                         : "text-slate-500 hover:text-slate-700",
                     )}
                   >
@@ -288,7 +286,7 @@ const LeavesPage = () => {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="rounded-xl border-slate-200 text-sm font-normal"
+                  className="rounded-xl border-slate-200 text-xs py-2 h-9"
                 />
 
                 <div className="space-y-1">
@@ -297,7 +295,7 @@ const LeavesPage = () => {
                   </label>
                   <select
                     name="leave_type"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     required
                   >
                     <option value="Available">Paid Leave</option>
@@ -312,7 +310,7 @@ const LeavesPage = () => {
                     type="date"
                     required
                     min={startDate}
-                    className="rounded-xl border-slate-200 text-sm font-normal"
+                    className="rounded-xl border-slate-200 text-xs py-2 h-9"
                   />
                 ) : null}
 
@@ -322,8 +320,8 @@ const LeavesPage = () => {
                   </label>
                   <textarea
                     name="reason"
-                    rows={4}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
+                    rows={3}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
                     placeholder="Briefly explain your absence..."
                     required
                   />
@@ -332,7 +330,7 @@ const LeavesPage = () => {
                 <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
                   <Button
                     type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-sm font-semibold shadow-sm flex items-center justify-center gap-2"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-xs font-semibold shadow-sm flex items-center justify-center gap-2"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
@@ -349,33 +347,33 @@ const LeavesPage = () => {
           </PremiumCard>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 w-full min-w-0">
           <PremiumCard 
             title="Leave History" 
             subtitle="Historical timeline of requests & approvals" 
             icon={History}
           >
-            <div className="flex-1">
+            <div className="flex-1 overflow-x-auto">
               {leaves.length === 0 ? (
-                <div className="p-20 text-center text-slate-400">
-                  <Clock className="w-10 h-10 mx-auto mb-4 opacity-20" />
-                  <p className="font-medium text-sm">No leave history found.</p>
+                <div className="p-12 text-center text-slate-400">
+                  <Clock className="w-9 h-9 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium text-sm text-slate-600">No leave history found.</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="py-4">Dates</TableHead>
-                      <TableHead className="py-4">Type</TableHead>
-                      <TableHead className="py-4">Reason</TableHead>
-                      <TableHead className="py-4">Status</TableHead>
+                      <TableHead className="py-2.5 px-4 text-xs font-semibold text-slate-500">Dates</TableHead>
+                      <TableHead className="py-2.5 px-4 text-xs font-semibold text-slate-500">Type</TableHead>
+                      <TableHead className="py-2.5 px-4 text-xs font-semibold text-slate-500">Reason</TableHead>
+                      <TableHead className="py-2.5 px-4 text-xs font-semibold text-slate-500">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <tbody>
                     {leaves.map((leave) => (
-                      <TableRow key={leave.id}>
-                        <TableCell className="py-5">
-                          <div className="text-sm font-normal text-slate-700">
+                      <TableRow key={leave.id} className="hover:bg-slate-50/60 transition-colors">
+                        <TableCell className="py-3 px-4">
+                          <div className="text-xs font-semibold text-slate-800">
                             {new Date(leave.start_date).toLocaleDateString(
                               "en-IN",
                               { timeZone: "Asia/Kolkata" },
@@ -383,15 +381,15 @@ const LeavesPage = () => {
                             {leave.start_date !== leave.end_date &&
                               ` - ${new Date(leave.end_date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}`}
                           </div>
-                          <div className="text-xs text-slate-500 font-medium mt-0.5">
+                          <div className="text-[11px] text-slate-400 font-medium mt-0.5">
                             {leave.days_count}{" "}
                             {parseFloat(leave.days_count) === 1
                               ? "day"
                               : "days"}
                           </div>
                         </TableCell>
-                        <TableCell className="py-5">
-                          <div className="flex flex-col gap-1">
+                        <TableCell className="py-3 px-4">
+                          <div className="flex items-center gap-1">
                             <Badge
                               variant={
                                 leave.leave_type === "Available"
@@ -402,23 +400,23 @@ const LeavesPage = () => {
                                       ? "danger"
                                       : "secondary"
                               }
-                              className="text-xs font-semibold text-slate-500 w-fit"
+                              className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
                             >
                               {leave.leave_type || "Available"}
                             </Badge>
                             {leave.is_half_day && (
-                              <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-widest ml-1">
+                              <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded-md">
                                 HALF DAY
                               </span>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="py-5">
-                          <p className="text-xs text-slate-600 max-w-xs truncate">
+                        <TableCell className="py-3 px-4">
+                          <p className="text-xs text-slate-600 max-w-xs truncate" title={leave.reason}>
                             {leave.reason}
                           </p>
                         </TableCell>
-                        <TableCell className="py-5">
+                        <TableCell className="py-3 px-4">
                           <Badge
                             variant={
                               leave.status === "Approved"
@@ -427,7 +425,7 @@ const LeavesPage = () => {
                                   ? "danger"
                                   : "primary"
                             }
-                            className="text-xs font-semibold text-slate-500"
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
                           >
                             {leave.status}
                           </Badge>

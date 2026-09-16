@@ -162,9 +162,9 @@ const NotificationsPage = () => {
   const tasksCount = notifications.filter((n) => n.type?.includes('task')).length;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="w-full min-w-0 space-y-6 animate-in fade-in duration-300 pb-10">
       {/* Top Header & Overview */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full min-w-0">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">

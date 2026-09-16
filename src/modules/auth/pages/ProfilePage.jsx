@@ -90,11 +90,35 @@ const ProfilePage = () => {
   if (!profile) return null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
-      {/* Clean Profile Header */}
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="h-32 bg-slate-50 border-b border-slate-100" />
-        <div className="px-8 pb-8">
+    <div className="w-full min-w-0 space-y-6 pb-20">
+      {/* Clean Profile Header with Invertio Banner */}
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm w-full min-w-0">
+        <div className="h-36 sm:h-44 relative bg-gradient-to-r from-slate-100 via-blue-50/70 to-indigo-50/40 border-b border-slate-200/80 overflow-hidden flex items-center justify-between px-6 sm:px-10">
+          {/* Subtle Dot Grid Pattern */}
+          <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12] pointer-events-none" />
+          
+          {/* Ambient Glows */}
+          <div className="absolute -top-16 -right-16 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 left-1/3 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Large Invertio Monogram Watermark */}
+          <img
+            src="/invertio_logo_short.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute right-6 sm:right-20 -bottom-8 h-48 sm:h-56 object-contain opacity-[0.09] pointer-events-none select-none"
+          />
+
+          {/* Invertio Full Brand Banner Badge */}
+          <div className="relative ml-auto flex items-center gap-3 bg-white/75 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/80 shadow-xs">
+            <img
+              src="/invertio_logo.png"
+              alt="Invertio"
+              className="h-7 sm:h-9 w-auto object-contain"
+            />
+          </div>
+        </div>
+        <div className="px-4 sm:px-8 pb-8">
           <div className="relative flex flex-col md:flex-row md:items-end gap-6 -mt-12">
             <div className="w-32 h-32 rounded-2xl bg-primary-600 flex items-center justify-center text-white text-4xl font-bold shadow-lg ring-4 ring-white">
               {profile.name.charAt(0).toUpperCase()}

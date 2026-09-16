@@ -168,7 +168,7 @@ const SprintDetailsPage = () => {
   ];
 
   return (
-    <div className="space-y-6 pb-12 max-w-[1400px] mx-auto py-2">
+    <div className="w-full min-w-0 space-y-6 pb-12 py-1">
       {/* Top Back Nav */}
       <div>
         <Link
@@ -180,9 +180,9 @@ const SprintDetailsPage = () => {
         </Link>
 
         {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64 rounded-xl" />
-            <Skeleton className="h-4 w-96 rounded-lg" />
+          <div className="space-y-2 w-full max-w-md">
+            <Skeleton className="h-8 w-48 sm:w-64 rounded-xl" />
+            <Skeleton className="h-4 w-full max-w-sm sm:w-96 rounded-lg" />
           </div>
         ) : (
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">

@@ -483,11 +483,11 @@ const CampaignsPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6 pb-10">
       {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm w-full min-w-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             Campaign Leads Tracking
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -545,7 +545,7 @@ const CampaignsPage = () => {
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 w-full min-w-0">
         <KpiCard
           title="Raw Data"
           value={stats.Data || 0}
@@ -579,7 +579,7 @@ const CampaignsPage = () => {
       </div>
 
       {/* Main Table Card */}
-      <Card className="shadow-sm border-slate-200/60 overflow-hidden">
+      <Card className="shadow-sm border-slate-200/60 overflow-hidden w-full min-w-0">
         {/* Stage Tabs Bar */}
         <div className="px-6 pt-5 pb-0 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3">

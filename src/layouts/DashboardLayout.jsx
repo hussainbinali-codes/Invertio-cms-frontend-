@@ -355,7 +355,7 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="flex bg-slate-50 min-h-screen font-sans selection:bg-primary-100 selection:text-primary-900">
+    <div className="flex bg-slate-50 h-screen h-[100dvh] overflow-hidden font-sans selection:bg-primary-100 selection:text-primary-900">
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
@@ -365,7 +365,7 @@ const DashboardLayout = () => {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200/60 shadow-xl shadow-slate-200/50 sidebar-transition flex flex-col h-screen h-[100dvh] lg:shadow-none lg:sticky lg:top-0 lg:h-screen",
+          "fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200/80 shadow-[1px_0_10px_-3px_rgba(0,0,0,0.03)] sidebar-transition flex flex-col h-screen h-[100dvh] lg:sticky lg:top-0 lg:h-screen shrink-0",
           isSidebarOpen
             ? "translate-x-0 w-[280px]"
             : "-translate-x-full lg:translate-x-0",
@@ -416,10 +416,10 @@ const DashboardLayout = () => {
                 onClick={() => setIsSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 group relative",
+                    "flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative",
                     isActive
-                      ? "bg-primary-50 text-primary-700 shadow-sm"
-                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                      ? "bg-slate-900 text-white shadow-xs font-semibold"
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-950",
                     isSidebarCollapsed
                       ? "lg:justify-center lg:px-2 px-3"
                       : "px-3",
@@ -430,7 +430,8 @@ const DashboardLayout = () => {
                   <>
                     <item.icon
                       className={cn(
-                        "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
+                        "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-105",
+                        isActive ? "text-white" : "text-slate-500 group-hover:text-slate-800",
                         isSidebarCollapsed ? "lg:mr-0 mr-3" : "mr-3",
                       )}
                     />
@@ -442,14 +443,6 @@ const DashboardLayout = () => {
                     >
                       {item.label}
                     </span>
-                    {isActive && (
-                      <div
-                        className={cn(
-                          "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
-                          isSidebarCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6",
-                        )}
-                      />
-                    )}
 
                     {/* Styled Floating Tooltip on Hover when Collapsed */}
                     {isSidebarCollapsed && (
@@ -554,7 +547,7 @@ const DashboardLayout = () => {
         errorMessage={workModeError}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Mobile Hamburger (Only visible on mobile screens where sidebar is hidden) */}
         <button
           className="lg:hidden fixed top-3 left-3 z-40 p-2 text-slate-600 bg-white/95 backdrop-blur-md rounded-xl shadow-md border border-slate-200 transition-all active:scale-95"
@@ -564,8 +557,8 @@ const DashboardLayout = () => {
           <Menu className="w-5 h-5" />
         </button>
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50 flex flex-col">
-          <div className="p-3 sm:p-4 lg:p-5 w-full flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <main className="w-full flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50 flex flex-col min-h-0 min-w-0">
+          <div className="pt-12 sm:pt-14 lg:pt-4 px-2 sm:px-3 lg:px-4 pb-2 sm:pb-3 lg:pb-4 w-full min-w-0 flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />
           </div>
         </main>

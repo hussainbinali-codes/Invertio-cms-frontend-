@@ -13,7 +13,7 @@ const SidebarProfile = ({ user, isCollapsed, onMobileClose }) => {
         cn(
           "w-full flex items-center gap-2.5 p-2 rounded-xl transition-all duration-200 group text-left relative",
           isActive
-            ? "bg-primary-50 text-primary-700 shadow-2xs font-semibold ring-1 ring-primary-200/60"
+            ? "bg-slate-900 text-white shadow-xs font-semibold"
             : "hover:bg-slate-100/80 text-slate-700",
           isCollapsed ? "justify-center px-1.5" : "justify-start"
         )
@@ -31,24 +31,21 @@ const SidebarProfile = ({ user, isCollapsed, onMobileClose }) => {
 
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-slate-900 truncate leading-tight group-hover:text-blue-600 transition-colors">
+                <span className={cn(
+                  "text-xs font-bold truncate leading-tight transition-colors",
+                  isActive ? "text-white" : "text-slate-900 group-hover:text-blue-600"
+                )}>
                   {user?.name || 'User'}
                 </span>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest font-mono mt-0.5 truncate">
+                <span className={cn(
+                  "text-[10px] font-semibold uppercase tracking-widest font-mono mt-0.5 truncate",
+                  isActive ? "text-slate-400" : "text-slate-400"
+                )}>
                   {user?.role_name || 'Developer'}
                 </span>
               </div>
             )}
           </div>
-
-          {isActive && (
-            <div
-              className={cn(
-                "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
-                isCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6"
-              )}
-            />
-          )}
 
           {/* Styled Floating Tooltip on Hover when Collapsed */}
           {isCollapsed && (

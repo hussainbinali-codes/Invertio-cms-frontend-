@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Table, TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Button from '../../../components/ui/Button';
+import PaginationControls from '../../../components/ui/PaginationControls';
 import { LayoutDashboard, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+
+const getDynamicPageLimit = () => {
+  if (typeof window === 'undefined') return 6;
+  const h = window.innerHeight;
+  if (h < 720) return 5;
+  if (h < 820) return 6;
+  if (h < 920) return 7;
+  return 8;
+};
 
 const GlobalBoardsTab = ({
   projects = [],
@@ -12,20 +22,50 @@ const GlobalBoardsTab = ({
   handleViewTasks,
   handleCreateTask
 }) => {
+  const [pageLimit, setPageLimit] = useState(getDynamicPageLimit);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => setPageLimit(getDynamicPageLimit());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Reset to page 1 if project list length changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [projects.length]);
+
+  const totalPages = Math.ceil(projects.length / pageLimit) || 1;
+  const paginatedProjects = useMemo(() => {
+    const start = (currentPage - 1) * pageLimit;
+    return projects.slice(start, start + pageLimit);
+  }, [projects, currentPage, pageLimit]);
+
+  const paginationData = {
+    page: currentPage,
+    total: projects.length,
+    totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages
+  };
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="py-2.5 px-4 text-xs w-[30%]">Project Boards</TableHead>
-          <TableHead className="py-2.5 px-4 text-xs w-[12%]">Status</TableHead>
-          <TableHead className="py-2.5 px-4 text-xs w-[22%]">Progress</TableHead>
-          <TableHead className="py-2.5 px-4 text-xs w-[13%]">In Progress</TableHead>
-          <TableHead className="py-2.5 px-4 text-xs w-[13%]">Completed</TableHead>
-          <TableHead className="py-2.5 px-4 text-xs w-[10%]">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <tbody>
-        {projects.map((project) => {
+    <div className="flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="py-2.5 px-4 text-xs w-[30%]">Project Boards</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs w-[12%]">Status</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs w-[22%]">Progress</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs w-[13%]">In Progress</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs w-[13%]">Completed</TableHead>
+              <TableHead className="py-2.5 px-4 text-xs w-[10%]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <tbody>
+            {paginatedProjects.map((project) => {
           const isBlocked = project.status?.includes('Blocked');
           
           // Match tasks for this project
@@ -71,7 +111,7 @@ const GlobalBoardsTab = ({
 
               {/* Column 3: Live Progress (No Points) */}
               <TableCell className="py-2.5 px-4">
-                <div className="flex flex-col gap-1 w-full max-w-[150px]">
+                <div className="flex flex-col gap-1 w-full max-w-[240px]">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold text-slate-800">{progressPercent}%</span>
                     <span className="text-slate-400 font-medium">{completedCount}/{totalTasks} tasks</span>
@@ -144,9 +184,29 @@ const GlobalBoardsTab = ({
             </TableRow>
           );
         })}
+        {projects.length === 0 && (
+          <TableRow>
+            <TableCell colSpan={6} className="p-12 text-center text-slate-400 text-xs">
+              No project boards found.
+            </TableCell>
+          </TableRow>
+        )}
       </tbody>
     </Table>
-  );
+  </div>
+
+  {/* Pagination Footer Controls */}
+  {projects.length > 0 && (
+    <PaginationControls
+      pagination={paginationData}
+      itemCount={paginatedProjects.length}
+      onPrevious={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+      onNext={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+      className="border-t border-slate-100 bg-white"
+    />
+  )}
+</div>
+);
 };
 
 export default GlobalBoardsTab;

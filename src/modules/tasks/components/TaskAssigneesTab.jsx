@@ -4,7 +4,14 @@ import Badge from '../../../components/ui/Badge';
 import PaginationControls from '../../../components/ui/PaginationControls';
 import { CheckCircle2, Calendar, CheckSquare, User, Clock } from 'lucide-react';
 
-const PAGE_LIMIT = 20;
+const getDynamicPageLimit = () => {
+  if (typeof window === 'undefined') return 5;
+  const h = window.innerHeight;
+  if (h < 750) return 4;
+  if (h < 850) return 5;
+  if (h < 950) return 6;
+  return 7;
+};
 
 const formatDateTime = (dateStr) => {
   if (!dateStr) return 'N/A';
@@ -20,12 +27,19 @@ const formatDateTime = (dateStr) => {
 };
 
 const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
+  const [pageLimit, setPageLimit] = useState(getDynamicPageLimit);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterAssignedTo, setFilterAssignedTo] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateOperator, setFilterDateOperator] = useState('='); // '=', '<', '>'
   const [filterDueDate, setFilterDueDate] = useState('');
+
+  useEffect(() => {
+    const handleResize = () => setPageLimit(getDynamicPageLimit());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Reset pagination to page 1 whenever filters change
   useEffect(() => {
@@ -61,41 +75,28 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
       return true;
     });
 
-    // Group users together (alphabetically by assignee name), then sort by project name
-    return result.sort((a, b) => {
-      const userA = (a.assigned_to_name || 'Unassigned').toLowerCase();
-      const userB = (b.assigned_to_name || 'Unassigned').toLowerCase();
-      if (userA !== userB) return userA.localeCompare(userB);
-
-      const projA = (a.project_name || '').toLowerCase();
-      const projB = (b.project_name || '').toLowerCase();
-      return projA.localeCompare(projB);
-    });
+    return result;
   }, [tasks, filterAssignedTo, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
 
-  // Paginated tasks slice for limit 20
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredTasks.length / pageLimit) || 1;
   const paginatedTasks = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_LIMIT;
-    return filteredTasks.slice(start, start + PAGE_LIMIT);
-  }, [filteredTasks, currentPage]);
+    const start = (currentPage - 1) * pageLimit;
+    return filteredTasks.slice(start, start + pageLimit);
+  }, [filteredTasks, currentPage, pageLimit]);
 
-  const paginationData = useMemo(() => {
-    const total = filteredTasks.length;
-    const totalPages = Math.ceil(total / PAGE_LIMIT) || 1;
-    return {
-      page: currentPage,
-      limit: PAGE_LIMIT,
-      total,
-      totalPages,
-      hasNextPage: currentPage < totalPages,
-      hasPreviousPage: currentPage > 1
-    };
-  }, [filteredTasks.length, currentPage]);
+  const paginationData = {
+    page: currentPage,
+    total: filteredTasks.length,
+    totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages
+  };
 
   return (
-    <div className="w-full overflow-hidden border border-slate-200 rounded-xl bg-white shadow-sm">
+    <div className="w-full flex-1 min-h-0 flex flex-col justify-between overflow-hidden border border-slate-200 rounded-xl bg-white shadow-sm">
       {/* Top Filter Bar */}
-      <div className="p-3 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-3 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2">
           {/* Assignee Filter */}
           <select
@@ -188,7 +189,8 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
       </div>
 
       {/* Table Section - Clean Column Headers Layout */}
-      <Table className="w-full table-fixed border-collapse">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <Table className="w-full table-fixed border-collapse">
         <TableHeader>
           <TableRow className="bg-slate-50/50 border-b border-slate-200">
             <TableHead className="px-3 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[28%]">
@@ -300,6 +302,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
           )}
         </tbody>
       </Table>
+    </div>
 
       {/* Pagination Footer Controls */}
       {filteredTasks.length > 0 && (

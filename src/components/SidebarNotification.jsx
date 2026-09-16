@@ -27,10 +27,10 @@ const SidebarNotification = ({ isCollapsed }) => {
       to="/notifications"
       className={({ isActive }) =>
         cn(
-          "flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 group relative",
+          "flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative",
           isActive
-            ? "bg-primary-50 text-primary-700 shadow-sm font-semibold"
-            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+            ? "bg-slate-900 text-white shadow-xs font-semibold"
+            : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-950",
           isCollapsed ? "lg:justify-center lg:px-2 px-3" : "justify-between px-3"
         )
       }
@@ -41,8 +41,8 @@ const SidebarNotification = ({ isCollapsed }) => {
             <div className="relative">
               <Bell
                 className={cn(
-                  "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
-                  isActive ? "text-primary-600" : "",
+                  "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-105",
+                  isActive ? "text-white" : "text-slate-500 group-hover:text-slate-800",
                   isCollapsed ? "lg:mr-0 mr-3" : "mr-3"
                 )}
               />
@@ -64,15 +64,6 @@ const SidebarNotification = ({ isCollapsed }) => {
             <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white leading-none shadow-xs">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
-          )}
-
-          {isActive && (
-            <div
-              className={cn(
-                "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
-                isCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6"
-              )}
-            />
           )}
 
           {/* Styled Floating Tooltip on Hover when Collapsed */}
