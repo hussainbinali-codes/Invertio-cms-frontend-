@@ -12,6 +12,7 @@ const AttendancePunch = ({
   setStatus,
   handlePunchInRequest,
   location,
+  setCheckInTime,
 }) => {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -21,6 +22,9 @@ const AttendancePunch = ({
       const res = await axios.get("/hr/attendance/today");
       const data = res.data.data;
       if (data) {
+        if (data.check_in) {
+          setCheckInTime?.(data.check_in);
+        }
         if (data.check_out) {
           setStatus("out");
         } else if (data.check_in) {
@@ -32,7 +36,7 @@ const AttendancePunch = ({
     } finally {
       setLoading(false);
     }
-  }, [setStatus]);
+  }, [setStatus, setCheckInTime]);
 
   const handlePunchButtonClick = () => {
     if (status === "in") {
@@ -63,44 +67,8 @@ const AttendancePunch = ({
 
   return (
     <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-0.5">
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200/25 shadow-xs">
-        {/* Top Info Row: Left = Time & Full Day Name, Right = GPS Required */}
-        <div className="flex items-start justify-between mb-3 px-0.5">
-          <div>
-            <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none">
-              {currentTime.toLocaleTimeString("en-IN", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-                timeZone: "Asia/Kolkata",
-              })}
-            </p>
-            <p className="text-xs font-semibold text-slate-500 mt-1">
-              {currentTime.toLocaleDateString("en-IN", {
-                weekday: "long",
-                timeZone: "Asia/Kolkata",
-              })}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-            <MapPin
-              className={cn(
-                "w-2.5 h-2.5",
-                location ? "text-emerald-500" : "text-slate-400",
-              )}
-            />
-            <span className="lowercase">
-              {isDetectingLocation
-                ? "detecting..."
-                : location
-                  ? "verified"
-                  : "gps required"}
-            </span>
-          </div>
-        </div>
-
-        {/* After Text: Punch In / Out Button */}
+      <div className="bg-white p-3 rounded-xl border border-slate-200/25 shadow-xs flex flex-col gap-2.5">
+        {/* Top: Punch In / Out Button */}
         <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
           <Button
             onClick={handlePunchButtonClick}
@@ -135,6 +103,42 @@ const AttendancePunch = ({
               </>
             )}
           </Button>
+        </div>
+
+        {/* Below Button: Time & Day on Left, Location badge on Right */}
+        <div className="flex items-center justify-between px-0.5">
+          <div>
+            <p className="text-lg font-bold text-slate-800 tracking-tight font-mono leading-none">
+              {currentTime.toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: "Asia/Kolkata",
+              })}
+            </p>
+            <p className="text-[11px] font-semibold text-slate-500 mt-1 leading-none">
+              {currentTime.toLocaleDateString("en-IN", {
+                weekday: "long",
+                timeZone: "Asia/Kolkata",
+              })}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+            <MapPin
+              className={cn(
+                "w-2.5 h-2.5",
+                location ? "text-emerald-500" : "text-blue-500",
+              )}
+            />
+            <span className="capitalize text-[10px]">
+              {isDetectingLocation
+                ? "detecting..."
+                : location
+                  ? "office verified"
+                  : "office"}
+            </span>
+          </div>
         </div>
       </div>
     </div>

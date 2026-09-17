@@ -11,6 +11,8 @@ export default defineConfig({
   },
   plugins: [react()],
   server: {
+    host: true,
+    port: 5173,
     allowedHosts: [
       "litigation-oclc-accounting-pulse.trycloudflare.com" //all hosts ending with .trycloudflare.com
     ]

@@ -1,26 +1,58 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
-import { X, Loader2, Calendar, User, ClipboardList, FolderOpen, CheckCircle2 } from 'lucide-react';
+import { X, Loader2, Calendar, User, ClipboardList, FolderOpen, CheckCircle2, Ban } from 'lucide-react';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import TaskDetailModal from './TaskDetailModal';
 import Button from '../../../components/ui/Button';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import { cn } from '../../../utils/cn';
 
-const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
+const TaskViewModal = ({ 
+  project, 
+  onClose, 
+  initialStatusFilter = 'all',
+  initialAssigneeFilter = 'all'
+}) => {
   useLockBodyScroll(true);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showResources, setShowResources] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'all');
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
+  const initializedFilterRef = useRef(false);
+
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const currentUserName = (currentUser?.name || currentUser?.full_name || '').trim();
+  const currentUserRole = currentUser?.role_name || currentUser?.role || 'Developer';
 
   useEffect(() => {
+    initializedFilterRef.current = false;
     setStatusFilter(initialStatusFilter || 'all');
-  }, [initialStatusFilter, project]);
+  }, [project?.id, initialStatusFilter, initialAssigneeFilter]);
+
+  useEffect(() => {
+    if (initializedFilterRef.current || loading) return;
+
+    if (initialAssigneeFilter === 'me') {
+      // Prioritize the logged-in user's name so it filters explicitly to the user
+      setAssigneeFilter(currentUserName || 'me');
+    } else {
+      setAssigneeFilter(initialAssigneeFilter || 'all');
+    }
+
+    initializedFilterRef.current = true;
+  }, [loading, initialAssigneeFilter, currentUserName]);
 
   useEffect(() => {
     if (project) {
@@ -52,18 +84,98 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
   };
 
   const yetToStartTasks = useMemo(
-    () => tasks.filter((t) => t.status !== 'In Progress' && t.status !== 'Completed'),
+    () => tasks.filter((t) => t.status !== 'In Progress' && t.status !== 'Completed' && t.status !== 'Cancelled'),
     [tasks]
   );
   const inProgressTasks = useMemo(() => tasks.filter((t) => t.status === 'In Progress'), [tasks]);
   const completedTasks = useMemo(() => tasks.filter((t) => t.status === 'Completed'), [tasks]);
+  const cancelledTasks = useMemo(() => tasks.filter((t) => t.status === 'Cancelled'), [tasks]);
+
+  const assignees = useMemo(() => {
+    const map = new Map();
+    const currentUserId = currentUser?.id;
+
+    tasks.forEach((t) => {
+      const rawName = t.assigned_to_name?.trim();
+      const name = rawName || 'Unassigned';
+      const role = t.assigned_to_role || (currentUserName && name.toLowerCase() === currentUserName.toLowerCase() ? currentUserRole : '');
+      const isCurrent = (currentUserId && (t.assigned_to === currentUserId || t.user_id === currentUserId)) ||
+                        (currentUserName && name.toLowerCase() === currentUserName.toLowerCase());
+
+      if (!map.has(name)) {
+        map.set(name, { name, count: 1, isUnassigned: !rawName, role, isCurrentUser: isCurrent });
+      } else {
+        const existing = map.get(name);
+        existing.count += 1;
+        if (!existing.role && role) {
+          existing.role = role;
+        }
+      }
+    });
+
+    // If current logged-in user is not in the tasks list, ensure they are present so they can filter to themselves
+    if (currentUserName && !map.has(currentUserName)) {
+      map.set(currentUserName, {
+        name: currentUserName,
+        count: 0,
+        isUnassigned: false,
+        role: currentUserRole,
+        isCurrentUser: true
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.isCurrentUser) return -1; // Current user always first
+      if (b.isCurrentUser) return 1;
+      if (a.isUnassigned) return 1;
+      if (b.isUnassigned) return -1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [tasks, currentUser, currentUserName, currentUserRole]);
+
+  const effectiveAssigneeFilter = useMemo(() => {
+    if (assigneeFilter === 'all') return 'all';
+    if (currentUserName && (assigneeFilter === 'me' || assigneeFilter.toLowerCase() === currentUserName.toLowerCase())) {
+      return currentUserName;
+    }
+    const match = assignees.find((a) => a.name.toLowerCase() === assigneeFilter.toLowerCase());
+    return match ? match.name : 'all';
+  }, [assigneeFilter, assignees, currentUserName]);
 
   const filteredTasks = useMemo(() => {
-    if (statusFilter === 'Yet to Start' || statusFilter === 'Pending') return yetToStartTasks;
-    if (statusFilter === 'In Progress') return inProgressTasks;
-    if (statusFilter === 'Completed') return completedTasks;
-    return tasks;
-  }, [tasks, statusFilter, yetToStartTasks, inProgressTasks, completedTasks]);
+    return tasks.filter((task) => {
+      // 1. Status Filter
+      if (statusFilter === 'Yet to Start' || statusFilter === 'Pending') {
+        if (task.status === 'In Progress' || task.status === 'Completed' || task.status === 'Cancelled') return false;
+      } else if (statusFilter === 'In Progress') {
+        if (task.status !== 'In Progress') return false;
+      } else if (statusFilter === 'Completed') {
+        if (task.status !== 'Completed') return false;
+      } else if (statusFilter === 'Cancelled') {
+        if (task.status !== 'Cancelled') return false;
+      }
+
+      // 2. Assignee Filter
+      if (effectiveAssigneeFilter !== 'all') {
+        const currentUserId = currentUser?.id;
+        const isFilteringMe = currentUserName && effectiveAssigneeFilter.toLowerCase() === currentUserName.toLowerCase();
+
+        if (isFilteringMe) {
+          const isMyTask = (currentUserId && (task.assigned_to === currentUserId || task.user_id === currentUserId)) ||
+                           (currentUserName && (task.assigned_to_name?.trim().toLowerCase() === currentUserName.toLowerCase()));
+          if (!isMyTask) return false;
+        } else {
+          if (effectiveAssigneeFilter === 'Unassigned') {
+            if (task.assigned_to_name && task.assigned_to_name.trim() !== '') return false;
+          } else {
+            if ((task.assigned_to_name || '').trim().toLowerCase() !== effectiveAssigneeFilter.toLowerCase()) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [tasks, statusFilter, effectiveAssigneeFilter, currentUser, currentUserName]);
 
   if (!project) return null;
 
@@ -99,10 +211,10 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
           </div>
         </CardHeader>
 
-        {/* Status Filter Selector */}
+        {/* Status Filter Selector & Assignee Filter */}
         {!loading && tasks.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-2.5 bg-slate-50/70 border-b border-slate-200/80 shrink-0">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-2.5 bg-slate-50/70 border-b border-slate-200/80 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => setStatusFilter('all')}
@@ -179,11 +291,69 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
                   {completedTasks.length}
                 </span>
               </button>
+
+              {cancelledTasks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('Cancelled')}
+                  className={cn(
+                    "px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
+                    statusFilter === 'Cancelled'
+                      ? "bg-rose-50 text-rose-700 shadow-sm border border-rose-200"
+                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                  )}
+                >
+                  <Ban className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Cancelled</span>
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                    statusFilter === 'Cancelled' ? "bg-rose-100 text-rose-700" : "bg-slate-200/60 text-slate-500"
+                  )}>
+                    {cancelledTasks.length}
+                  </span>
+                </button>
+              )}
             </div>
 
-            <span className="text-xs text-slate-400 font-medium">
-              Showing <strong>{filteredTasks.length}</strong> of <strong>{tasks.length}</strong> tasks
-            </span>
+            <div className="flex items-center gap-3">
+              {/* Assignee Filter Dropdown */}
+              <div className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all shadow-xs",
+                effectiveAssigneeFilter !== 'all'
+                  ? "bg-primary-50/90 border-primary-300 text-primary-900 ring-1 ring-primary-300"
+                  : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+              )}>
+                <User className={cn("w-3.5 h-3.5 shrink-0", effectiveAssigneeFilter !== 'all' ? "text-primary-600" : "text-slate-400")} />
+                <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">Assigned To:</span>
+                <select
+                  id="assignee-filter-select"
+                  value={effectiveAssigneeFilter}
+                  onChange={(e) => setAssigneeFilter(e.target.value)}
+                  className="bg-transparent font-semibold text-xs text-slate-800 outline-none cursor-pointer pr-1"
+                >
+                  <option value="all">All Assignees ({tasks.length})</option>
+                  {assignees.map((assignee) => (
+                    <option key={assignee.name} value={assignee.name}>
+                      {assignee.name} {assignee.isCurrentUser ? '(You)' : ''} ({assignee.count}){assignee.role ? ` • ${assignee.role}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {effectiveAssigneeFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setAssigneeFilter('all')}
+                    className="p-0.5 rounded-full hover:bg-primary-100 text-primary-600 transition-colors ml-0.5"
+                    title="Clear assignee filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              <span className="text-xs text-slate-400 font-medium whitespace-nowrap hidden sm:inline-block">
+                Showing <strong>{filteredTasks.length}</strong> of <strong>{tasks.length}</strong> tasks
+              </span>
+            </div>
           </div>
         )}
 
@@ -208,18 +378,26 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                 <ClipboardList className="w-8 h-8 text-slate-300" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">No {statusFilter} tasks found</h3>
+              <h3 className="text-lg font-semibold text-slate-900">No matching tasks found</h3>
               <p className="text-sm text-slate-500 mt-1 max-w-xs">
-                There are no tasks with status &quot;{statusFilter}&quot; in this project.
+                No tasks match your current filter criteria
+                {effectiveAssigneeFilter !== 'all' && (
+                  <> for assignee <span className="font-semibold text-slate-700">&quot;{effectiveAssigneeFilter}&quot;</span></>
+                )}
+                {statusFilter !== 'all' && (
+                  <> with status <span className="font-semibold text-slate-700">&quot;{statusFilter}&quot;</span></>
+                )}.
               </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-4 text-xs font-semibold"
-                onClick={() => setStatusFilter('all')}
-              >
-                View All Project Tasks
-              </Button>
+              {effectiveAssigneeFilter !== 'all' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 text-xs font-semibold text-primary-600 border-primary-200 hover:bg-primary-50"
+                  onClick={() => setAssigneeFilter('all')}
+                >
+                  View All Project Tasks ({tasks.length})
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
@@ -269,11 +447,29 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <div className="w-7 h-7 bg-primary-50 rounded-full flex items-center justify-center text-primary-700 text-[10px] font-bold">
+                      <div 
+                        className="inline-flex items-center gap-2.5 text-sm text-slate-600 hover:text-primary-700 p-1 -m-1 rounded-md hover:bg-primary-50 transition-colors group/assignee"
+                        title={`Click to filter by ${task.assigned_to_name || 'Unassigned'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const targetName = task.assigned_to_name?.trim() || 'Unassigned';
+                          setAssigneeFilter((prev) => (prev === targetName ? 'all' : targetName));
+                        }}
+                      >
+                        <div className="w-7 h-7 bg-primary-50 rounded-full flex items-center justify-center text-primary-700 text-[10px] font-bold group-hover/assignee:ring-2 group-hover/assignee:ring-primary-300 shrink-0">
                           {(task.assigned_to_name || 'NA').substring(0, 2).toUpperCase()}
                         </div>
-                        <span>{task.assigned_to_name || "Unassigned"}</span>
+                        <div className="flex flex-col text-left leading-tight">
+                          <span className="font-semibold text-xs text-slate-800 group-hover/assignee:underline underline-offset-2">
+                            {task.assigned_to_name || "Unassigned"}
+                            {currentUserName && task.assigned_to_name?.trim().toLowerCase() === currentUserName.toLowerCase() && (
+                              <span className="ml-1 text-[10px] text-primary-600 font-semibold">(You)</span>
+                            )}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {task.assigned_to_role || (task.assigned_to_name ? 'Developer' : 'Unassigned')}
+                          </span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -301,6 +497,7 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
                         variant={
                           task.status === 'Completed' ? 'success' : 
                           task.status === 'In Progress' ? 'primary' : 
+                          task.status === 'Cancelled' ? 'danger' :
                           'default'
                         }
                       >
@@ -319,20 +516,35 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
             </Table>
           )}
         </CardContent>
-        <div className="bg-slate-50 border-t border-slate-100 p-4 flex justify-between items-center">
-            <span className="text-xs text-slate-400 font-medium">Total: {tasks.length} tasks</span>
-            <button 
-                onClick={onClose}
-                className="text-sm font-normal text-primary-600 hover:text-primary-700 underline underline-offset-4"
-            >
-                Close View
-            </button>
+        <div className="bg-slate-50 border-t border-slate-100 px-6 py-3 flex items-center justify-between">
+          <span className="text-xs text-slate-500 font-medium">
+            {filteredTasks.length !== tasks.length ? (
+              <>Showing <strong>{filteredTasks.length}</strong> of <strong>{tasks.length}</strong> tasks (Filtered)</>
+            ) : (
+              <>Total: {tasks.length} tasks</>
+            )}
+          </span>
+          {effectiveAssigneeFilter !== 'all' && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-white border border-slate-200 px-2.5 py-0.5 rounded-full shadow-xs">
+              <span className="text-slate-400">Filtered by:</span>
+              <span className="font-semibold text-primary-700">{effectiveAssigneeFilter}</span>
+              <button
+                type="button"
+                onClick={() => setAssigneeFilter('all')}
+                className="ml-1 text-slate-400 hover:text-slate-700 font-bold leading-none"
+                title="Clear filter"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       </Card>
 
       {showResources && (
         <ProjectResourcesModal 
           project={project} 
+          projectId={project?.id}
           onClose={() => setShowResources(false)} 
           onUpdate={fetchTasks}
         />
@@ -340,7 +552,7 @@ const TaskViewModal = ({ project, onClose, initialStatusFilter = 'all' }) => {
 
       {selectedTask && (
         <TaskDetailModal 
-          task={{...selectedTask, project_name: project.name}} 
+          task={{...selectedTask, project_name: project?.name || selectedTask?.project_name}} 
           onClose={() => setSelectedTask(null)} 
           onUpdate={handleTaskUpdate}
         />

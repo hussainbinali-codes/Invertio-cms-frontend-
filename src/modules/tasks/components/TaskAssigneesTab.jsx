@@ -5,12 +5,13 @@ import PaginationControls from '../../../components/ui/PaginationControls';
 import { CheckCircle2, Calendar, CheckSquare, User, Clock } from 'lucide-react';
 
 const getDynamicPageLimit = () => {
-  if (typeof window === 'undefined') return 5;
+  if (typeof window === 'undefined') return 10;
   const h = window.innerHeight;
-  if (h < 750) return 4;
-  if (h < 850) return 5;
-  if (h < 950) return 6;
-  return 7;
+  if (h < 700) return 7;
+  if (h < 800) return 9;
+  if (h < 920) return 11;
+  if (h < 1080) return 13;
+  return 15;
 };
 
 const formatDateTime = (dateStr) => {
@@ -347,6 +348,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
           itemCount={paginatedTasks.length}
           onPrevious={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           onNext={() => setCurrentPage(prev => Math.min(paginationData.totalPages, prev + 1))}
+          hideRecordsText
         />
       )}
     </div>

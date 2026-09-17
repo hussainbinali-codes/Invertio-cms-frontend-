@@ -7,12 +7,13 @@ import { Plus, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react
 import { cn } from '../../../utils/cn';
 
 const getDynamicPageLimit = () => {
-  if (typeof window === 'undefined') return 6;
+  if (typeof window === 'undefined') return 10;
   const h = window.innerHeight;
-  if (h < 720) return 5;
-  if (h < 820) return 6;
-  if (h < 920) return 7;
-  return 8;
+  if (h < 700) return 7;
+  if (h < 800) return 9;
+  if (h < 920) return 11;
+  if (h < 1080) return 13;
+  return 15;
 };
 
 const GlobalBoardsTab = ({
@@ -71,7 +72,9 @@ const GlobalBoardsTab = ({
       const projectTasks = (allTasks || []).filter(
         (t) => t.project_id === project.id || t.project_name === project.name
       );
-      const yetToStartTasks = projectTasks.filter((t) => t.status !== 'In Progress' && t.status !== 'Completed');
+      const yetToStartTasks = projectTasks.filter(
+        (t) => t.status !== 'In Progress' && t.status !== 'Completed' && t.status !== 'Cancelled'
+      );
       const inProgressTasks = projectTasks.filter((t) => t.status === 'In Progress');
       const completedTasks = projectTasks.filter((t) => t.status === 'Completed');
       const yetToStartCount = yetToStartTasks.length;
@@ -219,16 +222,16 @@ const GlobalBoardsTab = ({
           return (
             <TableRow key={project.id} className={cn("group hover:bg-slate-50/70 transition-colors", isBlocked ? "bg-rose-50/20" : "")}>
               {/* Column 1: Project Boards */}
-              <TableCell className="py-2 sm:py-2.5 px-2.5 sm:px-3 text-left">
-                <div className="flex flex-col items-start text-left">
-                  <div 
-                    className="font-semibold text-sm text-slate-900 hover:text-blue-600 cursor-pointer transition-colors"
-                    onClick={() => handleViewTasks(project)}
-                    title="Click to open board"
-                  >
+              <TableCell 
+                className="py-2 sm:py-2.5 px-2.5 sm:px-3 text-left cursor-pointer group/cell select-none"
+                onClick={() => handleViewTasks(project, 'all', 'all')}
+                title="Click to open board (all tasks & team)"
+              >
+                <div className="flex flex-col items-start text-left w-full">
+                  <div className="font-semibold text-sm text-slate-900 group-hover/cell:text-blue-600 transition-colors">
                     {project.name}
                   </div>
-                  <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  <div className="text-[11px] text-slate-500 group-hover/cell:text-slate-600 font-medium mt-0.5 transition-colors">
                     {project.tech_stack || 'Standard Pipeline'}
                   </div>
                 </div>
@@ -292,18 +295,18 @@ const GlobalBoardsTab = ({
                   {yetToStartCount > 0 ? (
                     <button
                       type="button"
-                      onClick={() => handleViewTasks(project, 'Yet to Start')}
+                      onClick={() => handleViewTasks(project, 'Yet to Start', 'me')}
                       className="min-w-[48px] h-7 px-3.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 hover:border-amber-300 border border-amber-200/80 rounded-full inline-flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-xs"
-                      title={`Click to view ${yetToStartCount} yet to start task${yetToStartCount > 1 ? 's' : ''}`}
+                      title={`Click to view your yet to start tasks (${yetToStartCount} in project)`}
                     >
                       {yetToStartCount}
                     </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleViewTasks(project, 'Yet to Start')}
+                      onClick={() => handleViewTasks(project, 'Yet to Start', 'me')}
                       className="min-w-[48px] h-7 px-3.5 text-xs font-semibold text-slate-400 bg-slate-50/70 hover:bg-slate-100 hover:text-slate-600 border border-slate-200/60 rounded-full inline-flex items-center justify-center cursor-pointer transition-colors"
-                      title="View yet to start tasks (0)"
+                      title="View your yet to start tasks (0 in project)"
                     >
                       0
                     </button>
@@ -317,18 +320,18 @@ const GlobalBoardsTab = ({
                   {inProgressCount > 0 ? (
                     <button
                       type="button"
-                      onClick={() => handleViewTasks(project, 'In Progress')}
+                      onClick={() => handleViewTasks(project, 'In Progress', 'me')}
                       className="min-w-[48px] h-7 px-3.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 border border-blue-200/80 rounded-full inline-flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-xs"
-                      title={`Click to view ${inProgressCount} in-progress task${inProgressCount > 1 ? 's' : ''}`}
+                      title={`Click to view your in-progress tasks (${inProgressCount} in project)`}
                     >
                       {inProgressCount}
                     </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleViewTasks(project, 'In Progress')}
+                      onClick={() => handleViewTasks(project, 'In Progress', 'me')}
                       className="min-w-[48px] h-7 px-3.5 text-xs font-semibold text-slate-400 bg-slate-50/70 hover:bg-slate-100 hover:text-slate-600 border border-slate-200/60 rounded-full inline-flex items-center justify-center cursor-pointer transition-colors"
-                      title="View in-progress tasks (0)"
+                      title="View your in-progress tasks (0 in project)"
                     >
                       0
                     </button>
@@ -342,18 +345,18 @@ const GlobalBoardsTab = ({
                   {completedCount > 0 ? (
                     <button
                       type="button"
-                      onClick={() => handleViewTasks(project, 'Completed')}
+                      onClick={() => handleViewTasks(project, 'Completed', 'me')}
                       className="min-w-[48px] h-7 px-3.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 border border-emerald-200/80 rounded-full inline-flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-xs"
-                      title={`Click to view ${completedCount} completed task${completedCount > 1 ? 's' : ''}`}
+                      title={`Click to view your completed tasks (${completedCount} in project)`}
                     >
                       {completedCount}
                     </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleViewTasks(project, 'Completed')}
+                      onClick={() => handleViewTasks(project, 'Completed', 'me')}
                       className="min-w-[48px] h-7 px-3.5 text-xs font-semibold text-slate-400 bg-slate-50/70 hover:bg-slate-100 hover:text-slate-600 border border-slate-200/60 rounded-full inline-flex items-center justify-center cursor-pointer transition-colors"
-                      title="View completed tasks (0)"
+                      title="View your completed tasks (0 in project)"
                     >
                       0
                     </button>
@@ -402,6 +405,7 @@ const GlobalBoardsTab = ({
       itemCount={paginatedProjects.length}
       onPrevious={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
       onNext={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+      hideRecordsText
       className="border-t border-slate-100 bg-white"
     />
   )}

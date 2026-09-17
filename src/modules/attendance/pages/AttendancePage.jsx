@@ -17,6 +17,8 @@ import {
   XCircle,
   User as UserIcon,
   FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import StatCard from "../../../components/ui/StatCard";
 import Skeleton from "../../../components/ui/Skeleton";
@@ -129,10 +131,29 @@ const AttendancePage = () => {
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
   ];
 
+  const currentYear = new Date().getFullYear();
   const years = Array.from(
-    { length: 5 },
-    (_, i) => new Date().getFullYear() - i
+    { length: 8 },
+    (_, i) => currentYear - 4 + i
   );
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear((prev) => prev - 1);
+    } else {
+      setSelectedMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear((prev) => prev + 1);
+    } else {
+      setSelectedMonth((prev) => prev + 1);
+    }
+  };
 
   const formatDateKey = (dateObj) => {
     const y = dateObj.getFullYear();
@@ -637,7 +658,7 @@ const AttendancePage = () => {
       });
 
       let status = "None";
-      if (attRecord) status = "Present";
+      if (attRecord) status = attRecord.status || "Present";
       else if (leaveRecord) status = "Leave";
       else if (holiday) status = "Holiday";
       else if (isWeekend) status = "Weekend";
@@ -679,10 +700,18 @@ const AttendancePage = () => {
 
         {/* Toolbar controls in header */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 w-full md:w-auto">
-          <div className="flex items-center bg-white border border-slate-200/70 p-0.5 rounded-xl shadow-2xs flex-1 min-w-[160px] sm:flex-initial">
-            <Calendar className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
+          <div className="flex items-center bg-white border border-slate-200/70 p-0.5 rounded-xl shadow-2xs flex-1 min-w-[190px] sm:flex-initial">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95 shrink-0"
+              title="Previous Month"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <Calendar className="w-3.5 h-3.5 text-slate-400 ml-1 shrink-0" />
             <select
-              className="bg-transparent border-none text-xs font-bold text-slate-700 pl-1.5 sm:px-2.5 py-1.5 outline-none cursor-pointer focus:ring-0 flex-1 min-w-0"
+              className="bg-transparent border-none text-xs font-bold text-slate-700 pl-1 sm:px-2 py-1.5 outline-none cursor-pointer focus:ring-0 flex-1 min-w-0"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
             >
@@ -691,7 +720,7 @@ const AttendancePage = () => {
               ))}
             </select>
             <select
-              className="bg-transparent border-none text-xs font-bold text-slate-700 px-2 sm:px-2.5 py-1.5 outline-none cursor-pointer border-l border-slate-200 focus:ring-0"
+              className="bg-transparent border-none text-xs font-bold text-slate-700 px-1.5 sm:px-2 py-1.5 outline-none cursor-pointer border-l border-slate-200 focus:ring-0"
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             >
@@ -699,6 +728,14 @@ const AttendancePage = () => {
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95 shrink-0"
+              title="Next Month"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {canViewAll && (
@@ -789,7 +826,29 @@ const AttendancePage = () => {
             </div>
           </div>
         }
-        title={`${months[selectedMonth]} ${selectedYear}`}
+        title={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
+              title="Previous Month"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-base font-bold text-slate-900 tracking-tight">
+              {months[selectedMonth]} {selectedYear}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
+              title="Next Month"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        }
         subtitle={`${getPageSubtext()}`}
       >
         {/* Legend row for mobile, shown below header since it's hidden in the scroll strip above */}
@@ -1053,12 +1112,25 @@ const AttendancePage = () => {
 
                       {/* Event Task Bar - Full Width with Micro Dot */}
                       {d.isCurrentMonth && attRecord && (
-                        <div className="mt-auto w-full rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                        <div className={cn(
+                          "mt-auto w-full rounded-lg px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs",
+                          attRecord.status === "Half-day"
+                            ? "bg-amber-50 text-amber-900 border border-amber-200/80"
+                            : "bg-emerald-50 text-emerald-800 border border-emerald-200/70"
+                        )}>
                           <div className="flex items-center gap-1.5 truncate">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                            <span className="truncate">Present</span>
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full shrink-0",
+                              attRecord.status === "Half-day" ? "bg-amber-500" : "bg-emerald-500"
+                            )} />
+                            <span className="truncate">
+                              {attRecord.status === "Half-day" ? "Half-day (Off)" : "Present"}
+                            </span>
                           </div>
-                          <span className="font-mono text-[11px] text-emerald-700 shrink-0 ml-1.5 font-bold">
+                          <span className={cn(
+                            "font-mono text-[11px] shrink-0 ml-1.5 font-bold",
+                            attRecord.status === "Half-day" ? "text-amber-700" : "text-emerald-700"
+                          )}>
                             {getAttHours(attRecord)}
                           </span>
                         </div>
@@ -1147,6 +1219,28 @@ const AttendancePage = () => {
                                     {attRecord.location || "Unknown"}
                                   </span>
                                 </div>
+                                {attRecord.status === "Half-day" && (
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">Day Type:</span>
+                                    <span className="font-bold text-amber-300">Half-Day (Off-Day)</span>
+                                  </div>
+                                )}
+                                {attRecord.early_leave_reason && (
+                                  <div className="flex justify-between items-start gap-2">
+                                    <span className="text-slate-400 whitespace-nowrap">Left Early:</span>
+                                    <span className="font-semibold text-rose-300 text-right max-w-[140px] truncate" title={attRecord.early_leave_reason}>
+                                      {attRecord.early_leave_reason}
+                                    </span>
+                                  </div>
+                                )}
+                                {attRecord.early_leave_notes && (
+                                  <div className="flex justify-between items-start gap-2">
+                                    <span className="text-slate-400 whitespace-nowrap">Note:</span>
+                                    <span className="font-medium text-slate-300 text-right italic max-w-[140px] break-words text-[10px]" title={attRecord.early_leave_notes}>
+                                      {attRecord.early_leave_notes}
+                                    </span>
+                                  </div>
+                                )}
                               </>
                             )}
 
@@ -1291,6 +1385,28 @@ const AttendancePage = () => {
                               {selectedDetail.attRecord.location || "Unknown"}
                             </span>
                           </div>
+                          {selectedDetail.attRecord.status === "Half-day" && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Day Type:</span>
+                              <span className="font-bold text-amber-300">Half-Day (Off-Day)</span>
+                            </div>
+                          )}
+                          {selectedDetail.attRecord.early_leave_reason && (
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="text-slate-400 whitespace-nowrap">Left Early:</span>
+                              <span className="font-semibold text-rose-300 text-right max-w-[140px] truncate">
+                                {selectedDetail.attRecord.early_leave_reason}
+                              </span>
+                            </div>
+                          )}
+                          {selectedDetail.attRecord.early_leave_notes && (
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="text-slate-400 whitespace-nowrap">Note:</span>
+                              <span className="font-medium text-slate-300 text-right italic max-w-[140px] break-words text-[10px]">
+                                {selectedDetail.attRecord.early_leave_notes}
+                              </span>
+                            </div>
+                          )}
                         </>
                       )}
 

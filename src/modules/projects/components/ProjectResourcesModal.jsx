@@ -15,13 +15,16 @@ import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import { hasPermission } from '../../../utils/permissionUtils';
 
-const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
+const ProjectResourcesModal = ({ project: projectProp, projectId, onClose, onUpdate }) => {
   useLockBodyScroll(true);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const role = (user?.role_name || '').toLowerCase();
   const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
   const canManageConfidential = isAdmin || user?.modules?.projects?.['documents.confidential'];
   const canManageResources = hasPermission('projects', 'resources.manage') || hasPermission('projects', 'edit');
+
+  const [currentProject, setCurrentProject] = useState(projectProp || null);
+  const activeProjectId = projectProp?.id || projectId;
 
   const [projectDocuments, setProjectDocuments] = useState([]);
   const [projectComments, setProjectComments] = useState([]);
@@ -72,23 +75,41 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   }, [projectComments]);
 
   useEffect(() => {
-    if (project) {
-      setResourceLinks(normalizeResourceLinks(project.resource_links));
+    if (projectProp) {
+      setCurrentProject(projectProp);
+    } else if (activeProjectId) {
+      axios.get('/projects').then((res) => {
+        const list = Array.isArray(res.data?.data) ? res.data.data : [];
+        const found = list.find((p) => String(p.id) === String(activeProjectId));
+        if (found) setCurrentProject(found);
+      }).catch((err) => console.error("Fetch project detail error", err));
+    }
+  }, [projectProp, activeProjectId]);
+
+  useEffect(() => {
+    if (activeProjectId) {
+      if (currentProject?.resource_links) {
+        setResourceLinks(normalizeResourceLinks(currentProject.resource_links));
+      }
       fetchDocuments();
       fetchComments();
       fetchTasks();
       fetchProjectLinks();
     }
-  }, [project]);
+  }, [activeProjectId, currentProject?.id]);
 
   const fetchProjectLinks = async () => {
+    if (!activeProjectId) return;
     try {
       const res = await axios.get('/projects');
       const projects = Array.isArray(res.data.data) ? res.data.data : (res.data.data || []);
-      const currentProject = projects.find((item) => item.id === project.id);
+      const proj = projects.find((item) => String(item.id) === String(activeProjectId));
 
-      if (currentProject) {
-        setResourceLinks(normalizeResourceLinks(currentProject.resource_links));
+      if (proj) {
+        setResourceLinks(normalizeResourceLinks(proj.resource_links));
+        if (!currentProject?.name) {
+          setCurrentProject(proj);
+        }
       }
     } catch (err) {
       console.error('Fetch project links error', err);
@@ -96,8 +117,9 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   };
 
   const fetchTasks = async () => {
+    if (!activeProjectId) return;
     try {
-      const res = await axios.get(`/projects/${project.id}/tasks`);
+      const res = await axios.get(`/projects/${activeProjectId}/tasks`);
       setProjectTasks(res.data.data || []);
     } catch (err) {
       console.error("Fetch tasks error", err);
@@ -105,9 +127,10 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   };
 
   const fetchDocuments = async () => {
+    if (!activeProjectId) return;
     setDocLoading(true);
     try {
-      const res = await axios.get(`/projects/${project.id}/documents`);
+      const res = await axios.get(`/projects/${activeProjectId}/documents`);
       setProjectDocuments(res.data.data || []);
     } catch (err) {
       toast.error('Failed to fetch documents');
@@ -117,9 +140,10 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
   };
 
   const fetchComments = async () => {
+    if (!activeProjectId) return;
     setCommentLoading(true);
     try {
-      const res = await axios.get(`/projects/${project.id}/comments`);
+      const res = await axios.get(`/projects/${activeProjectId}/comments`);
       setProjectComments(res.data.data || []);
     } catch (err) {
       console.error("Fetch comments error", err);
@@ -161,7 +185,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
 
     setIsSavingLinks(true);
     try {
-      await axios.patch(`/projects/${project.id}/github`, { resource_links: resourceLinks });
+      await axios.patch(`/projects/${activeProjectId}/github`, { resource_links: resourceLinks });
       toast.success('Links updated successfully');
       fetchProjectLinks();
       if (onUpdate) onUpdate();
@@ -184,7 +208,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
     formData.append('classification', uploadClassification);
 
     try {
-      await axios.post(`/projects/${project.id}/documents`, formData, {
+      await axios.post(`/projects/${activeProjectId}/documents`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       toast.success(`${files.length} document(s) uploaded`);
@@ -224,7 +248,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
 
     setIsPostingComment(true);
     try {
-      await axios.post(`/projects/${project.id}/comments`, { 
+      await axios.post(`/projects/${activeProjectId}/comments`, { 
         comment: newComment,
         task_id: selectedTaskId 
       });
@@ -281,7 +305,7 @@ const ProjectResourcesModal = ({ project, onClose, onUpdate }) => {
             </div>
             <div>
               <CardTitle className="text-xl font-bold">Project Hub: Resources</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">{project.name} • Internal Delivery Assets</p>
+              <p className="text-xs text-slate-500 mt-0.5 font-medium">{(currentProject?.name || projectProp?.name || 'Project')} • Internal Delivery Assets</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200">

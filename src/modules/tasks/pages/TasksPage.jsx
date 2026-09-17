@@ -3,7 +3,7 @@ import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
-import { Search, CheckSquare, CheckCircle2, AlertTriangle, TrendingUp, Target, Loader2, BarChart3, ChevronDown, LayoutGrid, Users, X, SlidersHorizontal } from 'lucide-react';
+import { Search, CheckSquare, CheckCircle2, AlertTriangle, TrendingUp, Target, Loader2, BarChart3, ChevronDown, LayoutGrid, Users, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import StatCard from '../../../components/ui/StatCard';
 import { cn } from '../../../utils/cn';
@@ -110,6 +110,7 @@ const TasksPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [tasksModalStatusFilter, setTasksModalStatusFilter] = useState('all');
+  const [tasksModalAssigneeFilter, setTasksModalAssigneeFilter] = useState('all');
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectTeam, setProjectTeam] = useState([]);
   const [isFetchingTeam, setIsFetchingTeam] = useState(false);
@@ -224,7 +225,7 @@ const TasksPage = () => {
       let allTasksResIndex = -1;
       if (canViewAll) {
         allTasksResIndex = requests.length;
-        requests.push(axios.get('/projects/tasks/all').catch(() => ({ data: { data: [] } })));
+        requests.push(axios.get('/projects/tasks/all?limit=1000').catch(() => ({ data: { data: [] } })));
       }
 
       const results = await Promise.all(requests);
@@ -336,9 +337,10 @@ const TasksPage = () => {
     }
   };
 
-  const handleViewTasks = (project, statusFilter = 'all') => {
+  const handleViewTasks = (project, statusFilter = 'all', assigneeFilter = 'all') => {
     setSelectedProject(project);
     setTasksModalStatusFilter(statusFilter || 'all');
+    setTasksModalAssigneeFilter(assigneeFilter || 'all');
     setShowTasksModal(true);
   };
 
@@ -431,16 +433,32 @@ const TasksPage = () => {
     }
   };
 
-  const term = searchTerm.trim().toLowerCase();
+  const term = searchTerm.trim();
+
+  const matchesWordToWord = (text, query) => {
+    if (!text || !query) return false;
+    const words = query.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return true;
+
+    const target = String(text);
+    return words.every((w) => {
+      const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const startBoundary = /^\w/.test(w) ? '\\b' : '';
+      const endBoundary = /\w$/.test(w) ? '\\b' : '';
+      const regex = new RegExp(`${startBoundary}${escaped}${endBoundary}`, 'i');
+      return regex.test(target);
+    });
+  };
 
   const filteredMyTasks = myTasks.filter((task) => {
     if (!term) return true;
     return (
-      task.title?.toLowerCase().includes(term) ||
-      task.description?.toLowerCase().includes(term) ||
-      task.project_name?.toLowerCase().includes(term) ||
-      task.priority?.toLowerCase().includes(term) ||
-      task.status?.toLowerCase().includes(term)
+      matchesWordToWord(task.title, term) ||
+      matchesWordToWord(task.description, term) ||
+      matchesWordToWord(task.project_name, term) ||
+      matchesWordToWord(task.priority, term) ||
+      matchesWordToWord(task.status, term) ||
+      matchesWordToWord(task.client_name, term)
     );
   });
 
@@ -464,31 +482,31 @@ const TasksPage = () => {
     if (!term) return true;
 
     // Project Name
-    if (project.name?.toLowerCase().includes(term)) return true;
+    if (matchesWordToWord(project.name, term)) return true;
 
     // Tech Stack / Pipeline
-    if (project.tech_stack?.toLowerCase().includes(term)) return true;
+    if (matchesWordToWord(project.tech_stack, term)) return true;
 
     // Client Name & Category
-    if (project.client_name?.toLowerCase().includes(term)) return true;
-    if (project.category?.toLowerCase().includes(term)) return true;
+    if (matchesWordToWord(project.client_name, term)) return true;
+    if (matchesWordToWord(project.category, term)) return true;
 
     // Status Column (Active / Blocked / etc.)
     const isBlocked = project.status?.includes('Blocked');
-    if (isBlocked && 'blocked'.includes(term)) return true;
-    if (!isBlocked && 'active'.includes(term)) return true;
-    if (project.status?.toLowerCase().includes(term)) return true;
+    if (isBlocked && matchesWordToWord('blocked', term)) return true;
+    if (!isBlocked && matchesWordToWord('active', term)) return true;
+    if (matchesWordToWord(project.status, term)) return true;
 
     // In Progress / Completed Task matches
-    if (term.includes('progress') && inProgressCount > 0) return true;
-    if ((term.includes('completed') || term.includes('done')) && completedCount > 0) return true;
-    if (projectTasks.some((t) => t.title?.toLowerCase().includes(term))) return true;
+    if (matchesWordToWord('progress', term) && inProgressCount > 0) return true;
+    if ((matchesWordToWord('completed', term) || matchesWordToWord('done', term)) && completedCount > 0) return true;
+    if (projectTasks.some((t) => matchesWordToWord(t.title, term))) return true;
 
     return false;
   });
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col w-full h-full gap-2.5 overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col w-full min-h-full gap-2.5">
       {/* Header section with Project Boards and Pipeline tabs aligned at the end */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 m-0 p-0 shrink-0">
         <div className="m-0 p-0">
@@ -621,98 +639,6 @@ const TasksPage = () => {
                 </button>
               )}
             </div>
-
-            {activeTab === 'boards' && (
-              <div className="relative" ref={filterDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowFilterDropdown((prev) => !prev)}
-                  className={cn(
-                    "h-9 px-3 text-xs font-semibold rounded-xl border flex items-center gap-1.5 transition-all shadow-sm shrink-0",
-                    progressFilter !== 'all'
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : "bg-slate-50/80 hover:bg-slate-100/60 text-slate-700 border-slate-200/90"
-                  )}
-                  title="Filter boards by progress"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="capitalize">
-                    {progressFilter === 'all'
-                      ? 'All'
-                      : progressFilter === 'in_progress'
-                      ? 'In Progress'
-                      : progressFilter === 'completed'
-                      ? 'Completed'
-                      : 'Not Started'}
-                  </span>
-                  <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform", showFilterDropdown && "rotate-180")} />
-                </button>
-
-                {showFilterDropdown && (
-                  <div className="absolute right-0 mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProgressFilter('all');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-1.5 text-xs font-medium rounded-lg flex items-center justify-between transition-colors",
-                        progressFilter === 'all' ? "bg-blue-50 text-blue-700 font-bold" : "text-slate-700 hover:bg-slate-50"
-                      )}
-                    >
-                      <span>All Boards</span>
-                      <span className="text-[10px] text-slate-400">{projects.length}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProgressFilter('in_progress');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-1.5 text-xs font-medium rounded-lg flex items-center justify-between transition-colors",
-                        progressFilter === 'in_progress' ? "bg-blue-50 text-blue-700 font-bold" : "text-slate-700 hover:bg-slate-50"
-                      )}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                        In Progress
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProgressFilter('completed');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-1.5 text-xs font-medium rounded-lg flex items-center justify-between transition-colors",
-                        progressFilter === 'completed' ? "bg-blue-50 text-blue-700 font-bold" : "text-slate-700 hover:bg-slate-50"
-                      )}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        Completed (100%)
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProgressFilter('not_started');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-1.5 text-xs font-medium rounded-lg flex items-center justify-between transition-colors",
-                        progressFilter === 'not_started' ? "bg-blue-50 text-blue-700 font-bold" : "text-slate-700 hover:bg-slate-50"
-                      )}
-                    >
-                      <span className="text-slate-500">Not Started (0%)</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         }
       >
@@ -742,10 +668,16 @@ const TasksPage = () => {
                 />
               ) : (activeTab === 'assignees' && isAdmin) ? (
                 <TaskAssigneesTab
-                  tasks={allTasks.filter(task =>
-                    task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-                  )}
+                  tasks={allTasks.filter(task => {
+                    if (!term) return true;
+                    return (
+                      matchesWordToWord(task.title, term) ||
+                      matchesWordToWord(task.description, term) ||
+                      matchesWordToWord(task.project_name, term) ||
+                      matchesWordToWord(task.priority, term) ||
+                      matchesWordToWord(task.status, term)
+                    );
+                  })}
                   setSelectedTaskDetail={setSelectedTaskDetail}
                 />
               ) : (
@@ -798,9 +730,11 @@ const TasksPage = () => {
           <TaskViewModal
             project={selectedProject}
             initialStatusFilter={tasksModalStatusFilter}
+            initialAssigneeFilter={tasksModalAssigneeFilter}
             onClose={() => {
               setShowTasksModal(false);
               setTasksModalStatusFilter('all');
+              setTasksModalAssigneeFilter('all');
             }}
           />
         )}

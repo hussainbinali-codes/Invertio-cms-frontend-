@@ -189,9 +189,8 @@ const NotificationsPage = () => {
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            variant="outline"
             onClick={() => fetchNotifications(true)}
-            className="flex items-center gap-1.5 text-xs h-9"
+            className="flex items-center gap-1.5 text-xs h-9 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold shadow-xs border border-emerald-600 rounded-xl focus:ring-emerald-500 transition-all"
           >
             <RotateCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
             <span>Refresh</span>

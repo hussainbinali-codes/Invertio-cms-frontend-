@@ -7,7 +7,8 @@ const PaginationControls = ({
   itemCount,
   onPrevious,
   onNext,
-  className = ''
+  className = '',
+  hideRecordsText = false
 }) => {
   const page = pagination?.page || 1;
   const total = pagination?.total || 0;
@@ -21,16 +22,20 @@ const PaginationControls = ({
 
   return (
     <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 py-2 sm:py-2.5 px-4 sm:px-6 border-t border-slate-100 bg-slate-50/40 shrink-0", className)}>
-      <div className="space-y-1">
-        <div className="text-sm font-normal text-slate-500 uppercase tracking-wider">
-          Showing {itemCount} of {total} records
-        </div>
+      <div>
+        {!hideRecordsText && (
+          <div className="text-sm font-normal text-slate-500 uppercase tracking-wider mb-0.5">
+            Showing {itemCount} of {total} records
+          </div>
+        )}
         <div className="text-xs font-medium text-slate-400">
           Page {page} of {totalPages}
         </div>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="text-xs font-medium text-slate-500 mr-2">Total records: {total}</div>
+        {!hideRecordsText && (
+          <div className="text-xs font-medium text-slate-500 mr-2">Total records: {total}</div>
+        )}
         <Button
           variant="outline"
           size="sm"
