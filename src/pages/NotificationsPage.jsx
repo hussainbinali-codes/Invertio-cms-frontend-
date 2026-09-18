@@ -75,23 +75,41 @@ const NotificationsPage = () => {
 
   const cleanMessage = (msg) => {
     if (!msg) return '';
-    return msg.replace(
-      /\w{3} \w{3} \d{1,2} \d{4} \d{2}:\d{2}:\d{2} [^.]+/,
-      (match) => {
-        try {
-          const d = new Date(match);
-          return isNaN(d.getTime())
-            ? match
-            : d.toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              });
-        } catch {
-          return match;
+    return msg
+      .replace(
+        /[A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+GMT[^\s)]*(?:\s+\([^)]+\))?/gi,
+        (match) => {
+          try {
+            const d = new Date(match);
+            return isNaN(d.getTime())
+              ? match
+              : d.toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                });
+          } catch {
+            return match;
+          }
         }
-      }
-    );
+      )
+      .replace(
+        /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})/g,
+        (match) => {
+          try {
+            const d = new Date(match);
+            return isNaN(d.getTime())
+              ? match
+              : d.toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                });
+          } catch {
+            return match;
+          }
+        }
+      );
   };
 
   const formatTimeAgo = (dateString) => {
@@ -295,80 +313,73 @@ const NotificationsPage = () => {
               key={n.id}
               onClick={() => !n.is_read && markAsRead(n.id)}
               className={cn(
-                "p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group",
+                "px-3.5 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 group",
                 n.is_read
                   ? "bg-white border-slate-200/70 hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs"
-                  : "bg-gradient-to-r from-blue-50/80 via-white to-blue-50/30 border-blue-200 shadow-xs hover:border-blue-300"
+                  : "bg-blue-50/30 border-blue-200/80 shadow-xs hover:border-blue-300"
               )}
             >
-              <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 {/* Icon */}
                 <div
                   className={cn(
-                    "p-3 rounded-2xl shrink-0 shadow-2xs transition-transform group-hover:scale-105",
+                    "p-2 rounded-lg shrink-0 shadow-2xs transition-transform group-hover:scale-105",
                     getIconStyles(n.type)
                   )}
                 >
                   {getIcon(n.type)}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h3
-                      className={cn(
-                        "text-sm font-bold leading-snug",
-                        n.is_read ? "text-slate-800" : "text-slate-900"
-                      )}
-                    >
-                      {n.title || "Portal Notification"}
-                    </h3>
-
-                    {!n.is_read && (
-                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 leading-none">
-                        New
-                      </span>
+                {/* Title */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={cn(
+                      "text-xs sm:text-sm font-bold truncate",
+                      n.is_read ? "text-slate-800" : "text-slate-900"
                     )}
-
-                    <span className="text-[11px] font-medium text-slate-400 ml-auto sm:ml-0 font-mono">
-                      {formatTimeAgo(n.created_at)}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed break-words max-w-4xl">
-                    {cleanMessage(n.message)}
-                  </p>
-
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400 font-mono">
-                    <span>
-                      {n.created_at
-                        ? new Date(n.created_at).toLocaleString('en-IN', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })
-                        : ''}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                {!n.is_read && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAsRead(n.id);
-                    }}
-                    className="h-8 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
                   >
-                    <Check className="w-3.5 h-3.5 mr-1" />
-                    Mark Read
-                  </Button>
-                )}
+                    {n.title || "Portal Notification"}
+                  </span>
+                  {!n.is_read && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                  )}
+                </div>
+
+                <span className="text-slate-300 shrink-0 hidden sm:inline">•</span>
+
+                {/* Message Body */}
+                <p className="text-xs text-slate-600 truncate flex-1 min-w-0">
+                  {cleanMessage(n.message)}
+                </p>
+
+                {/* Time */}
+                <span className="text-[11px] text-slate-400 font-mono shrink-0 whitespace-nowrap ml-auto pl-2">
+                  {n.created_at
+                    ? new Date(n.created_at).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true,
+                      })
+                    : ''}
+                </span>
               </div>
+
+              {/* Action Button */}
+              {!n.is_read && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markAsRead(n.id);
+                  }}
+                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all shrink-0"
+                  title="Mark as read"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ))
         ) : (

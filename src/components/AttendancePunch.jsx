@@ -1,148 +1,212 @@
-import React, { useState, useEffect, useCallback } from "react";
-import axios from "../api/axios";
-import { Clock, LogIn, LogOut, Loader2, MapPin } from "lucide-react";
-import { cn } from "../utils/cn";
-import Button from "./ui/Button";
+import React, { useState, useEffect } from 'react';
+import axios from '../api/axios';
+import { Clock, LogIn, LogOut, Loader2, MapPin } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { cn } from '../utils/cn';
+import Button from './ui/Button';
+import { WorkModeDialog } from './AttendancePunchDialogs';
 
-const AttendancePunch = ({
-  setShowPunchOutModal,
-  actionLoading,
-  isDetectingLocation,
-  status,
-  setStatus,
-  handlePunchInRequest,
-  location,
-  setCheckInTime,
-}) => {
-  const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
+const AttendancePunch = () => {
+    const [status, setStatus] = useState(null); // 'in', 'out', or null
+    const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [location, setLocation] = useState(null);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await axios.get("/hr/attendance/today");
-      const data = res.data.data;
-      if (data) {
-        if (data.check_in) {
-          setCheckInTime?.(data.check_in);
+    // Work Mode Dialog State
+    const [isWorkModeDialogOpen, setIsWorkModeDialogOpen] = useState(false);
+    const [selectedWorkMode, setSelectedWorkMode] = useState("work_from_office");
+    const [workModeError, setWorkModeError] = useState("");
+
+    useEffect(() => {
+        fetchStatus();
+        preFetchLocation();
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const preFetchLocation = () => {
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setLocation(`${pos.coords.latitude}, ${pos.coords.longitude}`),
+                (err) => console.debug("Pre-fetch location failed", err),
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
         }
-        if (data.check_out) {
-          setStatus("out");
-        } else if (data.check_in) {
-          setStatus("in");
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch attendance status", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [setStatus, setCheckInTime]);
-
-  const handlePunchButtonClick = () => {
-    if (status === "in") {
-      setShowPunchOutModal(true);
-      return;
-    }
-
-    handlePunchInRequest();
-  };
-
-  useEffect(() => {
-    const initTimer = window.setTimeout(() => {
-      fetchStatus();
-    }, 0);
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => {
-      window.clearTimeout(initTimer);
-      clearInterval(timer);
     };
-  }, [fetchStatus]);
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center p-4">
-        <Loader2 className="w-5 h-5 text-primary-500 animate-spin" />
-      </div>
+    const fetchStatus = async () => {
+        try {
+            const res = await axios.get('/hr/attendance/today');
+            const data = res.data.data;
+            if (data) {
+                if (data.check_out) {
+                    setStatus('out');
+                } else if (data.check_in) {
+                    setStatus('in');
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch attendance status', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePunchButtonClick = () => {
+        if (status === 'in') {
+            // Direct punch out without modal
+            handleDirectPunchOut();
+            return;
+        }
+
+        // Open Work Mode Dialog (At Office vs Remote)
+        setWorkModeError("");
+        setIsWorkModeDialogOpen(true);
+    };
+
+    const handleConfirmPunchIn = async () => {
+        if (!selectedWorkMode) {
+            setWorkModeError("Please select where you are working today.");
+            return;
+        }
+
+        setActionLoading(true);
+        setWorkModeError("");
+
+        const format = (d) => {
+            const z = (n) => ('0' + n).slice(-2);
+            const istDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+            return `${istDate.getFullYear()}-${z(istDate.getMonth() + 1)}-${z(istDate.getDate())}T${z(istDate.getHours())}:${z(istDate.getMinutes())}:${z(istDate.getSeconds())}+05:30`;
+        };
+        const now = format(new Date());
+        const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
+        try {
+            let locationString = location || 'Location unavailable';
+            if (!location) {
+                try {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 3000
+                        });
+                    });
+                    locationString = `${pos.coords.latitude}, ${pos.coords.longitude}`;
+                } catch (geoErr) {
+                    console.warn('Geolocation failed at punch time', geoErr);
+                }
+            }
+
+            await axios.post('/hr/attendance/check-in', {
+                date,
+                check_in: now,
+                status: 'Present',
+                location: locationString,
+                mode: selectedWorkMode
+            });
+
+            setStatus('in');
+            setIsWorkModeDialogOpen(false);
+            toast.success('Punched in successfully');
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Failed to process punch in';
+            setWorkModeError(msg);
+            toast.error(msg);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleDirectPunchOut = async () => {
+        setActionLoading(true);
+        const format = (d) => {
+            const z = (n) => ('0' + n).slice(-2);
+            const istDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+            return `${istDate.getFullYear()}-${z(istDate.getMonth() + 1)}-${z(istDate.getDate())}T${z(istDate.getHours())}:${z(istDate.getMinutes())}:${z(istDate.getSeconds())}+05:30`;
+        };
+        const now = format(new Date());
+        const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
+        try {
+            await axios.post('/hr/attendance/check-out', {
+                date,
+                check_out: now
+            });
+            setStatus('out');
+            toast.success('Punched out successfully');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to process punch out');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    if (loading) return (
+        <div className="flex items-center justify-center p-4">
+            <Loader2 className="w-5 h-5 text-primary-500 animate-spin" />
+        </div>
     );
 
-  return (
-    <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-0.5">
-      <div className="bg-white p-3 rounded-xl border border-slate-200/25 shadow-xs flex flex-col gap-2.5">
-        {/* Top: Punch In / Out Button */}
-        <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
-          <Button
-            onClick={handlePunchButtonClick}
-            disabled={actionLoading || isDetectingLocation || status === "out"}
-            className={cn(
-              "w-full h-9 text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5",
-              status === "in"
-                ? "bg-rose-600 hover:bg-rose-700 text-white"
-                : status === "out"
-                  ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                  : "bg-blue-600 hover:bg-blue-700 text-white",
-            )}
-          >
-            {isDetectingLocation ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Detecting...
-              </>
-            ) : actionLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : status === "in" ? (
-              <>
-                <LogOut className="w-3.5 h-3.5" /> Punch Out
-              </>
-            ) : status === "out" ? (
-              <>
-                <Clock className="w-3.5 h-3.5" /> Day Ended
-              </>
-            ) : (
-              <>
-                <LogIn className="w-3.5 h-3.5" /> Punch In
-              </>
-            )}
-          </Button>
-        </div>
+    return (
+        <div className="bg-white/50 backdrop-blur-sm rounded-xl border border-slate-200/50 p-3 shadow-sm mx-1">
+            <div className="text-center mb-3">
+                <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    <Clock className="w-2.5 h-2.5" />
+                    Live Time
+                </div>
+                <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none">
+                    {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
+                </p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {currentTime.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })}
+                </p>
+            </div>
 
-        {/* Below Button: Time & Day on Left, Location badge on Right */}
-        <div className="flex items-center justify-between px-0.5">
-          <div>
-            <p className="text-lg font-bold text-slate-800 tracking-tight font-mono leading-none">
-              {currentTime.toLocaleTimeString("en-IN", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-                timeZone: "Asia/Kolkata",
-              })}
-            </p>
-            <p className="text-[11px] font-semibold text-slate-500 mt-1 leading-none">
-              {currentTime.toLocaleDateString("en-IN", {
-                weekday: "long",
-                timeZone: "Asia/Kolkata",
-              })}
-            </p>
-          </div>
+            <div className="space-y-2">
+                <Button
+                    onClick={handlePunchButtonClick}
+                    disabled={actionLoading || status === 'out'}
+                    className={cn(
+                        "w-full h-9 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-sm active:scale-[0.98]",
+                        status === 'in'
+                            ? "bg-rose-500 hover:bg-rose-600 shadow-rose-100"
+                            : status === 'out'
+                                ? "bg-slate-200 text-slate-500 shadow-none cursor-not-allowed"
+                                : "bg-primary-600 hover:bg-primary-700 shadow-primary-100"
+                    )}
+                >
+                    {actionLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : status === 'in' ? (
+                        <><LogOut className="w-3.5 h-3.5 mr-1.5" /> Punch Out</>
+                    ) : status === 'out' ? (
+                        <><Clock className="w-3.5 h-3.5 mr-1.5" /> Day Ended</>
+                    ) : (
+                        <><LogIn className="w-3.5 h-3.5 mr-1.5" /> Punch In</>
+                    )}
+                </Button>
 
-          <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-            <MapPin
-              className={cn(
-                "w-2.5 h-2.5",
-                location ? "text-emerald-500" : "text-blue-500",
-              )}
+                <div className="flex items-center justify-center gap-1 text-[8px] font-bold text-slate-400 uppercase tracking-tight">
+                    <MapPin className={cn("w-2.5 h-2.5", location ? "text-emerald-500" : "text-slate-300")} />
+                    <span>{location ? 'Geo-Targeted' : 'location will be used'}</span>
+                </div>
+            </div>
+
+            <WorkModeDialog
+                isOpen={isWorkModeDialogOpen}
+                onClose={() => !actionLoading && setIsWorkModeDialogOpen(false)}
+                selectedMode={selectedWorkMode}
+                onSelect={(mode) => {
+                    setSelectedWorkMode(mode);
+                    setWorkModeError("");
+                }}
+                onConfirm={handleConfirmPunchIn}
+                isLoading={actionLoading}
+                errorMessage={workModeError}
             />
-            <span className="capitalize text-[10px]">
-              {isDetectingLocation
-                ? "detecting..."
-                : location
-                  ? "office verified"
-                  : "office"}
-            </span>
-          </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default AttendancePunch;

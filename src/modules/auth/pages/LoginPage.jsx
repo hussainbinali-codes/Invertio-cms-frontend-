@@ -43,9 +43,14 @@ const LoginPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await axios.post("/auth/login", formData);
-      navigate("/verify-otp", { state: { email: formData.email } });
-      toast.success("OTP sent successfully");
+      const res = await axios.post("/auth/login", formData);
+      const debugOtp = res.data?.data?.debugOtp;
+      navigate("/verify-otp", { state: { email: formData.email, debugOtp } });
+      if (debugOtp) {
+        toast.success(`Dev OTP: ${debugOtp}`, { duration: 8000 });
+      } else {
+        toast.success("OTP sent successfully");
+      }
     } catch (err) {
       const msg =
         err.response?.data?.message ||

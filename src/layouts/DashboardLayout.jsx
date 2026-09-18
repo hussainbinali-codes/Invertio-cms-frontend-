@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -23,26 +23,6 @@ import SidebarNotification from "../components/SidebarNotification";
 import SidebarProfile from "../components/SidebarProfile";
 import AttendancePunch from "../components/AttendancePunch";
 import { hasPermission } from "../utils/permissionUtils";
-import ConfirmationModal from "../components/ui/ConfirmationModal";
-import EarlyDeparturePunchOutModal from "../components/EarlyDeparturePunchOutModal";
-import toast from "react-hot-toast";
-
-// Office premises coordinates (matches backend geofence)
-const DEFAULT_OFFICE_LOCATION = "17.3985, 78.41976";
-
-const formatAttendanceTimestamp = (date) => {
-  const pad = (value) => String(value).padStart(2, "0");
-  const istDate = new Date(
-    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
-  );
-
-  return `${istDate.getFullYear()}-${pad(istDate.getMonth() + 1)}-${pad(istDate.getDate())}T${pad(istDate.getHours())}:${pad(istDate.getMinutes())}:${pad(istDate.getSeconds())}+05:30`;
-};
-
-const formatAttendanceDate = (date) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-  }).format(date);
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -51,111 +31,6 @@ const DashboardLayout = () => {
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem("user") || "{}"),
   );
-  const [showPunchOutModal, setShowPunchOutModal] = useState(false);
-  const [checkInTime, setCheckInTime] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const [status, setStatus] = useState(null);
-  const [attendanceLocation, setAttendanceLocation] = useState("");
-
-  // Pre-fetch location quietly in background on mount (following Bilal's original pattern)
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setAttendanceLocation(`${pos.coords.latitude}, ${pos.coords.longitude}`);
-        },
-        (err) => {
-          console.debug("Pre-fetch location failed (will default to office coordinates):", err);
-        },
-        { enableHighAccuracy: true, timeout: 5000 }
-      );
-    }
-  }, []);
-
-  const handlePunchInRequest = useCallback(async () => {
-    setActionLoading(true);
-    setIsDetectingLocation(true);
-
-    let locationString = attendanceLocation;
-
-    // If not pre-fetched, try a quick 3-second check
-    if (!locationString && "geolocation" in navigator) {
-      try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 3000,
-          });
-        });
-        locationString = `${position.coords.latitude}, ${position.coords.longitude}`;
-        setAttendanceLocation(locationString);
-      } catch (err) {
-        console.debug("Geolocation failed at punch time, using office location", err);
-      }
-    }
-
-    // Fallback to official office coordinates (essential for desktop PCs / LAN IP without GPS)
-    if (!locationString) {
-      locationString = DEFAULT_OFFICE_LOCATION;
-      setAttendanceLocation(locationString);
-    }
-
-    try {
-      const response = await axios.post("/hr/attendance/check-in", {
-        date: formatAttendanceDate(new Date()),
-        check_in: formatAttendanceTimestamp(new Date()),
-        status: "Present",
-        location: locationString,
-        mode: "work_from_office",
-      });
-
-      if (response.data?.success === false) {
-        toast.error(response.data?.message || "Failed to punch in");
-        return;
-      }
-
-      setStatus("in");
-      setCheckInTime(new Date().toISOString());
-      toast.success("Punched in successfully");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to process punch in");
-    } finally {
-      setActionLoading(false);
-      setIsDetectingLocation(false);
-    }
-  }, [attendanceLocation]);
-
-  const handlePunch = async (mode = "auto", earlyLeaveData = {}) => {
-    if (status !== "in" || mode !== "checkout") {
-      return;
-    }
-
-    setActionLoading(true);
-
-    try {
-      const payload = {
-        date: formatAttendanceDate(new Date()),
-        check_out: formatAttendanceTimestamp(new Date()),
-        early_leave_reason: earlyLeaveData?.early_leave_reason || undefined,
-        early_leave_notes: earlyLeaveData?.early_leave_notes || undefined,
-      };
-
-      await axios.post("/hr/attendance/check-out", payload);
-      setStatus("out");
-      setShowPunchOutModal(false);
-      
-      if (earlyLeaveData?.isOffDay) {
-        toast.success("Punched out successfully (Off-Day / Half-day recorded)");
-      } else {
-        toast.success("Punched out successfully");
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to process punch");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   useEffect(() => {
     const syncPermissions = async () => {
@@ -360,16 +235,7 @@ const DashboardLayout = () => {
           )}
         >
           {!isSidebarCollapsed && (
-            <AttendancePunch
-              setShowPunchOutModal={setShowPunchOutModal}
-              actionLoading={actionLoading}
-              isDetectingLocation={isDetectingLocation}
-              status={status}
-              setStatus={setStatus}
-              handlePunchInRequest={handlePunchInRequest}
-              location={attendanceLocation}
-              setCheckInTime={setCheckInTime}
-            />
+            <AttendancePunch />
           )}
 
           {/* Profile below Attendance Punch */}
@@ -397,15 +263,6 @@ const DashboardLayout = () => {
           <ChevronLeft className="w-3.5 h-3.5 group-hover:scale-110" />
         )}
       </button>
-
-      <EarlyDeparturePunchOutModal
-        isOpen={showPunchOutModal}
-        onClose={() => !actionLoading && setShowPunchOutModal(false)}
-        checkInTime={checkInTime}
-        isLoading={actionLoading}
-        onConfirm={(earlyLeaveData) => handlePunch("checkout", earlyLeaveData)}
-      />
-
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Mobile Hamburger (Only visible on mobile screens where sidebar is hidden) */}

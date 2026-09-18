@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   ChevronLeft,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import StatCard from "../../../components/ui/StatCard";
 import Skeleton from "../../../components/ui/Skeleton";
@@ -117,6 +118,24 @@ const AttendancePage = () => {
   const [fetchingLogs, setFetchingLogs] = useState(false);
   const [holidays, setHolidays] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null); // for mobile tap-to-expand detail
+  const [openInfoDate, setOpenInfoDate] = useState(null); // for (i) dropdown on click
+
+  useEffect(() => {
+    const handleGlobalClick = () => setOpenInfoDate(null);
+    window.addEventListener("click", handleGlobalClick);
+    return () => window.removeEventListener("click", handleGlobalClick);
+  }, []);
+
+  const parseCoordinates = (loc) => {
+    if (!loc || loc === "Location unavailable") {
+      return { lat: "Not captured", lng: "Not captured" };
+    }
+    const parts = loc.split(",").map((p) => p.trim());
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return { lat: parts[0], lng: parts[1] };
+    }
+    return { lat: loc, lng: "N/A" };
+  };
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -1085,10 +1104,11 @@ const AttendancePage = () => {
                       onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
                       className={cn(
                         getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/30" : ""),
-                        isSelected && "ring-2 ring-inset ring-blue-500 z-10"
+                        isSelected && "ring-2 ring-inset ring-blue-500 z-10",
+                        openInfoDate === dateKey && "!overflow-visible z-30"
                       )}
                     >
-                      {/* Cell Top: Day number & top-right hours */}
+                      {/* Cell Top: Day number & (i) info button */}
                       <div className="flex items-center justify-between">
                         {isToday ? (
                           <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs ring-2 ring-blue-100">
@@ -1103,17 +1123,85 @@ const AttendancePage = () => {
                           </span>
                         )}
 
-                        {d.isCurrentMonth && dayDuration && (
-                          <span className="text-[10px] font-semibold text-slate-400 font-mono bg-slate-100/80 px-1.5 py-0.5 rounded-md">
-                            {dayDuration}
-                          </span>
-                        )}
+                        {d.isCurrentMonth && attRecord && (() => {
+                          const coords = parseCoordinates(attRecord.location);
+                          const isDropdownOpen = openInfoDate === dateKey;
+
+                          return (
+                            <div
+                              className="relative flex items-center justify-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenInfoDate(isDropdownOpen ? null : dateKey);
+                                }}
+                                className={cn(
+                                  "w-4 h-4 rounded-full flex items-center justify-center transition-all cursor-pointer",
+                                  isDropdownOpen
+                                    ? "bg-primary-600 text-white shadow-xs scale-110"
+                                    : "bg-slate-100 hover:bg-primary-50 text-slate-400 hover:text-primary-600"
+                                )}
+                              >
+                                <Info className="w-2.5 h-2.5" />
+                              </button>
+
+                              {/* Dropdown Below the (i) button */}
+                              {isDropdownOpen && (
+                                <div
+                                  className="absolute right-0 top-full mt-1.5 w-44 bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 cursor-default"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <span>Punch Info</span>
+                                    <span className="text-emerald-400 font-semibold">{attRecord.status || "Present"}</span>
+                                  </div>
+
+                                  <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-slate-400">Latitude:</span>
+                                      <span className="font-mono text-slate-200 text-[10px] truncate max-w-[90px]" title={coords.lat}>
+                                        {coords.lat}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-slate-400">Longitude:</span>
+                                      <span className="font-mono text-slate-200 text-[10px] truncate max-w-[90px]" title={coords.lng}>
+                                        {coords.lng}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                                      <span className="text-slate-400">Punch In:</span>
+                                      <span className={cn(
+                                        "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                        attRecord.check_in ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"
+                                      )}>
+                                        {attRecord.check_in ? "Yes" : "No"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-slate-400">Punch Out:</span>
+                                      <span className={cn(
+                                        "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                        attRecord.check_out ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
+                                      )}>
+                                        {attRecord.check_out ? "Yes" : "No"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Event Task Bar - Full Width with Micro Dot */}
                       {d.isCurrentMonth && attRecord && (
                         <div className={cn(
-                          "mt-auto w-full rounded-lg px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs",
+                          "mt-auto w-full rounded-lg px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs",
                           attRecord.status === "Half-day"
                             ? "bg-amber-50 text-amber-900 border border-amber-200/80"
                             : "bg-emerald-50 text-emerald-800 border border-emerald-200/70"
@@ -1127,144 +1215,32 @@ const AttendancePage = () => {
                               {attRecord.status === "Half-day" ? "Half-day (Off)" : "Present"}
                             </span>
                           </div>
-                          <span className={cn(
-                            "font-mono text-[11px] shrink-0 ml-1.5 font-bold",
-                            attRecord.status === "Half-day" ? "text-amber-700" : "text-emerald-700"
-                          )}>
-                            {getAttHours(attRecord)}
-                          </span>
                         </div>
                       )}
 
                       {d.isCurrentMonth && leaveRecord && (
-                        <div className="mt-auto w-full rounded-lg bg-amber-50 text-amber-800 border border-amber-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                        <div className="mt-auto w-full rounded-lg bg-amber-50 text-amber-800 border border-amber-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
                           <div className="flex items-center gap-1.5 truncate">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                             <span className="truncate">{leaveRecord.leave_type || "Unpaid leave"}</span>
                           </div>
-                          <span className="font-mono text-[11px] text-amber-700 shrink-0 ml-1.5 font-bold">
-                            8 h
-                          </span>
                         </div>
                       )}
 
                       {d.isCurrentMonth && holiday && (
-                        <div className="mt-auto w-full rounded-lg bg-blue-50 text-blue-800 border border-blue-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                        <div className="mt-auto w-full rounded-lg bg-blue-50 text-blue-800 border border-blue-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
                           <div className="flex items-center gap-1.5 truncate">
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                             <span className="truncate">{holiday.name}</span>
                           </div>
-                          <span className="font-mono text-[11px] text-blue-700 shrink-0 ml-1.5 font-bold">
-                            Holiday
-                          </span>
                         </div>
                       )}
 
                       {d.isCurrentMonth && !attRecord && !leaveRecord && !holiday && isPast && !isWeekend && (
-                        <div className="mt-auto w-full rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-2 py-1 flex items-center justify-between text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                        <div className="mt-auto w-full rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
                           <div className="flex items-center gap-1.5 truncate">
                             <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                             <span className="truncate">Absent</span>
-                          </div>
-                          <span className="font-mono text-[11px] text-rose-700 shrink-0 ml-1.5 font-bold">
-                            0 h
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Hover tooltip: desktop only */}
-                      {d.isCurrentMonth && (
-                        <div className={`hidden md:block absolute ${getTooltipPositionClasses(index)} w-64 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-xs border border-slate-800 pointer-events-none space-y-2`}>
-                          <div className="font-bold border-b border-slate-800 pb-2 flex justify-between items-center text-slate-300">
-                            <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-                          </div>
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Status:</span>
-                              <span className={`font-bold ${
-                                status === "Present" ? "text-emerald-400" :
-                                status === "Leave" ? "text-amber-400" :
-                                status === "Holiday" ? "text-blue-400" :
-                                status === "Absent" ? "text-rose-400" : "text-slate-400"
-                              }`}>{status}</span>
-                            </div>
-
-                            {attRecord && (
-                              <>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400">Punch In:</span>
-                                  <span className="font-bold text-slate-200">
-                                    {attRecord.check_in ? new Date(attRecord.check_in).toLocaleTimeString("en-IN", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                      timeZone: "Asia/Kolkata",
-                                    }) : "--:--"}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400">Punch Out:</span>
-                                  <span className="font-bold text-slate-200">
-                                    {attRecord.check_out ? new Date(attRecord.check_out).toLocaleTimeString("en-IN", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                      timeZone: "Asia/Kolkata",
-                                    }) : "Not logged"}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between items-start gap-2">
-                                  <span className="text-slate-400 whitespace-nowrap">Location:</span>
-                                  <span className="font-semibold text-slate-300 text-right truncate max-w-[140px] uppercase text-[10px]">
-                                    {attRecord.location || "Unknown"}
-                                  </span>
-                                </div>
-                                {attRecord.status === "Half-day" && (
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Day Type:</span>
-                                    <span className="font-bold text-amber-300">Half-Day (Off-Day)</span>
-                                  </div>
-                                )}
-                                {attRecord.early_leave_reason && (
-                                  <div className="flex justify-between items-start gap-2">
-                                    <span className="text-slate-400 whitespace-nowrap">Left Early:</span>
-                                    <span className="font-semibold text-rose-300 text-right max-w-[140px] truncate" title={attRecord.early_leave_reason}>
-                                      {attRecord.early_leave_reason}
-                                    </span>
-                                  </div>
-                                )}
-                                {attRecord.early_leave_notes && (
-                                  <div className="flex justify-between items-start gap-2">
-                                    <span className="text-slate-400 whitespace-nowrap">Note:</span>
-                                    <span className="font-medium text-slate-300 text-right italic max-w-[140px] break-words text-[10px]" title={attRecord.early_leave_notes}>
-                                      {attRecord.early_leave_notes}
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                            )}
-
-                            {leaveRecord && (
-                              <>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400">Leave Type:</span>
-                                  <span className="font-bold text-amber-300">{leaveRecord.leave_type || "Available"}</span>
-                                </div>
-                                <div className="flex justify-between items-start gap-2">
-                                  <span className="text-slate-400 whitespace-nowrap">Reason:</span>
-                                  <span className="font-semibold text-slate-300 text-right italic break-words max-w-[140px]">
-                                    {leaveRecord.reason || "No reason given"}
-                                  </span>
-                                </div>
-                              </>
-                            )}
-
-                            {holiday && (
-                              <div className="flex justify-between items-start gap-2">
-                                <span className="text-slate-400 whitespace-nowrap">Holiday:</span>
-                                <span className="font-bold text-blue-300 text-right max-w-[140px]">{holiday.name}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
                       )}
@@ -1379,12 +1355,21 @@ const AttendancePage = () => {
                               }) : "Not logged"}
                             </span>
                           </div>
-                          <div className="flex justify-between items-start gap-2">
-                            <span className="text-slate-400 whitespace-nowrap">Location:</span>
-                            <span className="font-semibold text-slate-300 text-right truncate max-w-[140px] uppercase text-[10px]">
-                              {selectedDetail.attRecord.location || "Unknown"}
-                            </span>
-                          </div>
+                          {(() => {
+                            const coords = parseCoordinates(selectedDetail.attRecord.location);
+                            return (
+                              <>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-400">Latitude:</span>
+                                  <span className="font-mono text-slate-200 text-[10px]">{coords.lat}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-400">Longitude:</span>
+                                  <span className="font-mono text-slate-200 text-[10px]">{coords.lng}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
                           {selectedDetail.attRecord.status === "Half-day" && (
                             <div className="flex justify-between">
                               <span className="text-slate-400">Day Type:</span>
