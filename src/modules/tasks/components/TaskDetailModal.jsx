@@ -6,11 +6,13 @@ import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
 import Input from '../../../components/ui/Input';
 import Textarea from '../../../components/ui/Textarea';
-import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2, GitBranch, Trash2, CheckSquare, Layers, ShieldAlert, Target, Building2, MessageSquare, Send } from 'lucide-react';
+import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2, GitBranch, Trash2, CheckSquare, Layers, ShieldAlert, Target, Building2, MessageSquare, Send, ChevronDown, UserCheck } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import Button from '../../../components/ui/Button';
 import ProofOfCompletionModal from './ProofOfCompletionModal';
+import TaskHandoverModal from './TaskHandoverModal';
+import TaskChatSection from './TaskChatSection';
 import toast from 'react-hot-toast';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
@@ -91,6 +93,8 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const [loadingSubTasks, setLoadingSubTasks] = React.useState(false);
   const [showAddSubTask, setShowAddSubTask] = React.useState(false);
   const [newSubTask, setNewSubTask] = React.useState({ title: '', priority: 'Medium', due_date: '', estimated_hours: '' });
+  const [newSubTaskTitle, setNewSubTaskTitle] = React.useState('');
+  const [activityFilter, setActivityFilter] = React.useState('all');
   const [isCreatingSubTask, setIsCreatingSubTask] = React.useState(false);
 
   // Comments states
@@ -100,6 +104,26 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const [isSubmittingComment, setIsSubmittingComment] = React.useState(false);
   const [sidebarTab, setSidebarTab] = React.useState('comments');
   const [activeLeftTab, setActiveLeftTab] = React.useState('details'); // 'details' | 'resources' | 'activity'
+  const commentInputRef = React.useRef(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = React.useState(false);
+  const statusDropdownRef = React.useRef(null);
+  const [subTaskDropdownOpen, setSubTaskDropdownOpen] = React.useState(false);
+  const subTaskDropdownRef = React.useRef(null);
+  const [showHandoverModal, setShowHandoverModal] = React.useState(false);
+  const [isSubmittingHandover, setIsSubmittingHandover] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setStatusDropdownOpen(false);
+      }
+      if (subTaskDropdownRef.current && !subTaskDropdownRef.current.contains(event.target)) {
+        setSubTaskDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   React.useEffect(() => {
     if (task && task.id) {
@@ -111,11 +135,11 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
         current_issue: task.current_issue || tmpl.current_issue || '',
         expected_improvement: task.expected_improvement || tmpl.expected_improvement || '',
         business_impact: task.business_impact || tmpl.business_impact || '',
-        functional_requirements: parseList(task.functional_requirements).length > 0 
-          ? parseList(task.functional_requirements) 
+        functional_requirements: parseList(task.functional_requirements).length > 0
+          ? parseList(task.functional_requirements)
           : parseList(tmpl.functional_requirements),
-        acceptance_criteria: parseList(task.acceptance_criteria).length > 0 
-          ? parseList(task.acceptance_criteria) 
+        acceptance_criteria: parseList(task.acceptance_criteria).length > 0
+          ? parseList(task.acceptance_criteria)
           : parseList(tmpl.acceptance_criteria)
       };
 
@@ -124,9 +148,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
       fetchTaskActivities();
       fetchTaskComments();
       fetchSubTasks();
-      if (isAdmin) {
-        fetchAssignableUsers();
-      }
+      fetchAssignableUsers();
       if (task.project_id) {
         setLoadingStories(true);
         axios.get(`/projects/${task.project_id}/stories`)
@@ -244,14 +266,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     }
   };
 
-  const handlePostComment = async (e) => {
-    if (e) e.preventDefault();
-    if (!isAdmin) {
-      toast.error('Only administrators can add comments');
-      return;
-    }
-    const trimmed = newComment.trim();
-    if (!trimmed) return;
+  const handlePostComment = async (e, customText = null) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const textToSubmit = (customText !== null ? customText : newComment).trim();
+    if (!textToSubmit) return;
     const projectId = taskData?.project_id || task?.project_id;
     if (!projectId) {
       toast.error('Project ID is required to post comments');
@@ -260,12 +278,13 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     setIsSubmittingComment(true);
     try {
       await axios.post(`/projects/${projectId}/comments`, {
-        comment: trimmed,
+        comment: textToSubmit,
         task_id: taskId
       });
       setNewComment('');
-      toast.success('Comment posted by Admin');
+      toast.success('Message sent');
       fetchTaskComments();
+      fetchTaskActivities();
     } catch (err) {
       console.error('Failed to post comment', err);
       toast.error(err.response?.data?.message || 'Failed to post comment');
@@ -332,6 +351,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
       });
       toast.success(`${files.length} document(s) uploaded`);
       fetchTaskDocuments();
+      fetchTaskActivities();
     } catch (err) {
       console.error("Failed to upload file(s)", err);
       toast.error("Upload failed");
@@ -342,6 +362,8 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   };
 
   const handleQuickStatusUpdate = async (newStatus) => {
+    if (newStatus === currentStatus) return;
+
     if (newStatus === 'Completed') {
       setShowProofModal(true);
       return;
@@ -370,11 +392,15 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   };
 
   const handleQuickReassign = async (newAssigneeId) => {
-    if (!isAdmin) return;
     setIsUpdating(true);
     try {
-      const res = await axios.patch(`/projects/tasks/${taskId}`, { assigned_to: newAssigneeId || null });
       const updatedUser = assignableUsers.find(u => String(u.id) === String(newAssigneeId));
+      const res = await axios.patch(`/projects/tasks/${taskId}`, {
+        assigned_to: newAssigneeId || null,
+        progress_note: newAssigneeId
+          ? `Task assigned to ${updatedUser?.name || 'team member'}`
+          : 'Task unassigned'
+      });
       const updatedTask = res.data.data || {
         ...taskData,
         assigned_to: newAssigneeId,
@@ -392,6 +418,46 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
       toast.error(err?.response?.data?.message || 'Failed to reassign task');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleTaskHandover = async ({ newAssigneeId, reason, notes, nextStatus }) => {
+    setIsSubmittingHandover(true);
+    try {
+      const handoverNote = `[Task Handover: ${reason}] ${notes ? notes : 'Work transferred to next team member.'}`;
+      const res = await axios.patch(`/projects/tasks/${taskId}`, {
+        assigned_to: newAssigneeId || null,
+        status: nextStatus || currentStatus,
+        progress_note: handoverNote
+      });
+
+      const updatedUser = assignableUsers.find(u => String(u.id) === String(newAssigneeId));
+      const updatedTask = res.data.data || {
+        ...taskData,
+        assigned_to: newAssigneeId,
+        assigned_to_name: updatedUser?.name || '',
+        assigned_to_role: updatedUser?.role_name || updatedUser?.role || updatedUser?.designation || '',
+        status: nextStatus || currentStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      setTaskData(updatedTask);
+      setCurrentStatus(updatedTask.status);
+      setEditData(prev => ({
+        ...prev,
+        assigned_to: newAssigneeId || '',
+        status: updatedTask.status,
+        progress_note: ''
+      }));
+      fetchTaskActivities();
+      toast.success(`Task handed over to ${updatedUser?.name || 'team member'} successfully`);
+      setShowHandoverModal(false);
+      if (onUpdate) onUpdate(updatedTask);
+    } catch (err) {
+      console.error("Failed to handover task", err);
+      toast.error(err?.response?.data?.message || 'Failed to handover task');
+    } finally {
+      setIsSubmittingHandover(false);
     }
   };
 
@@ -450,6 +516,92 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const showCompletionSection = taskData.status === 'Completed' && (Boolean(taskData.completion_notes) || proofDocs.length > 0);
   const latestActivity = activities[0] || null;
 
+  const getRelativeTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now - date) / 1000);
+    if (diffSec < 45) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getAvatarBg = (name) => {
+    const colors = [
+      'bg-amber-500 text-white',
+      'bg-blue-600 text-white',
+      'bg-indigo-600 text-white',
+      'bg-emerald-600 text-white',
+      'bg-violet-600 text-white',
+      'bg-rose-500 text-white',
+      'bg-cyan-600 text-white',
+      'bg-purple-600 text-white'
+    ];
+    if (!name) return colors[0];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const filteredActivities = React.useMemo(() => {
+    if (activityFilter === 'comments') {
+      return activities.filter(a => a.activity_type === 'commented');
+    }
+    if (activityFilter === 'history') {
+      return activities.filter(a => a.activity_type !== 'commented' && a.activity_type !== 'hours_logged');
+    }
+    if (activityFilter === 'worklog') {
+      return activities.filter(a => a.activity_type === 'hours_logged');
+    }
+    return activities;
+  }, [activities, activityFilter]);
+
+  const developerUsers = React.useMemo(() => {
+    const devs = assignableUsers.filter(u => {
+      const role = (u.role_name || u.role || u.designation || '').toLowerCase();
+      const name = (u.name || '').toLowerCase();
+      if (role.includes('admin') || name.includes('admin') || role.includes('super')) return false;
+      return role.includes('dev') || role.includes('engineer');
+    });
+    if (devs.length > 0) return devs;
+    // Fallback: exclude any admin users
+    return assignableUsers.filter(u => {
+      const role = (u.role_name || u.role || u.designation || '').toLowerCase();
+      const name = (u.name || '').toLowerCase();
+      return !role.includes('admin') && !name.includes('admin') && !role.includes('super');
+    });
+  }, [assignableUsers]);
+
+  const groupedActivities = React.useMemo(() => {
+    const groups = {};
+    const todayStr = new Date().toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+
+    filteredActivities.forEach((act) => {
+      const actDate = act.created_at ? new Date(act.created_at) : new Date();
+      const actDateStr = actDate.toDateString();
+      let groupLabel = 'Older';
+      if (actDateStr === todayStr) {
+        groupLabel = 'Today';
+      } else if (actDateStr === yesterdayStr) {
+        groupLabel = 'Yesterday';
+      } else {
+        groupLabel = actDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      if (!groups[groupLabel]) groups[groupLabel] = [];
+      groups[groupLabel].push(act);
+    });
+    return groups;
+  }, [filteredActivities]);
+
   const getActivityLabel = (activity) => {
     switch (activity.activity_type) {
       case 'created':
@@ -462,6 +614,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
         return `logged time on the task (${activity.new_label || activity.new_value})`;
       case 'progress_submitted':
         return 'submitted a progress update';
+      case 'commented':
+        return 'commented on this task';
+      case 'attached_file':
+        return `attached file ${activity.new_label || ''}`;
       case 'updated':
         return `updated ${String(activity.field_name || 'task').replaceAll('_', ' ')}`;
       default:
@@ -494,13 +650,16 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
   const funcReqList = parseList(taskData.functional_requirements);
   const acceptCritList = parseList(taskData.acceptance_criteria);
+  const displayType = isEditing ? editData.task_type : (taskData.task_type || 'Feature');
+  const displayPriority = isEditing ? editData.priority : (taskData.priority || 'Medium');
+  const displayStoryPoints = isEditing ? editData.story_points : (taskData.story_points || 3);
 
   if (!taskData) return null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-3 sm:p-5 text-slate-900">
       <Card className="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1440px] shadow-2xl animate-in fade-in zoom-in duration-300 border-none flex flex-col h-[92vh] max-h-[92vh] overflow-hidden bg-white">
-        
+
         {/* Header */}
         <CardHeader className="flex flex-row items-start sm:items-center justify-between bg-white border-b border-slate-100 py-5 sm:py-6 px-5 sm:px-8 shrink-0">
           <div className="flex items-start sm:items-center gap-3 sm:gap-4">
@@ -518,48 +677,321 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <Badge variant="outline" className="text-xs font-semibold text-slate-600">
                   {taskData.project_name || 'Individual Task'}
                 </Badge>
-                <Badge 
+                <Badge
                   variant={
-                    currentStatus === 'Completed' ? 'success' : 
-                    currentStatus === 'In Progress' ? 'primary' : 
-                    'default'
+                    currentStatus === 'Completed' ? 'success' :
+                      currentStatus === 'In Progress' ? 'primary' :
+                        'default'
                   }
                   className="text-xs font-semibold"
                 >
                   {currentStatus}
                 </Badge>
-                {taskData.due_date && (
-                  <Badge variant="outline" className="text-xs font-semibold text-rose-600 border-rose-200 bg-rose-50 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" /> Due {new Date(taskData.due_date).toLocaleDateString()}
-                  </Badge>
-                )}
+
+                {/* Feature / Task Type Badge */}
+                <Badge variant="outline" className="text-xs font-semibold text-blue-700 border-blue-200 bg-blue-50/80 flex items-center gap-1.5">
+                  <Layers className="w-3 h-3 text-blue-500" />
+                  <span>{displayType}</span>
+                </Badge>
+
+                {/* Priority Badge */}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs font-semibold flex items-center gap-1.5",
+                    displayPriority === 'Critical' ? "text-rose-700 border-rose-200 bg-rose-50" :
+                      displayPriority === 'High' ? "text-amber-700 border-amber-200 bg-amber-50" :
+                        displayPriority === 'Low' ? "text-emerald-700 border-emerald-200 bg-emerald-50" :
+                          "text-sky-700 border-sky-200 bg-sky-50"
+                  )}
+                >
+                  <span className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    displayPriority === 'Critical' ? "bg-rose-500" :
+                      displayPriority === 'High' ? "bg-amber-500" :
+                        displayPriority === 'Low' ? "bg-emerald-500" :
+                          "bg-sky-500"
+                  )} />
+                  <span>{displayPriority} Priority</span>
+                </Badge>
+
+                {/* Story Points Badge */}
+                <Badge variant="outline" className="text-xs font-semibold text-purple-700 border-purple-200 bg-purple-50/80 flex items-center gap-1.5">
+                  <Target className="w-3 h-3 text-purple-500" />
+                  <span>{displayStoryPoints} {Number(displayStoryPoints) === 1 ? 'Story Point' : 'Story Points'}</span>
+                </Badge>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {canEdit && !isEditing && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-9 text-xs font-semibold text-slate-700 border-slate-200"
+            {taskData.due_date && (
+              <Badge variant="outline" className="text-xs font-semibold text-rose-600 border-rose-200 bg-rose-50 flex items-center gap-1.5 py-1 px-2.5">
+                <Calendar className="w-3.5 h-3.5" /> Due {new Date(taskData.due_date).toLocaleDateString()}
+              </Badge>
+            )}
+
+            {/* Sub Tasks Dropdown in Top Header */}
+            <div className="relative" ref={subTaskDropdownRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !subTaskDropdownOpen;
+                  setSubTaskDropdownOpen(next);
+                  if (next) {
+                    setShowAddSubTask(true);
+                  }
+                }}
+                className={cn(
+                  "h-9 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer select-none",
+                  subTaskDropdownOpen ? "bg-blue-50 text-blue-700 border-blue-300" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                <GitBranch className="w-3.5 h-3.5 text-blue-600" />
+                <span>Sub Tasks</span>
+                {subTasks.length > 0 && (
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-full">
+                    {subTasks.filter(s => s.status === 'Completed').length}/{subTasks.length}
+                  </span>
+                )}
+                <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform duration-200", subTaskDropdownOpen && "rotate-180")} />
+              </button>
+
+              {subTaskDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl border border-slate-200 shadow-xl z-50 p-3 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-1.5">
+                      <GitBranch className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="text-xs font-bold text-slate-800">Sub Tasks</span>
+                      {subTasks.length > 0 && (
+                        <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">
+                          {subTasks.filter(s => s.status === 'Completed').length}/{subTasks.length} completed
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddSubTask(v => !v)}
+                      className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      {showAddSubTask ? 'Hide Form' : 'Add Sub Task'}
+                    </button>
+                  </div>
+
+                  {/* Add Sub Task Form */}
+                  {showAddSubTask && (
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Sub task title..."
+                        value={newSubTask.title}
+                        onChange={e => setNewSubTask(prev => ({ ...prev, title: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-md border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        autoFocus
+                      />
+                      <div className="flex flex-col gap-1.5">
+                        <select
+                          value={newSubTask.priority}
+                          onChange={e => setNewSubTask(prev => ({ ...prev, priority: e.target.value }))}
+                          className="w-full px-2 py-1 text-xs rounded-md border border-slate-200 bg-white"
+                        >
+                          <option value="Low">Low Priority</option>
+                          <option value="Medium">Medium Priority</option>
+                          <option value="High">High Priority</option>
+                          <option value="Critical">Critical Priority</option>
+                        </select>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            placeholder="Est Hours"
+                            value={newSubTask.estimated_hours}
+                            onChange={e => setNewSubTask(prev => ({ ...prev, estimated_hours: e.target.value }))}
+                            className="w-20 px-2 py-1 text-xs rounded-md border border-slate-200 bg-white font-mono"
+                          />
+                          <input
+                            type="date"
+                            value={newSubTask.due_date}
+                            onChange={e => setNewSubTask(prev => ({ ...prev, due_date: e.target.value }))}
+                            className="flex-1 px-2 py-1 text-xs rounded-md border border-slate-200 bg-white"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setShowAddSubTask(false); setNewSubTask({ title: '', priority: 'Medium', due_date: '', estimated_hours: '' }); }}
+                          className="text-xs text-slate-500 px-2.5 py-1 rounded-md hover:bg-slate-200/60 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCreateSubTask}
+                          disabled={isCreatingSubTask}
+                          className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-md flex items-center gap-1 cursor-pointer"
+                        >
+                          {isCreatingSubTask ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                          Create
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sub Tasks List */}
+                  {loadingSubTasks ? (
+                    <div className="space-y-1.5 py-2">
+                      <div className="h-6 bg-slate-100 rounded animate-pulse" />
+                      <div className="h-6 bg-slate-100 rounded animate-pulse" />
+                    </div>
+                  ) : subTasks.length === 0 ? (
+                    <div className="text-center py-3 space-y-2">
+                      <p className="text-xs text-slate-400 italic">No sub tasks added yet.</p>
+                      {!showAddSubTask && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAddSubTask(true)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add Sub Task
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
+                      {subTasks.map(st => (
+                        <div key={st.id} className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100/70 transition-colors group">
+                          <button
+                            type="button"
+                            onClick={() => handleSubTaskStatusChange(st.id, st.status === 'Completed' ? 'Pending' : 'Completed')}
+                            className={cn(
+                              'w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors cursor-pointer',
+                              st.status === 'Completed' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 hover:border-emerald-400'
+                            )}
+                          >
+                            {st.status === 'Completed' && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className={cn('text-xs font-medium truncate', st.status === 'Completed' && 'line-through text-slate-400')}>
+                              {st.title}
+                            </p>
+                          </div>
+                          <select
+                            value={st.status}
+                            onChange={e => handleSubTaskStatusChange(st.id, e.target.value)}
+                            className="text-[9px] font-bold border border-slate-200 rounded px-1 py-0.5 bg-white shrink-0 cursor-pointer"
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Blocked">Blocked</option>
+                          </select>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubTask(st.id)}
+                              className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer transition-opacity"
+                              title="Delete sub task"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Status Dropdown in Navbar (Available to both Admin & Team Member) */}
+            {!isEditing && (
+              <div className="relative" ref={statusDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                  disabled={isUpdating}
+                  className={cn(
+                    "h-9 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-xs cursor-pointer select-none",
+                    currentStatus === 'Completed' ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100/80" :
+                      currentStatus === 'In Progress' ? "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100/80" :
+                        currentStatus === 'Cancelled' ? "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100/80" :
+                          "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100/80"
+                  )}
+                >
+                  <span className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    currentStatus === 'Completed' ? "bg-emerald-500" :
+                      currentStatus === 'In Progress' ? "bg-blue-500" :
+                        currentStatus === 'Cancelled' ? "bg-rose-500" :
+                          "bg-amber-500"
+                  )} />
+                  <span>{currentStatus === 'Completed' ? 'Done' : currentStatus}</span>
+                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 opacity-70", statusDropdownOpen && "rotate-180")} />
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                      Update Work Status
+                    </div>
+                    {[
+                      { label: 'Pending', value: 'Pending', desc: 'Not Started', dot: 'bg-amber-500' },
+                      { label: 'In Progress', value: 'In Progress', desc: 'Working', dot: 'bg-blue-500' },
+                      { label: 'Done', value: 'Completed', desc: 'Mark Completed', dot: 'bg-emerald-500' },
+                      { label: 'Cancelled', value: 'Cancelled', desc: 'Cancelled', dot: 'bg-rose-500' },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => {
+                          handleQuickStatusUpdate(item.value);
+                          setStatusDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left cursor-pointer",
+                          currentStatus === item.value
+                            ? "bg-slate-100 text-slate-900 font-bold"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={cn("w-2 h-2 rounded-full", item.dot)} />
+                          <span>{item.label}</span>
+                        </div>
+                        <span className="text-[10px] font-medium text-slate-400">{item.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Admin Edit Details button */}
+            {isAdmin && !isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer"
                 onClick={() => setIsEditing(true)}
               >
-                {isAdmin ? 'Edit Details' : 'Update Progress'}
+                Edit Details
               </Button>
             )}
             {isEditing && (
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-9 text-xs font-semibold text-slate-500"
                   onClick={() => setIsEditing(false)}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  variant="primary" 
-                  size="sm" 
+                <Button
+                  variant="primary"
+                  size="sm"
                   className="h-9 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700"
                   onClick={handleUpdateTask}
                   disabled={isUpdating}
@@ -574,7 +1006,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 </Button>
               </div>
             )}
-            <button 
+            <button
               onClick={onClose}
               className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600 group"
             >
@@ -582,13 +1014,13 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             </button>
           </div>
         </CardHeader>
-        
+
         <CardContent className="flex-1 min-h-0 flex flex-col h-full p-0 overflow-hidden">
           <div className="flex-1 min-h-0 flex flex-col md:flex-row h-full w-full overflow-hidden">
-            
+
             {/* Left Main Body: Structured 3 Tabs (Task Details, Resources, Activity) with Fixed Header */}
             <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-slate-50/20 border-b md:border-b-0 md:border-r border-slate-100 overflow-hidden">
-              
+
               {/* Fixed Left Tab Navigation (Pinned at top - does NOT scroll away) */}
               <div className="px-5 sm:px-8 py-3.5 bg-white border-b border-slate-100 shrink-0 z-10">
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/90 shadow-xs w-fit">
@@ -653,999 +1085,691 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               </div>
 
               {/* Scrollable Content Container (Smooth Scroll underneath the fixed tabs) */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-8 space-y-6 scroll-smooth">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth">
 
                 {/* 1. TASK DETAILS (&& operation) */}
                 {activeLeftTab === 'details' && (
-                  <div className="space-y-6">
-                  {/* SECTION 01: Basic Information */}
-                  <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <span className="text-primary-600 font-extrabold">01.</span> Basic Information
-                      </h3>
-                      <Badge variant="outline" className="text-[10px] font-bold text-slate-500">
-                        {taskData.module || 'General Module'}
-                      </Badge>
-                    </div>
-
-                    {isEditing && isAdmin ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="sm:col-span-2">
-                          <Input 
-                            label="Task Title" 
-                            value={editData.title}
-                            onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                            required 
-                          />
-                        </div>
-                        <div>
-                          <Input 
-                            label="Module" 
-                            value={editData.module}
-                            onChange={(e) => setEditData({ ...editData, module: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-600 mb-1 block">Task Type</label>
-                          <select 
-                            value={editData.task_type}
-                            onChange={(e) => setEditData({ ...editData, task_type: e.target.value })}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold bg-white"
-                          >
-                            <option value="Feature">Feature</option>
-                            <option value="Enhancement">Enhancement</option>
-                            <option value="Bug">Bug</option>
-                            <option value="Research">Research</option>
-                            <option value="Refactor">Refactor</option>
-                            <option value="DevOps">DevOps</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-600 mb-1 block">Priority Level</label>
-                          <select 
-                            value={editData.priority}
-                            onChange={(e) => setEditData({ ...editData, priority: e.target.value })}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold bg-white"
-                          >
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-600 mb-1 block">Story Points</label>
-                          <select 
-                            value={editData.story_points}
-                            onChange={(e) => setEditData({ ...editData, story_points: e.target.value })}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold bg-white"
-                          >
-                            <option value="1">1 Point</option>
-                            <option value="2">2 Points</option>
-                            <option value="3">3 Points</option>
-                            <option value="5">5 Points</option>
-                            <option value="8">8 Points</option>
-                            <option value="13">13 Points</option>
-                          </select>
-                        </div>
-                        <div>
-                          <Input 
-                            label="Due Date" 
-                            type="date"
-                            value={editData.due_date}
-                            onChange={(e) => setEditData({ ...editData, due_date: e.target.value })}
-                            required 
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="text-xs font-semibold text-slate-600 mb-1 block">Assign To (Admin Only)</label>
-                          <select
-                            className="w-full text-xs font-semibold text-slate-900 bg-white rounded-xl p-2.5 border border-slate-200"
-                            value={editData.assigned_to}
-                            onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
-                            disabled={loadingUsers}
-                          >
-                            <option value="">Unassigned</option>
-                            {assignableUsers.map((member) => (
-                              <option key={member.id} value={member.id}>
-                                {member.name} {member.role_name || member.role || member.designation ? `• ${member.role_name || member.role || member.designation}` : ''}
-                              </option>
-                            ))}
-                          </select>
+                  <div className="space-y-3 p-0 m-0">
+                    {/* Edit Form when editing */}
+                    {isEditing && isAdmin && (
+                      <div className="space-y-3 pb-4 border-b border-slate-100">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
+                          Edit Task Attributes
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="sm:col-span-2">
+                            <Input
+                              label="Task Title"
+                              value={editData.title}
+                              onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Input
+                              label="Module"
+                              value={editData.module}
+                              onChange={(e) => setEditData({ ...editData, module: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-slate-600 mb-1 block">Task Type</label>
+                            <select
+                              value={editData.task_type}
+                              onChange={(e) => setEditData({ ...editData, task_type: e.target.value })}
+                              className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold bg-white"
+                            >
+                              <option value="Feature">Feature</option>
+                              <option value="Enhancement">Enhancement</option>
+                              <option value="Bug">Bug</option>
+                              <option value="Research">Research</option>
+                              <option value="Refactor">Refactor</option>
+                              <option value="DevOps">DevOps</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-slate-600 mb-1 block">Priority Level</label>
+                            <select
+                              value={editData.priority}
+                              onChange={(e) => setEditData({ ...editData, priority: e.target.value })}
+                              className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold bg-white"
+                            >
+                              <option value="Low">Low</option>
+                              <option value="Medium">Medium</option>
+                              <option value="High">High</option>
+                              <option value="Critical">Critical</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-slate-600 mb-1 block">Story Points</label>
+                            <select
+                              value={editData.story_points}
+                              onChange={(e) => setEditData({ ...editData, story_points: e.target.value })}
+                              className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold bg-white"
+                            >
+                              <option value="1">1 Point</option>
+                              <option value="2">2 Points</option>
+                              <option value="3">3 Points</option>
+                              <option value="5">5 Points</option>
+                              <option value="8">8 Points</option>
+                              <option value="13">13 Points</option>
+                            </select>
+                          </div>
+                          <div>
+                            <Input
+                              label="Due Date"
+                              type="date"
+                              value={editData.due_date}
+                              onChange={(e) => setEditData({ ...editData, due_date: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-semibold text-slate-600 mb-1 block">Assign To Developer</label>
+                            <select
+                              className="w-full text-xs font-semibold text-slate-900 bg-white rounded-md p-2 border border-slate-200"
+                              value={editData.assigned_to}
+                              onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
+                              disabled={loadingUsers}
+                            >
+                              <option value="">Unassigned</option>
+                              {developerUsers.map((member) => (
+                                <option key={member.id} value={member.id}>
+                                  {member.name} {member.role_name || member.role || member.designation ? `• ${member.role_name || member.role || member.designation}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Type</span>
-                            <span className="font-bold text-slate-800 mt-0.5 block">{taskData.task_type || 'Feature'}</span>
+                    )}
+
+
+                    {/* Assign Work / Assignee Bar in Task Details Tab */}
+                    {!isEditing && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50/70 rounded-xl border border-slate-200/80 mb-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0", getAvatarBg(taskData.assigned_to_name || taskData.user_name))}>
+                            {(taskData.assigned_to_name || taskData.user_name || 'U').substring(0, 2).toUpperCase()}
                           </div>
-                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Priority</span>
-                            <span className={cn(
-                              "font-bold uppercase tracking-wider mt-0.5 block",
-                              taskData.priority === 'Critical' ? "text-rose-600" :
-                              taskData.priority === 'High' ? "text-amber-600" : "text-slate-800"
-                            )}>{taskData.priority || 'Medium'}</span>
-                          </div>
-                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Complexity</span>
-                            <span className="font-bold text-slate-800 mt-0.5 block">{taskData.story_points || 3} Story Points</span>
-                          </div>
-                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Due Date</span>
-                            <span className="font-bold text-rose-600 mt-0.5 block">{taskData.due_date ? new Date(taskData.due_date).toLocaleDateString() : 'Not Set'}</span>
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Assigned Developer</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-slate-800 truncate">
+                                {taskData.assigned_to_name || taskData.user_name || 'Unassigned'}
+                              </span>
+                              {taskData.assigned_to_role && (
+                                <span className="text-[10px] text-slate-400 font-medium shrink-0">({taskData.assigned_to_role})</span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Assignee Card - Viewable by all, editable by Admin only */}
-                        <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-primary-100 border border-primary-200 rounded-full flex items-center justify-center text-primary-700 text-xs font-bold shrink-0 shadow-xs">
-                              {(taskData.assigned_to_name || taskData.user_name || 'UN').substring(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Team Member</span>
-                                {isAdmin ? (
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
-                                    Admin Managed
-                                  </span>
-                                ) : (
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-100 text-slate-500">
-                                    Read Only
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs font-bold text-slate-900 mt-0.5">
-                                {taskData.assigned_to_name || taskData.user_name || "Unassigned"}
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-medium">
-                                {taskData.assigned_to_role || (taskData.assigned_to_name || taskData.user_name ? 'Developer' : 'No assignee')}
-                              </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Assign to:</span>
+                          <div className="relative w-48 sm:w-56">
+                            <select
+                              value={taskData.assigned_to || ''}
+                              onChange={(e) => handleQuickReassign(e.target.value)}
+                              disabled={isUpdating}
+                              className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-colors hover:border-slate-300 appearance-none"
+                            >
+                              <option value="">Unassigned</option>
+                              {developerUsers.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name} {u.role_name || u.role || u.designation ? `(${u.role_name || u.role || u.designation})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                              {isUpdating ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              )}
                             </div>
                           </div>
+                        </div>
+                      </div>
+                    )}
 
-                          {isAdmin && (
-                            <div className="flex items-center gap-2">
-                              <label className="text-[11px] font-semibold text-slate-500 whitespace-nowrap hidden sm:inline">Reassign:</label>
-                              <select
-                                className="text-xs font-semibold text-slate-800 bg-white rounded-xl px-3 py-1.5 border border-slate-200 shadow-xs hover:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                value={taskData.assigned_to || ''}
-                                onChange={(e) => handleQuickReassign(e.target.value)}
-                                disabled={isUpdating || loadingUsers}
-                              >
-                                <option value="">Unassigned</option>
-                                {assignableUsers.map((member) => (
-                                  <option key={member.id} value={member.id}>
-                                    {member.name} {member.role_name || member.role || member.designation ? `• ${member.role_name || member.role || member.designation}` : ''}
-                                  </option>
-                                ))}
-                              </select>
+                    {/* SECTION 01: Business Objective & Problem Statement */}
+                    <div className="space-y-2 pb-3 border-b border-slate-100">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                        <span className="text-primary-600 font-extrabold">01.</span> Business Objective & Problem Statement
+                      </h3>
+
+                      {isEditing && isAdmin ? (
+                        <div className="space-y-2 mt-2">
+                          <Textarea
+                            label="Business Objective"
+                            value={editData.business_objective}
+                            onChange={(e) => setEditData({ ...editData, business_objective: e.target.value })}
+                            placeholder="Why are we implementing this task?"
+                          />
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <Textarea
+                              label="Current Issue"
+                              value={editData.current_issue}
+                              onChange={(e) => setEditData({ ...editData, current_issue: e.target.value })}
+                            />
+                            <Textarea
+                              label="Expected Improvement"
+                              value={editData.expected_improvement}
+                              onChange={(e) => setEditData({ ...editData, expected_improvement: e.target.value })}
+                            />
+                            <Textarea
+                              label="Business Impact"
+                              value={editData.business_impact}
+                              onChange={(e) => setEditData({ ...editData, business_impact: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 mt-1">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Business Objective</span>
+                            <p className="text-xs text-slate-700 leading-relaxed font-normal">
+                              {taskData.business_objective || taskData.description || "No specific business objective detailed for this engineering task."}
+                            </p>
+                          </div>
+
+                          {(taskData.current_issue || taskData.expected_improvement || taskData.business_impact) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                              {taskData.current_issue && (
+                                <div>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Current Issue</span>
+                                  <p className="text-xs text-slate-700 leading-relaxed font-normal">{taskData.current_issue}</p>
+                                </div>
+                              )}
+                              {taskData.expected_improvement && (
+                                <div>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Expected Improvement</span>
+                                  <p className="text-xs text-slate-700 leading-relaxed font-normal">{taskData.expected_improvement}</p>
+                                </div>
+                              )}
+                              {taskData.business_impact && (
+                                <div>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Business Impact</span>
+                                  <p className="text-xs text-slate-700 leading-relaxed font-normal">{taskData.business_impact}</p>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
+                      )}
+                    </div>
+
+                    {/* SECTION 02: Functional Requirements */}
+                    <div className="space-y-2 pb-3 border-b border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                          <span className="text-primary-600 font-extrabold">02.</span> Functional Requirements
+                        </h3>
+                        {isEditing && isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => setEditData({ ...editData, functional_requirements: [...editData.functional_requirements, ''] })}
+                            className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add FR
+                          </button>
+                        )}
                       </div>
-                    )}
-                  </section>
 
-                  {/* SECTION 02: Business Objective & Problem Statement */}
-                  <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-3">
-                      <span className="text-primary-600 font-extrabold">02.</span> Business Objective & Problem Statement
-                    </h3>
+                      {isEditing && isAdmin ? (
+                        <div className="space-y-2 mt-1.5">
+                          {editData.functional_requirements.map((req, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-400 shrink-0">FR-{idx + 1}:</span>
+                              <input
+                                type="text"
+                                value={req}
+                                onChange={(e) => {
+                                  const updated = [...editData.functional_requirements];
+                                  updated[idx] = e.target.value;
+                                  setEditData({ ...editData, functional_requirements: updated });
+                                }}
+                                placeholder="Requirement description..."
+                                className="w-full rounded-md border border-slate-200 px-2.5 py-1 text-xs bg-white"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditData({ ...editData, functional_requirements: editData.functional_requirements.filter((_, i) => i !== idx) })}
+                                className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 mt-1">
+                          {funcReqList.length > 0 ? (
+                            funcReqList.map((req, i) => (
+                              <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
+                                <span className="text-[10px] font-bold text-primary-600 font-mono shrink-0 mt-0.5">
+                                  FR-{i + 1}:
+                                </span>
+                                <span className="leading-relaxed font-normal">{req}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-slate-400 italic font-normal">No specific functional requirements listed.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-                    {isEditing && isAdmin ? (
-                      <div className="space-y-4">
-                        <Textarea 
-                          label="Business Objective"
-                          value={editData.business_objective}
-                          onChange={(e) => setEditData({ ...editData, business_objective: e.target.value })}
-                          placeholder="Why are we implementing this task?"
+                    {/* SECTION 03: Acceptance Criteria */}
+                    <div className="space-y-2 pb-3 border-b border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                          <span className="text-primary-600 font-extrabold">03.</span> Acceptance Criteria
+                        </h3>
+                        {isEditing && isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => setEditData({ ...editData, acceptance_criteria: [...editData.acceptance_criteria, ''] })}
+                            className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add Criteria
+                          </button>
+                        )}
+                      </div>
+
+                      {isEditing && isAdmin ? (
+                        <div className="space-y-2 mt-1.5">
+                          {editData.acceptance_criteria.map((ac, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-400 shrink-0">AC-{idx + 1}:</span>
+                              <input
+                                type="text"
+                                value={ac}
+                                onChange={(e) => {
+                                  const updated = [...editData.acceptance_criteria];
+                                  updated[idx] = e.target.value;
+                                  setEditData({ ...editData, acceptance_criteria: updated });
+                                }}
+                                placeholder="Acceptance criteria..."
+                                className="w-full rounded-md border border-slate-200 px-2.5 py-1 text-xs bg-white"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditData({ ...editData, acceptance_criteria: editData.acceptance_criteria.filter((_, i) => i !== idx) })}
+                                className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 mt-1">
+                          {acceptCritList.length > 0 ? (
+                            acceptCritList.map((ac, i) => (
+                              <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
+                                <CheckSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                <span className="leading-relaxed font-normal">{ac}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-slate-400 italic font-normal">No acceptance criteria defined.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Developer Progress Update Drawer / Admin Progress Note */}
+                    {isEditing && (
+                      <div className="space-y-2 pb-3 border-b border-slate-100">
+                        <span className="text-xs font-bold text-primary-700 uppercase tracking-wider block">
+                          {isAdmin ? 'Optional Activity Log Note' : 'Mandatory Progress Update Note'}
+                        </span>
+                        <textarea
+                          className="w-full rounded-md border border-slate-200 bg-white p-2.5 text-xs focus:ring-1 focus:ring-primary-500 outline-none min-h-[70px]"
+                          value={editData.progress_note}
+                          onChange={(e) => setEditData({ ...editData, progress_note: e.target.value })}
+                          placeholder={isAdmin ? 'Add an optional activity note for this change.' : 'Briefly describe what progress you made...'}
                         />
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <Textarea 
-                            label="Current Issue"
-                            value={editData.current_issue}
-                            onChange={(e) => setEditData({ ...editData, current_issue: e.target.value })}
-                          />
-                          <Textarea 
-                            label="Expected Improvement"
-                            value={editData.expected_improvement}
-                            onChange={(e) => setEditData({ ...editData, expected_improvement: e.target.value })}
-                          />
-                          <Textarea 
-                            label="Business Impact"
-                            value={editData.business_impact}
-                            onChange={(e) => setEditData({ ...editData, business_impact: e.target.value })}
-                          />
+                      </div>
+                    )}
+
+                    {/* Proof of Completion Section */}
+                    {showCompletionSection && (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center gap-2 text-emerald-700">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span className="text-xs font-bold uppercase tracking-wider">Proof of Completion Submitted</span>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Business Objective</span>
-                          <p className="text-xs text-slate-700 leading-relaxed font-medium bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            {taskData.business_objective || taskData.description || "No specific business objective detailed for this engineering task."}
-                          </p>
-                        </div>
-                        
-                        {(taskData.current_issue || taskData.expected_improvement || taskData.business_impact) && (
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {taskData.current_issue && (
-                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Current Issue</span>
-                                <p className="text-xs text-slate-700 leading-relaxed">{taskData.current_issue}</p>
-                              </div>
-                            )}
-                            {taskData.expected_improvement && (
-                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Expected Improvement</span>
-                                <p className="text-xs text-slate-700 leading-relaxed">{taskData.expected_improvement}</p>
-                              </div>
-                            )}
-                            {taskData.business_impact && (
-                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Business Impact</span>
-                                <p className="text-xs text-slate-700 leading-relaxed">{taskData.business_impact}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </section>
-
-                  {/* SECTION 03: Functional Requirements */}
-                  <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <span className="text-primary-600 font-extrabold">03.</span> Functional Requirements
-                      </h3>
-                      {isEditing && isAdmin && (
-                        <button 
-                          type="button" 
-                          onClick={() => setEditData({ ...editData, functional_requirements: [...editData.functional_requirements, ''] })}
-                          className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Add FR
-                        </button>
-                      )}
-                    </div>
-
-                    {isEditing && isAdmin ? (
-                      <div className="space-y-2">
-                        {editData.functional_requirements.map((req, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-400 shrink-0">FR-{idx + 1}:</span>
-                            <input
-                              type="text"
-                              value={req}
-                              onChange={(e) => {
-                                const updated = [...editData.functional_requirements];
-                                updated[idx] = e.target.value;
-                                setEditData({ ...editData, functional_requirements: updated });
-                              }}
-                              placeholder="Requirement description..."
-                              className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setEditData({ ...editData, functional_requirements: editData.functional_requirements.filter((_, i) => i !== idx) })}
-                              className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {funcReqList.length > 0 ? (
-                          funcReqList.map((req, i) => (
-                            <div key={i} className="flex items-start gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                              <span className="text-[10px] font-bold bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded shrink-0 font-mono">
-                                FR-{i + 1}
-                              </span>
-                              <span className="text-xs text-slate-700 font-medium leading-relaxed">{req}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-slate-400 italic">No specific functional requirements listed.</p>
-                        )}
-                      </div>
-                    )}
-                  </section>
-
-                  {/* SECTION 04: Acceptance Criteria */}
-                  <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <span className="text-primary-600 font-extrabold">04.</span> Acceptance Criteria
-                      </h3>
-                      {isEditing && isAdmin && (
-                        <button 
-                          type="button" 
-                          onClick={() => setEditData({ ...editData, acceptance_criteria: [...editData.acceptance_criteria, ''] })}
-                          className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Add Criteria
-                        </button>
-                      )}
-                    </div>
-
-                    {isEditing && isAdmin ? (
-                      <div className="space-y-2">
-                        {editData.acceptance_criteria.map((ac, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-400 shrink-0">AC-{idx + 1}:</span>
-                            <input
-                              type="text"
-                              value={ac}
-                              onChange={(e) => {
-                                const updated = [...editData.acceptance_criteria];
-                                updated[idx] = e.target.value;
-                                setEditData({ ...editData, acceptance_criteria: updated });
-                              }}
-                              placeholder="Acceptance criteria..."
-                              className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setEditData({ ...editData, acceptance_criteria: editData.acceptance_criteria.filter((_, i) => i !== idx) })}
-                              className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {acceptCritList.length > 0 ? (
-                          acceptCritList.map((ac, i) => (
-                            <div key={i} className="flex items-start gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                              <CheckSquare className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                              <span className="text-xs text-slate-700 font-medium leading-relaxed">{ac}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-slate-400 italic">No acceptance criteria defined.</p>
-                        )}
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Developer Progress Update Drawer / Admin Progress Note */}
-                  {isEditing && (
-                    <section className="bg-primary-50/40 p-5 rounded-2xl border border-primary-100 space-y-3">
-                      <span className="text-xs font-bold text-primary-700 uppercase tracking-wider block">
-                        {isAdmin ? 'Optional Activity Log Note' : 'Mandatory Progress Update Note'}
-                      </span>
-                      <textarea
-                        className="w-full rounded-xl border border-primary-200 bg-white p-3 text-xs focus:ring-2 focus:ring-primary-500 outline-none min-h-[80px]"
-                        value={editData.progress_note}
-                        onChange={(e) => setEditData({ ...editData, progress_note: e.target.value })}
-                        placeholder={isAdmin ? 'Add an optional activity note for this change.' : 'Briefly describe what progress you made...'}
-                      />
-                    </section>
-                  )}
-
-                  {/* Proof of Completion Section */}
-                  {showCompletionSection && (
-                    <section className="space-y-4 pt-4 border-t border-emerald-100 bg-emerald-50/30 p-5 rounded-2xl">
-                      <div className="flex items-center gap-2 text-emerald-700">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Proof of Completion Submitted</span>
-                      </div>
-                      <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm space-y-3">
                         {taskData.completion_notes && (
-                          <p className="text-xs text-slate-700 italic border-l-2 border-emerald-300 pl-3">"{taskData.completion_notes}"</p>
+                          <p className="text-xs text-slate-700 italic border-l-2 border-emerald-300 pl-2.5">"{taskData.completion_notes}"</p>
                         )}
                         {proofDocs.length > 0 && (
-                          <div className="grid grid-cols-2 gap-2 pt-2">
+                          <div className="grid grid-cols-2 gap-2 pt-1">
                             {proofDocs.map(renderDoc)}
                           </div>
                         )}
                       </div>
-                    </section>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
 
-              {/* 2. RESOURCES (&& operation) */}
-              {activeLeftTab === 'resources' && (
-                <div className="space-y-6">
-                  {/* SECTION 05: Resources & Task Media */}
-                  <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <span className="text-primary-600 font-extrabold">05.</span> Resources & Task Media
-                      </h3>
-                      <Badge variant="outline" className="text-[10px] font-bold text-slate-500">
-                        {documents.length} Files Attached
-                      </Badge>
+                {/* 2. RESOURCES */}
+                {activeLeftTab === 'resources' && (
+                  <div className="space-y-4 p-0 m-0">
+                    {/* Top Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-slate-900">Resources</h2>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono">
+                            {documents.length + (taskData.task_references?.length || 0)}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Attached media, task references, and project documentation</p>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs font-semibold text-blue-600 hover:bg-blue-50 border-slate-200 rounded-lg px-3 py-1.5 h-8 flex items-center gap-1.5 shrink-0"
+                        onClick={() => setShowResources(true)}
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Project Resources</span>
+                      </Button>
                     </div>
 
+                    {/* References & Notes */}
                     {taskData.task_references && taskData.task_references.length > 0 && (
-                      <div className="space-y-3">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">References & Examples</span>
-                        <div className="grid grid-cols-1 gap-2">
-                          {taskData.task_references.map((ref, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                              <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{ref.title || 'Note'}</p>
-                                <p className="text-xs font-medium text-slate-700 break-words">{ref.value}</p>
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">References & Notes</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {taskData.task_references.map((ref, i) => {
+                            const isLink = ref.value && (/^https?:\/\//i.test(ref.value.trim()) || /^(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/i.test(ref.value.trim()));
+                            return (
+                              <div key={i} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                <div className="min-w-0 flex-1 mr-2">
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{ref.title || 'Note'}</p>
+                                  <p className="text-xs font-normal text-slate-700 break-words mt-0.5">{ref.value}</p>
+                                </div>
+                                {isLink && (
+                                  <a
+                                    href={ref.value.startsWith('http') ? ref.value : `https://${ref.value}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 bg-white rounded border border-slate-200 text-blue-600 hover:bg-blue-50 shrink-0"
+                                    title="Open link"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
                               </div>
-                              {ref.value && (ref.value.startsWith('http') || ref.value.includes('.')) && (
-                                <a 
-                                  href={ref.value.startsWith('http') ? ref.value : `https://${ref.value}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="p-2 bg-white rounded-lg shadow-sm text-primary-600 hover:bg-primary-50"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
-                              )}
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
 
-                    <div className="space-y-3">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Task Media Files</span>
-                      <div className="grid grid-cols-2 gap-3">
+                    {/* Attached Task Media Files */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Media Files</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{documents.length} {documents.length === 1 ? 'file' : 'files'}</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {loadingDocs && (
                           <>
-                            <Skeleton className="h-[60px] rounded-xl" />
-                            <Skeleton className="h-[60px] rounded-xl" />
+                            <Skeleton className="h-[48px] rounded-lg" />
+                            <Skeleton className="h-[48px] rounded-lg" />
                           </>
                         )}
                         {documents.map(renderDoc)}
                         {canEdit && (
                           <div className="relative">
                             <input type="file" id="task-detail-upload" className="hidden" multiple onChange={handleUploadFile} disabled={isUploading} />
-                            <label htmlFor="task-detail-upload" className="flex flex-col items-center justify-center gap-1.5 p-3 bg-slate-50 border border-slate-200 border-dashed rounded-xl hover:bg-white hover:border-primary-300 transition-all cursor-pointer h-[60px]">
-                              {isUploading ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Plus className="w-4 h-4 text-slate-400" />}
-                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Upload Asset</span>
+                            <label htmlFor="task-detail-upload" className="flex flex-col items-center justify-center gap-1 p-2 bg-slate-50 border border-slate-200 border-dashed rounded-lg hover:bg-white hover:border-blue-400 transition-all cursor-pointer h-[48px]">
+                              {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" /> : <Plus className="w-3.5 h-3.5 text-slate-400" />}
+                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Upload</span>
                             </label>
                           </div>
                         )}
                       </div>
                     </div>
-                  </section>
 
-                  {/* Project-Wide Resources Card */}
-                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                        <FolderOpen className="w-4 h-4 text-primary-600" />
-                        Project-Wide Resources & Docs
-                      </h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Access repository links, design guidelines, and assets for this project.</p>
+                    {/* Project-Wide Resources Card */}
+                    <div className="bg-slate-50 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <FolderOpen className="w-3.5 h-3.5 text-blue-600" />
+                          Project-Wide Resources & Docs
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5 font-normal">Access repository links, design guidelines, and assets for this project.</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs font-semibold text-blue-600 bg-white hover:bg-slate-100 border-slate-200 rounded-lg px-2.5 py-1 h-7 shrink-0"
+                        onClick={() => setShowResources(true)}
+                      >
+                        <FolderOpen className="w-3 h-3 mr-1" />
+                        Open
+                      </Button>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="text-xs font-bold text-primary-600 border-primary-200 hover:bg-primary-50"
-                      onClick={() => setShowResources(true)}
-                    >
-                      <FolderOpen className="w-3.5 h-3.5 mr-1.5" />
-                      Open Project Resources
-                    </Button>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* 3. ACTIVITY (&& operation) */}
-              {activeLeftTab === 'activity' && (
-                <div className="space-y-4">
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-primary-600" />
-                        <span>Task Activity History</span>
-                      </h3>
-                      <Badge variant="outline" className="text-[10px] font-bold text-slate-500">
-                        {activities.length} Recorded Events
-                      </Badge>
+                {/* 3. ACTIVITY FEED */}
+                {activeLeftTab === 'activity' && (
+                  <div className="space-y-4 p-0 m-0">
+                    {/* Top Header & View Filter Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2.5">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-slate-900">Activity</h2>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono">
+                            {filteredActivities.length}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Stream of events, updates, comments, and attachments</p>
+                      </div>
+
+                      {/* View Filter Pills */}
+                      <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1 text-xs font-semibold shrink-0">
+                        {[
+                          { id: 'all', label: 'All' },
+                          { id: 'comments', label: 'Comments' },
+                          { id: 'history', label: 'History' },
+                          { id: 'worklog', label: 'Work Log' }
+                        ].map(tab => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActivityFilter(tab.id)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg transition-all text-xs font-semibold",
+                              activityFilter === tab.id
+                                ? "bg-white text-blue-700 font-bold"
+                                : "text-slate-600 hover:text-slate-900"
+                            )}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                    {/* Timeline Feed */}
+                    <div className="space-y-4">
                       {loadingActivities && (
-                        <>
+                        <div className="space-y-3">
                           <Skeleton className="h-16 rounded-xl" />
                           <Skeleton className="h-16 rounded-xl" />
-                          <Skeleton className="h-16 rounded-xl" />
-                        </>
-                      )}
-                      {!loadingActivities && activities.length === 0 && (
-                        <div className="text-center py-12 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                          <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                          <p className="text-xs font-medium text-slate-600">No activity recorded yet.</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Status updates, reassignments, and progress notes will appear here.</p>
                         </div>
                       )}
-                      {!loadingActivities && activities.map((activity) => (
-                        <div key={activity.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-xs shrink-0">
-                                {(activity.actor_name || 'S').substring(0, 2).toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-slate-900">{activity.actor_name || 'System'}</p>
-                                <p className="text-[11px] text-slate-500 leading-relaxed">{getActivityLabel(activity)}</p>
-                              </div>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                              {activity.created_at ? new Date(activity.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
+
+                      {!loadingActivities && filteredActivities.length === 0 && (
+                        <div className="text-center py-10 px-4 bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+                          <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-xs font-bold text-slate-700">No activity recorded for this view.</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Status updates, comments, and file uploads will appear here.</p>
+                        </div>
+                      )}
+
+                      {!loadingActivities && Object.entries(groupedActivities).map(([dateGroup, items]) => (
+                        <div key={dateGroup} className="space-y-2">
+                          {/* Date Header */}
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">
+                            {dateGroup}
                           </div>
-                          {activity.progress_note && (
-                            <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-xs text-slate-700 whitespace-pre-wrap font-medium ml-10">
-                              {activity.progress_note}
-                            </div>
-                          )}
+
+                          {/* Items for this date */}
+                          <div className="divide-y divide-slate-100">
+                            {items.map((activity) => {
+                              const taskKeyTitle = `${taskData.story_key ? taskData.story_key + ' - ' : ''}${taskData.title}`;
+                              let fileMeta = null;
+                              if (activity.activity_type === 'attached_file' && activity.progress_note) {
+                                try {
+                                  fileMeta = JSON.parse(activity.progress_note);
+                                } catch (e) {
+                                  fileMeta = { file_name: activity.new_label, file_key: activity.new_value };
+                                }
+                              }
+                              const fileUrl = fileMeta?.file_key ? `${BASE_URL.replace('/api', '')}/${fileMeta.file_key}` : null;
+
+                              // Standard Activity Item (Render all items, including comments, uniformly without chat bubbles)
+                              return (
+                                <div
+                                  key={activity.id}
+                                  className="flex items-start gap-3 py-3 hover:bg-slate-50/50 transition-colors"
+                                >
+                                  {/* User Avatar */}
+                                  <div className={cn(
+                                    "w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5",
+                                    getAvatarBg(activity.actor_name)
+                                  )}>
+                                    {(activity.actor_name || 'U').substring(0, 2).toUpperCase()}
+                                  </div>
+
+                                  {/* Activity Body */}
+                                  <div className="flex-1 min-w-0 space-y-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-bold text-xs text-slate-900">
+                                        {activity.actor_name || 'Team Member'}
+                                      </span>
+
+                                      {activity.activity_type === 'commented' && (
+                                        <span className="text-xs text-slate-500">commented</span>
+                                      )}
+
+                                      {activity.activity_type === 'created' && (
+                                        <span className="text-xs text-slate-500">created task</span>
+                                      )}
+
+                                      {activity.activity_type === 'reassigned' && (
+                                        <span className="text-xs text-slate-500">
+                                          reassigned to <span className="font-semibold text-slate-800">{activity.new_label || 'Unassigned'}</span>
+                                        </span>
+                                      )}
+
+                                      {activity.activity_type === 'status_changed' && (
+                                        <span className="text-xs text-slate-500">
+                                          changed status to <span className="font-semibold text-slate-800">{activity.new_label || activity.new_value}</span>
+                                        </span>
+                                      )}
+
+                                      {activity.activity_type === 'attached_file' && (
+                                        <span className="text-xs text-slate-500">attached a file</span>
+                                      )}
+
+                                      {activity.activity_type === 'hours_logged' && (
+                                        <span className="text-xs text-slate-500">
+                                          logged {activity.new_label || activity.new_value} hours
+                                        </span>
+                                      )}
+
+                                      {activity.activity_type === 'updated' && (
+                                        <span className="text-xs text-slate-500">
+                                          updated {String(activity.field_name || 'details').replaceAll('_', ' ')}
+                                        </span>
+                                      )}
+
+                                      <span className="text-slate-300">•</span>
+                                      <span className="text-[11px] text-slate-400">
+                                        {getRelativeTime(activity.created_at)}
+                                      </span>
+                                    </div>
+
+                                    {/* Attachment Link */}
+                                    {activity.activity_type === 'attached_file' && (
+                                      <div className="flex items-center gap-1.5 text-xs text-blue-700 pt-0.5">
+                                        <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                        <a
+                                          href={fileUrl || '#'}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="font-semibold hover:underline"
+                                        >
+                                          {fileMeta?.file_name || activity.new_label || 'Attachment'}
+                                        </a>
+                                      </div>
+                                    )}
+
+                                    {/* Comment / Progress Note Text */}
+                                    {activity.progress_note && activity.activity_type !== 'attached_file' && (
+                                      <div className="bg-slate-50 rounded-lg p-2.5 text-xs text-slate-700 leading-relaxed font-normal border border-slate-100 mt-1">
+                                        {activity.progress_note}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               </div>
             </div>
 
             {/* Right Sidebar: Subtasks, Project Details, Activity Feed with Independent Smooth Scroll */}
             <div className="w-full md:w-[380px] lg:w-[420px] xl:w-[460px] shrink-0 min-h-0 h-full overflow-y-auto bg-slate-50/50 p-5 sm:p-8 space-y-6 border-t md:border-t-0 md:border-l border-slate-100 scroll-smooth">
-              
-              {/* 1. Sub Tasks Section */}
+
+              {/* Client Details */}
               <div>
-                <div className="flex items-center justify-between mb-3 text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="w-4 h-4 text-primary-600" />
-                    <span className="text-xs font-semibold text-slate-500">Sub Tasks</span>
-                    {subTasks.length > 0 && (
-                      <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">
-                        {subTasks.filter(s => s.status === 'Completed').length}/{subTasks.length}
-                      </span>
-                    )}
-                  </div>
-                  {taskData.status !== 'Completed' && (
-                    <button
-                      onClick={() => setShowAddSubTask(v => !v)}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Sub Task
-                    </button>
-                  )}
+                <div className="flex items-center gap-2 mb-2 text-slate-400">
+                  <Building2 className="w-4 h-4 text-slate-500" />
+                  <span className="text-xs font-semibold text-slate-600">Client Details</span>
                 </div>
-
-                <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
-                  {showAddSubTask && taskData.status !== 'Completed' && (
-                    <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2 mb-2">
-                      <input
-                        type="text"
-                        placeholder="Sub task title..."
-                        value={newSubTask.title}
-                        onChange={e => setNewSubTask(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
-                      <div className="flex flex-col gap-2">
-                        <select
-                          value={newSubTask.priority}
-                          onChange={e => setNewSubTask(prev => ({ ...prev, priority: e.target.value }))}
-                          className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-                        >
-                          <option value="Low">Low Priority</option>
-                          <option value="Medium">Medium Priority</option>
-                          <option value="High">High Priority</option>
-                          <option value="Critical">Critical Priority</option>
-                        </select>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            placeholder="Est Hours"
-                            value={newSubTask.estimated_hours}
-                            onChange={e => setNewSubTask(prev => ({ ...prev, estimated_hours: e.target.value }))}
-                            className="w-24 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-mono"
-                          />
-                          <input
-                            type="date"
-                            value={newSubTask.due_date}
-                            onChange={e => setNewSubTask(prev => ({ ...prev, due_date: e.target.value }))}
-                            className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2 justify-end pt-1">
-                        <button
-                          onClick={() => { setShowAddSubTask(false); setNewSubTask({ title: '', priority: 'Medium', due_date: '', estimated_hours: '' }); }}
-                          className="text-xs text-slate-500 px-3 py-1 rounded-lg hover:bg-slate-100"
-                        >Cancel</button>
-                        <button
-                          onClick={handleCreateSubTask}
-                          disabled={isCreatingSubTask}
-                          className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg flex items-center gap-1"
-                        >
-                          {isCreatingSubTask ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                          Create
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {loadingSubTasks ? (
-                    <div className="space-y-2">
-                      <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
-                      <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
-                    </div>
-                  ) : subTasks.length === 0 ? (
-                    <div className="text-xs text-slate-400 italic py-1 text-center">No sub tasks added yet.</div>
-                  ) : (
-                    <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-                      {subTasks.map(st => (
-                        <div key={st.id} className="flex items-center gap-2.5 p-2 bg-slate-50/70 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors group">
-                          <button
-                            onClick={() => taskData.status !== 'Completed' && handleSubTaskStatusChange(st.id, st.status === 'Completed' ? 'Pending' : 'Completed')}
-                            disabled={taskData.status === 'Completed'}
-                            className={cn(
-                              'w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
-                              st.status === 'Completed' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 hover:border-emerald-400'
-                            )}
-                          >
-                            {st.status === 'Completed' && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <p className={cn('text-xs font-medium truncate', st.status === 'Completed' && 'line-through text-slate-400')}>{st.title}</p>
-                          </div>
-                          <select
-                            value={st.status}
-                            onChange={e => handleSubTaskStatusChange(st.id, e.target.value)}
-                            disabled={taskData.status === 'Completed'}
-                            className="text-[9px] font-bold border border-slate-200 rounded-md px-1.5 py-0.5 bg-white shrink-0"
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Blocked">Blocked</option>
-                          </select>
-                          {isAdmin && taskData.status !== 'Completed' && (
-                            <button
-                              onClick={() => handleDeleteSubTask(st.id)}
-                              className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 p-0.5"
-                              title="Delete sub task"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 2. Project & Client */}
-              <div>
-                <div className="flex items-center gap-2 mb-3 text-slate-400">
-                  <Building2 className="w-4 h-4" />
-                  <span className="text-xs font-semibold text-slate-500">Project & Client</span>
-                </div>
-                <div className="space-y-2 bg-white p-3.5 rounded-xl border border-slate-100">
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Project</div>
-                    <div className="text-xs font-bold text-slate-800">{taskData.project_name || 'Individual Task'}</div>
-                  </div>
-                  <div className="pt-2 border-t border-slate-100">
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Client</div>
-                    <div className="text-xs font-semibold text-indigo-700">
-                      {taskData.client_name || 'Internal / N/A'}
-                    </div>
+                <div className="bg-white p-3.5 rounded-xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Client</div>
+                  <div className="text-xs font-bold text-slate-800">
+                    {taskData.client_name || 'Internal / N/A'}
                   </div>
                 </div>
               </div>
 
-              {/* Assignee & Reassignment */}
-              <div>
-                <div className="flex items-center gap-2 mb-3 text-slate-400">
-                  <User className="w-4 h-4" />
-                  <span className="text-xs font-semibold text-slate-500">Assignee & Role</span>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-100">
-                    <div className="w-9 h-9 bg-primary-50 border border-primary-100 rounded-full flex items-center justify-center text-primary-700 text-xs font-bold">
-                      {(taskData.assigned_to_name || taskData.user_name || 'UN').substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">{taskData.assigned_to_name || taskData.user_name || "Unassigned"}</div>
-                      <div className="text-[10px] text-slate-500 font-medium">
-                        {taskData.assigned_to_role || (taskData.assigned_to_name || taskData.user_name ? 'Developer' : 'Unassigned')}
-                      </div>
-                    </div>
-                  </div>
 
-                  {isAdmin && isEditing && (
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Reassign Task</label>
-                      <select
-                        className="w-full text-xs font-semibold text-slate-900 bg-white rounded-xl p-2.5 border border-slate-200"
-                        value={editData.assigned_to}
-                        onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
-                        disabled={loadingUsers}
-                      >
-                        <option value="">Unassigned</option>
-                        {assignableUsers.map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {member.name} {member.role_name || member.role || member.designation ? `• ${member.role_name || member.role || member.designation}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Status Update Quick Buttons (Admin) */}
-              {isAdmin && (
-                <div className="p-4 bg-primary-50/50 rounded-2xl border border-primary-100 space-y-3">
-                  <p className="text-[10px] font-bold text-primary-700 uppercase tracking-widest flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-primary-600" />
-                    Quick Status Change
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: 'Start', value: 'Pending' },
-                      { label: 'In Progress', value: 'In Progress' },
-                      { label: 'Complete', value: 'Completed' },
-                      { label: 'Cancel', value: 'Cancelled' }
-                    ].map((s) => (
-                      <button
-                        key={s.value}
-                        disabled={isUpdating}
-                        onClick={() => handleQuickStatusUpdate(s.value)}
-                        className={cn(
-                          "px-3 py-2 rounded-xl text-xs font-bold transition-all border",
-                          currentStatus === s.value
-                            ? "bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-200"
-                            : "bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600"
-                        )}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Timeline */}
-              <div>
-                <div className="flex items-center gap-2 mb-3 text-slate-400">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-xs font-semibold text-slate-500">Timeline & Deadlines</span>
-                </div>
-                <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-100">
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Target Due Date</div>
-                    <div className="flex items-center gap-2 text-xs font-bold text-rose-600">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {taskData.due_date ? new Date(taskData.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : "Flexible Schedule"}
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-slate-100">
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Last Activity</div>
-                    <div className="text-xs font-medium text-slate-600">
-                      {latestActivity?.created_at ? new Date(latestActivity.created_at).toLocaleString() : (taskData.updated_at ? new Date(taskData.updated_at).toLocaleDateString() : 'N/A')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tabbed Discussion & Activity Log */}
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                {/* Tab Header */}
-                <div className="flex border-b border-slate-100 bg-slate-50/80 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab('comments')}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 text-xs font-bold rounded-xl transition-all",
-                      sidebarTab === 'comments'
-                        ? "bg-white text-primary-700 shadow-sm border border-slate-200/60"
-                        : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                    )}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 text-primary-600" />
-                    <span>Comments</span>
-                    {comments.length > 0 && (
-                      <span className={cn(
-                        "ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold",
-                        sidebarTab === 'comments' ? "bg-primary-100 text-primary-700" : "bg-slate-200 text-slate-600"
-                      )}>
-                        {comments.length}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab('activity')}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 text-xs font-bold rounded-xl transition-all",
-                      sidebarTab === 'activity'
-                        ? "bg-white text-primary-700 shadow-sm border border-slate-200/60"
-                        : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                    )}
-                  >
-                    <Clock className="w-3.5 h-3.5 text-primary-600" />
-                    <span>Activity Log</span>
-                    {activities.length > 0 && (
-                      <span className={cn(
-                        "ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold",
-                        sidebarTab === 'activity' ? "bg-primary-100 text-primary-700" : "bg-slate-200 text-slate-600"
-                      )}>
-                        {activities.length}
-                      </span>
-                    )}
-                  </button>
-                </div>
-
-                {/* Tab Body */}
-                <div className="p-3.5">
-                  {sidebarTab === 'comments' ? (
-                    <div className="space-y-3">
-                      {/* Comments Feed */}
-                      <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-                        {loadingComments && (
-                          <>
-                            <Skeleton className="h-14 rounded-xl" />
-                            <Skeleton className="h-14 rounded-xl" />
-                          </>
-                        )}
-                        {!loadingComments && comments.length === 0 && (
-                          <div className="text-center py-6 px-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                            <MessageSquare className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
-                            <p className="text-xs font-medium text-slate-600">No comments yet</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">Start a discussion or share updates about this task.</p>
-                          </div>
-                        )}
-                        {!loadingComments && comments.map((c) => {
-                          const isMe = user?.name && c.user_name && user.name.toLowerCase() === c.user_name.toLowerCase();
-                          return (
-                            <div
-                              key={c.id}
-                              className={cn(
-                                "p-3 rounded-xl border transition-all text-xs",
-                                isMe ? "bg-primary-50/40 border-primary-100/80" : "bg-white border-slate-200 shadow-sm"
-                              )}
-                            >
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <div className="flex items-center gap-2">
-                                  <div className={cn(
-                                    "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
-                                    isMe ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-700 border border-slate-200"
-                                  )}>
-                                    {(c.user_name || 'U').substring(0, 2).toUpperCase()}
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-slate-900 text-xs">
-                                      {c.user_name || 'Team Member'}
-                                    </span>
-                                    {isMe && <span className="text-[10px] text-primary-600 font-semibold">(You)</span>}
-                                    {(c.user_role?.toLowerCase?.().includes('admin') || (isMe && isAdmin)) && (
-                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
-                                        Admin
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                                  {c.created_at ? new Date(c.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed pl-8">
-                                {c.comment}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Comment Input - Restricted to Admin */}
-                      {isAdmin ? (
-                        <form onSubmit={handlePostComment} className="pt-2.5 border-t border-slate-100">
-                          <div className="flex items-center justify-between mb-1.5 px-0.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-primary-700 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-primary-600 animate-pulse" />
-                              Admin Feedback & Comments
-                            </span>
-                            <span className="text-[10px] text-slate-400">Enter to send</span>
-                          </div>
-                          <div className="relative">
-                            <textarea
-                              rows={2}
-                              value={newComment}
-                              onChange={(e) => setNewComment(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handlePostComment();
-                                }
-                              }}
-                              placeholder="Write admin comments or instructions for this task..."
-                              className="w-full text-xs text-slate-800 placeholder:text-slate-400 bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white resize-none transition-all"
-                              disabled={isSubmittingComment}
-                            />
-                            <button
-                              type="submit"
-                              disabled={!newComment.trim() || isSubmittingComment}
-                              className="absolute right-2 bottom-2.5 p-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:hover:bg-primary-600 text-white rounded-lg transition-all shadow-sm flex items-center justify-center"
-                              title="Send comment"
-                            >
-                              {isSubmittingComment ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Send className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 bg-slate-50/60 py-2 rounded-xl">
-                          <Info className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Comments & feedback are posted by Admin</span>
-                        </div>
-                      )}
-
-                    </div>
-                  ) : (
-                    /* Activity Log Feed */
-                    <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-                      {loadingActivities && (
-                        <>
-                          <Skeleton className="h-16 rounded-xl" />
-                          <Skeleton className="h-16 rounded-xl" />
-                        </>
-                      )}
-                      {!loadingActivities && activities.length === 0 && (
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-                          No activity recorded yet.
-                        </div>
-                      )}
-                      {!loadingActivities && activities.map((activity) => (
-                        <div key={activity.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-1.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="text-xs font-bold text-slate-900">{activity.actor_name || 'System'}</p>
-                              <p className="text-[11px] text-slate-500 leading-relaxed">{getActivityLabel(activity)}</p>
-                            </div>
-                            <span className="text-[9px] text-slate-400 whitespace-nowrap">{activity.created_at ? new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                          </div>
-                          {activity.progress_note && (
-                            <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5 text-xs text-slate-700 whitespace-pre-wrap font-medium">
-                              {activity.progress_note}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Team Task & Chat */}
+              <TaskChatSection
+                comments={comments}
+                loading={loadingComments}
+                currentUser={user}
+                onSendMessage={(msg) => handlePostComment(null, msg)}
+                isSubmitting={isSubmittingComment}
+              />
 
             </div>
           </div>
         </CardContent>
 
         <div className="bg-white border-t border-slate-100 p-4 sm:p-5 flex items-center justify-start px-5 sm:px-8 gap-3 shrink-0">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="text-primary-600 font-bold text-xs"
             onClick={() => setShowResources(true)}
           >
@@ -1658,7 +1782,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
 
       {/* Project Resources Modal */}
       {showResources && (
-        <ProjectResourcesModal 
+        <ProjectResourcesModal
           projectId={taskData.project_id}
           onClose={() => setShowResources(false)}
         />
@@ -1675,6 +1799,22 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
           files={completionFiles}
           setFiles={setCompletionFiles}
           isSubmitting={isSubmittingProof}
+        />
+      )}
+
+      {/* Task Handover & Transition Modal */}
+      {showHandoverModal && (
+        <TaskHandoverModal
+          isOpen={showHandoverModal}
+          onClose={() => setShowHandoverModal(false)}
+          taskTitle={taskData.title}
+          currentAssigneeName={taskData.assigned_to_name || taskData.user_name}
+          currentAssigneeRole={taskData.assigned_to_role}
+          currentAssigneeId={taskData.assigned_to}
+          assignableUsers={assignableUsers}
+          currentStatus={currentStatus}
+          onSubmit={handleTaskHandover}
+          isSubmitting={isSubmittingHandover}
         />
       )}
 
