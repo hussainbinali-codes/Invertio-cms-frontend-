@@ -265,17 +265,24 @@ const DashboardLayout = () => {
       </button>
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Mobile Hamburger (Only visible on mobile screens where sidebar is hidden) */}
-        <button
-          className="lg:hidden fixed top-3 left-3 z-40 p-2 text-slate-600 bg-white/95 backdrop-blur-md rounded-xl shadow-md border border-slate-200 transition-all active:scale-95"
-          onClick={() => setIsSidebarOpen(true)}
-          title="Open Menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        {/* Mobile Header (Only visible on mobile screens where sidebar is hidden) */}
+        <div className="lg:hidden fixed top-0 inset-x-0 z-40 flex h-14 items-center justify-between bg-white px-3 shadow-[0_2px_10px_rgba(15,23,42,0.12)]">
+          <img
+            src="/invertio_logo.png"
+            alt="Invertio"
+            className="h-8 w-32 object-contain object-left"
+          />
+          <button
+            className="p-2 text-slate-600 rounded-xl transition-all active:scale-95 hover:bg-slate-100"
+            onClick={() => setIsSidebarOpen(true)}
+            title="Open Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
 
         <main className="w-full flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50 flex flex-col min-h-0 min-w-0">
-          <div className="pt-12 sm:pt-14 lg:pt-4 px-2 sm:px-3 lg:px-4 pb-2 sm:pb-3 lg:pb-4 w-full min-w-0 flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="pt-16 sm:pt-16 lg:pt-6 px-2 sm:px-3 lg:px-4 pb-2 sm:pb-3 lg:pb-4 w-full min-w-0 flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />
           </div>
         </main>

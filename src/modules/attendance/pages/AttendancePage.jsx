@@ -971,6 +971,56 @@ const AttendancePage = () => {
                             </span>
                           )
                         )}
+
+                        {d.isCurrentMonth && (
+                          <div
+                            className="relative flex items-center justify-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenInfoDate(openInfoDate === dateKey ? null : dateKey);
+                              }}
+                              className={cn(
+                                "w-4 h-4 rounded-full flex items-center justify-center transition-all cursor-pointer",
+                                openInfoDate === dateKey
+                                  ? "bg-primary-600 text-white shadow-xs scale-110"
+                                  : "bg-slate-100 hover:bg-primary-50 text-slate-400 hover:text-primary-600"
+                              )}
+                              title="View attendance details"
+                            >
+                              <Info className="w-2.5 h-2.5" />
+                            </button>
+
+                            {openInfoDate === dateKey && (
+                              <div
+                                className="absolute right-0 top-full mt-1.5 w-52 max-h-64 overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] z-50 space-y-2 cursor-default"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  <span>Attendance</span>
+                                  {holiday && <span className="text-blue-400">Holiday</span>}
+                                </div>
+                                {[
+                                  ["Present", presentList, "text-emerald-400"],
+                                  ["On Leave", leaveList, "text-amber-400"],
+                                  ["Absent", absentList, "text-rose-400"],
+                                ].map(([label, users, color]) => (
+                                  <div key={label}>
+                                    <div className={`font-semibold ${color}`}>
+                                      {label} ({users.length})
+                                    </div>
+                                    <div className="text-slate-300 text-[10px] mt-0.5">
+                                      {users.length > 0 ? users.map((user) => user.name).join(", ") : "None"}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* All-employees task bars - Full Width with clean indicator dot */}

@@ -3,8 +3,8 @@ import { Outlet } from 'react-router-dom';
 
 const AuthLayout = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-slate-50 font-sans">
-      
+    <div className="fixed inset-0 h-screen lg:static lg:min-h-screen lg:h-auto w-full flex flex-col lg:flex-row bg-slate-50 font-sans overflow-hidden overscroll-none">
+
       {/* LEFT HALF: 50% Branded Showcase Panel (Visible on lg+ screens) */}
       <div className="relative hidden lg:flex lg:w-1/2 flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-slate-950 via-slate-900 to-primary-950 text-white overflow-hidden shrink-0">
         {/* Background ambient glows & architectural grid */}
@@ -59,8 +59,8 @@ const AuthLayout = () => {
       </div>
 
       {/* RIGHT HALF: 50% Auth Form Panel */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center min-h-screen p-6 sm:p-10 xl:p-16 bg-slate-50/70">
-        
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center h-screen lg:min-h-screen lg:h-auto p-6 sm:p-10 xl:p-16 bg-slate-50/70 overflow-hidden">
+
         {/* Mobile-Only Header (Shows on smaller viewports) */}
         <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
           <div className="p-1.5 rounded-xl bg-white border border-slate-100 shadow-xs">
