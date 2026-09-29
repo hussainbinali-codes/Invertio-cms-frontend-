@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import axios from "../../../api/axios";
 import {
   Card,
@@ -20,12 +21,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  X,
+  ExternalLink,
+  LogIn,
+  LogOut,
+  Building2,
 } from "lucide-react";
 import StatCard from "../../../components/ui/StatCard";
 import Skeleton from "../../../components/ui/Skeleton";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../../utils/permissionUtils";
-
 import { cn } from "../../../utils/cn";
 
 // Premium Double-Bezel KPI Card component
@@ -107,344 +112,359 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
   );
 };
 
-const AttendancePage = () => {
-  const canViewAll = hasPermission("attendance", "view_all");
-
-  const [attendance, setAttendance] = useState([]);
-  const [allLeaves, setAllLeaves] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(canViewAll ? "all" : "my");
-  const [loading, setLoading] = useState(true);
-  const [fetchingLogs, setFetchingLogs] = useState(false);
-  const [holidays, setHolidays] = useState([]);
-  const [selectedDay, setSelectedDay] = useState(null); // for mobile tap-to-expand detail
-  const [openInfoDate, setOpenInfoDate] = useState(null); // for (i) dropdown on click
-
+// Floating popover anchored to the clicked (i) button and rendered into document.body.
+// Displays the exact previous dropdown UI clearly without clipping from table/card overflow-hidden,
+// and automatically flips upward when clicked on lower calendar rows.
+const InfoDropdownPopover = ({ anchorRect, onClose, children }) => {
   useEffect(() => {
-    const handleGlobalClick = () => setOpenInfoDate(null);
-    window.addEventListener("click", handleGlobalClick);
-    return () => window.removeEventListener("click", handleGlobalClick);
-  }, []);
+    const handleClose = () => onClose();
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
 
-  const parseCoordinates = (loc) => {
-    if (!loc || loc === "Location unavailable") {
-      return { lat: "Not captured", lng: "Not captured" };
-    }
-    const parts = loc.split(",").map((p) => p.trim());
-    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-      return { lat: parts[0], lng: parts[1] };
-    }
-    return { lat: loc, lng: "N/A" };
-  };
+    const timer = setTimeout(() => {
+      window.addEventListener("click", handleClose);
+    }, 10);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleClose, true);
+    window.addEventListener("resize", handleClose);
 
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", handleClose);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleClose, true);
+      window.removeEventListener("resize", handleClose);
+    };
+  }, [onClose]);
 
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+  if (!anchorRect) return null;
 
-  const monthsShort = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-  ];
+  const popoverWidth = 224;
+  const estimatedHeight = 220;
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from(
-    { length: 8 },
-    (_, i) => currentYear - 4 + i
+  const spaceBelow = window.innerHeight - anchorRect.bottom;
+  const openUpward = spaceBelow < estimatedHeight && anchorRect.top > estimatedHeight;
+
+  const top = openUpward
+    ? Math.max(10, anchorRect.top - 6)
+    : anchorRect.bottom + 6;
+
+  let left = anchorRect.right - popoverWidth;
+  if (left < 10) left = 10;
+  if (left + popoverWidth > window.innerWidth - 10) {
+    left = window.innerWidth - popoverWidth - 10;
+  }
+
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        top: openUpward ? "auto" : `${top}px`,
+        bottom: openUpward ? `${window.innerHeight - top}px` : "auto",
+        left: `${left}px`,
+        zIndex: 9999,
+      }}
+      className="animate-in fade-in zoom-in-95 duration-100"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
   );
+};
 
-  const handlePrevMonth = () => {
-    if (selectedMonth === 0) {
-      setSelectedMonth(11);
-      setSelectedYear((prev) => prev - 1);
-    } else {
-      setSelectedMonth((prev) => prev - 1);
-    }
-  };
+  const AttendancePage = () => {
+    const canViewAll = hasPermission("attendance", "view_all");
 
-  const handleNextMonth = () => {
-    if (selectedMonth === 11) {
-      setSelectedMonth(0);
-      setSelectedYear((prev) => prev + 1);
-    } else {
-      setSelectedMonth((prev) => prev + 1);
-    }
-  };
+    const [attendance, setAttendance] = useState([]);
+    const [allLeaves, setAllLeaves] = useState([]);
+    const [employees, setEmployees] = useState([]);
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState(canViewAll ? "all" : "my");
+    const [loading, setLoading] = useState(true);
+    const [fetchingLogs, setFetchingLogs] = useState(false);
+    const [holidays, setHolidays] = useState([]);
+    const [selectedDay, setSelectedDay] = useState(null); // for mobile tap-to-expand detail
+    const [openInfo, setOpenInfo] = useState(null); // { dateKey, rect, type, ... }
 
-  const formatDateKey = (dateObj) => {
-    const y = dateObj.getFullYear();
-    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const d = String(dateObj.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
+    const parseCoordinates = (loc) => {
+      if (!loc || loc === "Location unavailable") {
+        return { lat: "Not captured", lng: "Not captured" };
+      }
+      const parts = loc.split(",").map((p) => p.trim());
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        return { lat: parts[0], lng: parts[1] };
+      }
+      return { lat: loc, lng: "N/A" };
+    };
 
-  const parseDbDateKey = (dbDateStr) => {
-    if (!dbDateStr) return "";
-    return dbDateStr.split('T')[0];
-  };
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  const getKolkataToday = () => {
-    const d = new Date();
-    const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
-    const formatter = new Intl.DateTimeFormat('en-CA', options);
-    return formatter.format(d);
-  };
+    const months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
 
-  const getDaysInMonth = (month, year) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
+    const currentYear = new Date().getFullYear();
+    const years = Array.from(
+      { length: 8 },
+      (_, i) => currentYear - 4 + i
+    );
 
-  const getFirstDayOfMonth = (month, year) => {
-    return new Date(year, month, 1).getDay();
-  };
-
-  const fetchAttendanceData = async () => {
-    setFetchingLogs(true);
-    try {
-      if (selectedEmployeeId === "all" && canViewAll) {
-        let employeesList = employees;
-        if (employees.length === 0) {
-          const empRes = await axios.get("/hr/attendance/users");
-          employeesList = empRes.data.data || [];
-          setEmployees(employeesList);
-        }
-
-        const leavesRes = await axios.get("/hr/leaves");
-        setAllLeaves(leavesRes.data.data || []);
-
-        const attRes = await axios.get(`/hr/attendance/all?month=${selectedMonth + 1}&year=${selectedYear}`);
-        setAttendance(attRes.data.data || []);
-
+    const handlePrevMonth = () => {
+      if (selectedMonth === 0) {
+        setSelectedMonth(11);
+        setSelectedYear((prev) => prev - 1);
       } else {
-        const targetUserId = selectedEmployeeId === "my" ? null : selectedEmployeeId;
-        const baseUrl = targetUserId
-          ? `/hr/attendance/my?userId=${targetUserId}&month=${selectedMonth + 1}&year=${selectedYear}&limit=100`
-          : `/hr/attendance/my?month=${selectedMonth + 1}&year=${selectedYear}&limit=100`;
+        setSelectedMonth((prev) => prev - 1);
+      }
+    };
 
-        const attRes = await axios.get(baseUrl);
-        setAttendance(attRes.data.data?.items || []);
+    const handleNextMonth = () => {
+      if (selectedMonth === 11) {
+        setSelectedMonth(0);
+        setSelectedYear((prev) => prev + 1);
+      } else {
+        setSelectedMonth((prev) => prev + 1);
+      }
+    };
 
-        if (selectedEmployeeId === "my") {
-          const leavesRes = await axios.get("/hr/leaves/my");
-          setAllLeaves(leavesRes.data.data || []);
-        } else {
+    const formatDateKey = (dateObj) => {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const parseDbDateKey = (dbDateStr) => {
+      if (!dbDateStr) return "";
+      return dbDateStr.split('T')[0];
+    };
+
+    const getKolkataToday = () => {
+      const d = new Date();
+      const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('en-CA', options);
+      return formatter.format(d);
+    };
+
+    const getDaysInMonth = (month, year) => {
+      return new Date(year, month + 1, 0).getDate();
+    };
+
+    const getFirstDayOfMonth = (month, year) => {
+      return new Date(year, month, 1).getDay();
+    };
+
+    const fetchAttendanceData = async () => {
+      setFetchingLogs(true);
+      try {
+        if (selectedEmployeeId === "all" && canViewAll) {
+          let employeesList = employees;
+          if (employees.length === 0) {
+            const empRes = await axios.get("/hr/attendance/users");
+            employeesList = empRes.data.data || [];
+            setEmployees(employeesList);
+          }
+
           const leavesRes = await axios.get("/hr/leaves");
           setAllLeaves(leavesRes.data.data || []);
+
+          const attRes = await axios.get(`/hr/attendance/all?month=${selectedMonth + 1}&year=${selectedYear}`);
+          setAttendance(attRes.data.data || []);
+
+        } else {
+          const targetUserId = selectedEmployeeId === "my" ? null : selectedEmployeeId;
+          const baseUrl = targetUserId
+            ? `/hr/attendance/my?userId=${targetUserId}&month=${selectedMonth + 1}&year=${selectedYear}&limit=100`
+            : `/hr/attendance/my?month=${selectedMonth + 1}&year=${selectedYear}&limit=100`;
+
+          const attRes = await axios.get(baseUrl);
+          setAttendance(attRes.data.data?.items || []);
+
+          if (selectedEmployeeId === "my") {
+            const leavesRes = await axios.get("/hr/leaves/my");
+            setAllLeaves(leavesRes.data.data || []);
+          } else {
+            const leavesRes = await axios.get("/hr/leaves");
+            setAllLeaves(leavesRes.data.data || []);
+          }
         }
+      } catch (err) {
+        console.error("Failed to fetch attendance data", err);
+        toast.error("Failed to load attendance records");
+        setAttendance([]);
+        setAllLeaves([]);
+      } finally {
+        setFetchingLogs(false);
       }
-    } catch (err) {
-      console.error("Failed to fetch attendance data", err);
-      toast.error("Failed to load attendance records");
-      setAttendance([]);
-      setAllLeaves([]);
-    } finally {
-      setFetchingLogs(false);
-    }
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      await fetchAttendanceData();
-      setLoading(false);
     };
-    init();
-  }, [selectedMonth, selectedYear, selectedEmployeeId]);
 
-  useEffect(() => {
-    setSelectedDay(null);
-  }, [selectedMonth, selectedYear, selectedEmployeeId]);
+    useEffect(() => {
+      const init = async () => {
+        setLoading(true);
+        await fetchAttendanceData();
+        setLoading(false);
+      };
+      init();
+    }, [selectedMonth, selectedYear, selectedEmployeeId]);
 
-  const getWorkingDaysCount = () => {
-    let count = 0;
-    const totalDays = getDaysInMonth(selectedMonth, selectedYear);
-    for (let day = 1; day <= totalDays; day++) {
-      const dateKey = formatDateKey(new Date(selectedYear, selectedMonth, day));
-      const dayOfWeek = new Date(selectedYear, selectedMonth, day).getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const isHoliday = holidays.some(h => parseDbDateKey(h.date) === dateKey);
-      if (!isWeekend && !isHoliday) {
-        count++;
-      }
-    }
-    return count;
-  };
+    useEffect(() => {
+      setSelectedDay(null);
+    }, [selectedMonth, selectedYear, selectedEmployeeId]);
 
-  const calculateCalendarStats = () => {
-    const totalDays = getDaysInMonth(selectedMonth, selectedYear);
-    const todayStr = getKolkataToday();
+    const calculateCalendarStats = () => {
+      const totalDays = getDaysInMonth(selectedMonth, selectedYear);
+      const todayStr = getKolkataToday();
 
-    if (selectedEmployeeId === "all") {
-      let totalPossibleDays = 0;
-      let totalPresentDays = 0;
-      let totalLeaveDays = 0;
+      if (selectedEmployeeId === "all") {
+        let totalPossibleDays = 0;
+        let totalPresentDays = 0;
+        let totalAbsentDays = 0;
 
-      employees.forEach(emp => {
+        employees.forEach(emp => {
+          for (let day = 1; day <= totalDays; day++) {
+            const dateKey = formatDateKey(new Date(selectedYear, selectedMonth, day));
+            if (dateKey > todayStr) continue;
+
+            const dayOfWeek = new Date(selectedYear, selectedMonth, day).getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const isHoliday = holidays.some(h => parseDbDateKey(h.date) === dateKey);
+
+            if (!isWeekend && !isHoliday) {
+              totalPossibleDays++;
+
+              const isPresent = attendance.some(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
+              if (isPresent) {
+                totalPresentDays++;
+              } else {
+                totalAbsentDays++;
+              }
+            }
+          }
+        });
+
+        const attendanceRate = totalPossibleDays > 0
+          ? Math.round((totalPresentDays / totalPossibleDays) * 100)
+          : 0;
+
+        const holidaysCount = holidays.filter(h => {
+          const d = new Date(h.date);
+          return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+        }).length;
+
+        return {
+          card1Title: "Total Present",
+          card1Value: totalPresentDays,
+          card1Subtext: "This month",
+          card2Title: "Total Absent",
+          card2Value: totalAbsentDays,
+          card2Subtext: "Missed working days",
+          card3Title: "Avg. Attendance Rate",
+          card3Value: `${attendanceRate}%`,
+          card3Subtext: "Past working days",
+          card4Title: "Company Holidays",
+          card4Value: holidaysCount,
+          card4Subtext: "This month"
+        };
+      } else {
+        let presentCount = 0;
+        let absentCount = 0;
+
         for (let day = 1; day <= totalDays; day++) {
           const dateKey = formatDateKey(new Date(selectedYear, selectedMonth, day));
-          if (dateKey > todayStr) continue;
-
           const dayOfWeek = new Date(selectedYear, selectedMonth, day).getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
           const isHoliday = holidays.some(h => parseDbDateKey(h.date) === dateKey);
 
-          if (!isWeekend && !isHoliday) {
-            totalPossibleDays++;
+          const isPresent = attendance.some(a => parseDbDateKey(a.date) === dateKey);
 
-            const isPresent = attendance.some(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
-            if (isPresent) {
-              totalPresentDays++;
-            } else {
-              const isOnLeave = allLeaves.some(l => {
-                if (l.status !== 'Approved') return false;
-                if (l.user_id !== emp.user_id) return false;
-                const start = parseDbDateKey(l.start_date);
-                const end = parseDbDateKey(l.end_date);
-                return dateKey >= start && dateKey <= end;
-              });
-              if (isOnLeave) {
-                totalLeaveDays++;
-              }
-            }
+          if (isPresent) {
+            presentCount++;
+          } else if (dateKey <= todayStr && !isWeekend && !isHoliday) {
+            absentCount++;
           }
         }
-      });
 
-      const attendanceRate = totalPossibleDays > 0
-        ? Math.round((totalPresentDays / totalPossibleDays) * 100)
-        : 0;
+        const checkInTimes = attendance
+          .filter((a) => a.check_in)
+          .map((a) => {
+            const d = new Date(a.check_in);
+            const hours = parseInt(
+              new Intl.DateTimeFormat("en-GB", {
+                timeZone: "Asia/Kolkata",
+                hour: "2-digit",
+                hour12: false,
+              }).format(d),
+            );
+            const minutes = parseInt(
+              new Intl.DateTimeFormat("en-GB", {
+                timeZone: "Asia/Kolkata",
+                minute: "2-digit",
+              }).format(d),
+            );
+            return hours * 60 + minutes;
+          });
 
-      const holidaysCount = holidays.filter(h => {
-        const d = new Date(h.date);
-        return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
-      }).length;
+        const avgMinutes = checkInTimes.length
+          ? Math.round(checkInTimes.reduce((a, b) => a + b, 0) / checkInTimes.length)
+          : 0;
 
-      return {
-        card1Title: "Total Employees",
-        card1Value: employees.length,
-        card1Subtext: "Active roster",
-        card2Title: "Avg. Attendance Rate",
-        card2Value: `${attendanceRate}%`,
-        card2Subtext: "Past working days",
-        card3Title: "Total Team Leaves",
-        card3Value: totalLeaveDays,
-        card3Subtext: "Approved leaves taken",
-        card4Title: "Company Holidays",
-        card4Value: holidaysCount,
-        card4Subtext: "This month"
-      };
-    } else {
-      let presentCount = 0;
-      let leaveCount = 0;
-      let absentCount = 0;
-      const targetUserId = selectedEmployeeId === "my" ? null : selectedEmployeeId;
+        const hours = Math.floor(avgMinutes / 60);
+        const mins = avgMinutes % 60;
+        const period = hours >= 12 ? "PM" : "AM";
+        const displayHours = hours % 12 || 12;
+        const avgStr = checkInTimes.length ? `${displayHours}:${mins < 10 ? "0" : ""}${mins} ${period}` : "--:--";
 
-      const userAttendance = attendance;
-      const userLeaves = selectedEmployeeId === "my"
-        ? allLeaves
-        : allLeaves.filter(l => l.user_id === targetUserId);
+        const holidaysCount = holidays.filter(h => {
+          const d = new Date(h.date);
+          return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+        }).length;
 
-      for (let day = 1; day <= totalDays; day++) {
-        const dateKey = formatDateKey(new Date(selectedYear, selectedMonth, day));
-        const dayOfWeek = new Date(selectedYear, selectedMonth, day).getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        const isHoliday = holidays.some(h => parseDbDateKey(h.date) === dateKey);
+        return {
+          card1Title: "Days Present",
+          card1Value: presentCount,
+          card1Subtext: "This month",
+          card2Title: "Days Absent",
+          card2Value: absentCount,
+          card2Subtext: "Missed working days",
+          card3Title: "Avg. Check-in",
+          card3Value: avgStr,
+          card3Subtext: "Based on logs",
+          card4Title: "Company Holidays",
+          card4Value: holidaysCount,
+          card4Subtext: "This month"
+        };
+      }
+    };
 
-        const isPresent = userAttendance.some(a => parseDbDateKey(a.date) === dateKey);
-        const isOnLeave = userLeaves.some(l => {
-          if (l.status !== 'Approved') return false;
-          const start = parseDbDateKey(l.start_date);
-          const end = parseDbDateKey(l.end_date);
-          return dateKey >= start && dateKey <= end;
-        });
-
-        if (isPresent) {
-          presentCount++;
-        } else if (isOnLeave) {
-          if (!isWeekend && !isHoliday) {
-            leaveCount++;
-          }
-        } else if (dateKey <= todayStr && !isWeekend && !isHoliday) {
-          absentCount++;
-        }
+    const handleExport = () => {
+      if (attendance.length === 0) {
+        toast.error("No data available to export for this period");
+        return;
       }
 
-      const checkInTimes = userAttendance
-        .filter((a) => a.check_in)
-        .map((a) => {
-          const d = new Date(a.check_in);
-          const hours = parseInt(
-            new Intl.DateTimeFormat("en-GB", {
-              timeZone: "Asia/Kolkata",
-              hour: "2-digit",
-              hour12: false,
-            }).format(d),
-          );
-          const minutes = parseInt(
-            new Intl.DateTimeFormat("en-GB", {
-              timeZone: "Asia/Kolkata",
-              minute: "2-digit",
-            }).format(d),
-          );
-          return hours * 60 + minutes;
-        });
+      const isAll = selectedEmployeeId === "all";
+      const headers = isAll
+        ? ["Employee Name", "Employee Email", "Date", "Day", "Status", "Check In", "Check Out", "Location"]
+        : ["Date", "Day", "Status", "Check In", "Check Out", "Location"];
 
-      const avgMinutes = checkInTimes.length
-        ? Math.round(checkInTimes.reduce((a, b) => a + b, 0) / checkInTimes.length)
-        : 0;
+      const csvRows = [headers.join(",")];
 
-      const hours = Math.floor(avgMinutes / 60);
-      const mins = avgMinutes % 60;
-      const period = hours >= 12 ? "PM" : "AM";
-      const displayHours = hours % 12 || 12;
-      const avgStr = checkInTimes.length ? `${displayHours}:${mins < 10 ? "0" : ""}${mins} ${period}` : "--:--";
+      attendance.forEach((entry) => {
+        const dateObj = new Date(entry.date);
+        const date = dateObj.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
+        const day = dateObj.toLocaleDateString("en-IN", { weekday: "long", timeZone: "Asia/Kolkata" });
+        const checkIn = entry.check_in
+          ? new Date(entry.check_in).toLocaleTimeString("en-IN", { hour12: false, timeZone: "Asia/Kolkata" })
+          : "N/A";
+        const checkOut = entry.check_out
+          ? new Date(entry.check_out).toLocaleTimeString("en-IN", { hour12: false, timeZone: "Asia/Kolkata" })
+          : "N/A";
 
-      return {
-        card1Title: "Days Present",
-        card1Value: presentCount,
-        card1Subtext: "This month",
-        card2Title: "Avg. Check-in",
-        card2Value: avgStr,
-        card2Subtext: "Based on logs",
-        card3Title: "Approved Leaves",
-        card3Value: leaveCount,
-        card3Subtext: "Working days",
-        card4Title: "Days Absent",
-        card4Value: absentCount,
-        card4Subtext: "Missed working days"
-      };
-    }
-  };
-
-  const handleExport = () => {
-    if (attendance.length === 0) {
-      toast.error("No data available to export for this period");
-      return;
-    }
-
-    const isAll = selectedEmployeeId === "all";
-    const headers = isAll
-      ? ["Employee Name", "Employee Email", "Date", "Day", "Status", "Check In", "Check Out", "Location"]
-      : ["Date", "Day", "Status", "Check In", "Check Out", "Location"];
-
-    const csvRows = [headers.join(",")];
-
-    attendance.forEach((entry) => {
-      const dateObj = new Date(entry.date);
-      const date = dateObj.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
-      const day = dateObj.toLocaleDateString("en-IN", { weekday: "long", timeZone: "Asia/Kolkata" });
-      const checkIn = entry.check_in
-        ? new Date(entry.check_in).toLocaleTimeString("en-IN", { hour12: false, timeZone: "Asia/Kolkata" })
-        : "N/A";
-      const checkOut = entry.check_out
-        ? new Date(entry.check_out).toLocaleTimeString("en-IN", { hour12: false, timeZone: "Asia/Kolkata" })
-        : "N/A";
-
-      const row = isAll
-        ? [
+        const row = isAll
+          ? [
             `"${entry.employee_name || "N/A"}"`,
             `"${entry.employee_email || "N/A"}"`,
             `"${date}"`,
@@ -454,7 +474,7 @@ const AttendancePage = () => {
             `"${checkOut}"`,
             `"${entry.location || "N/A"}"`,
           ]
-        : [
+          : [
             `"${date}"`,
             `"${day}"`,
             `"${entry.status}"`,
@@ -462,530 +482,509 @@ const AttendancePage = () => {
             `"${checkOut}"`,
             `"${entry.location || "N/A"}"`,
           ];
-      csvRows.push(row.join(","));
-    });
+        csvRows.push(row.join(","));
+      });
 
-    const csvString = csvRows.join("\n");
-    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
+      const csvString = csvRows.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
 
-    const empName = selectedEmployeeId === "all"
-      ? "All_Employees"
-      : selectedEmployeeId === "my"
-        ? "My"
-        : employees.find(e => e.user_id === selectedEmployeeId)?.name?.replace(/\s+/g, "_") || "Employee";
+      const empName = selectedEmployeeId === "all"
+        ? "All_Employees"
+        : selectedEmployeeId === "my"
+          ? "My"
+          : employees.find(e => e.user_id === selectedEmployeeId)?.name?.replace(/\s+/g, "_") || "Employee";
 
-    const fileName = `Attendance_${empName}_${months[selectedMonth]}_${selectedYear}.csv`;
+      const fileName = `Attendance_${empName}_${months[selectedMonth]}_${selectedYear}.csv`;
 
-    link.setAttribute("href", url);
-    link.setAttribute("download", fileName);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      link.setAttribute("href", url);
+      link.setAttribute("download", fileName);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    toast.success("Excel sheet generated successfully");
-  };
+      toast.success("Excel sheet generated successfully");
+    };
 
-  // Tooltip positioning is only used on desktop hover; disabled on touch via CSS (md:group-hover)
-  const getTooltipPositionClasses = (index) => {
-    const row = Math.floor(index / 7);
-    const col = index % 7;
+    // Tooltip positioning is only used on desktop hover; disabled on touch via CSS (md:group-hover)
+    const getTooltipPositionClasses = (index) => {
+      const row = Math.floor(index / 7);
+      const col = index % 7;
 
-    let vClass = "";
-    let hClass = "";
+      let vClass = "";
+      let hClass = "";
 
-    if (row === 0) {
-      vClass = "top-[105%] mt-2";
-      if (col <= 1) {
-        hClass = "left-0";
-      } else if (col >= 5) {
-        hClass = "right-0";
-      } else {
-        hClass = "left-1/2 -translate-x-1/2";
-      }
-    } else if (row === 1 || row === 2) {
-      vClass = "top-1/2 -translate-y-1/2";
-      if (col <= 3) {
-        hClass = "left-[105%] ml-2";
-      } else {
-        hClass = "right-[105%] mr-2";
-      }
-    } else {
-      vClass = "bottom-[105%] mb-2";
-      if (col <= 1) {
-        hClass = "left-0";
-      } else if (col >= 5) {
-        hClass = "right-0";
-      } else {
-        hClass = "left-1/2 -translate-x-1/2";
-      }
-    }
-
-    return `${vClass} ${hClass}`;
-  };
-
-  const getAttHours = (attRecord) => {
-    if (!attRecord || !attRecord.check_in) return "8 h";
-    if (!attRecord.check_out) {
-      const todayStr = getKolkataToday();
-      const dateKey = parseDbDateKey(attRecord.date || attRecord.check_in);
-      if (dateKey === todayStr) {
-        const checkInTime = new Date(attRecord.check_in).getTime();
-        const nowTime = new Date().getTime();
-        const diffHours = (nowTime - checkInTime) / (1000 * 60 * 60);
-        if (diffHours > 0 && diffHours < 24) {
-          const rounded = Math.round(diffHours * 10) / 10;
-          return `${rounded} h`;
+      if (row === 0) {
+        vClass = "top-[105%] mt-2";
+        if (col <= 1) {
+          hClass = "left-0";
+        } else if (col >= 5) {
+          hClass = "right-0";
+        } else {
+          hClass = "left-1/2 -translate-x-1/2";
         }
+      } else if (row === 1 || row === 2) {
+        vClass = "top-1/2 -translate-y-1/2";
+        if (col <= 3) {
+          hClass = "left-[105%] ml-2";
+        } else {
+          hClass = "right-[105%] mr-2";
+        }
+      } else {
+        vClass = "bottom-[105%] mb-2";
+        if (col <= 1) {
+          hClass = "left-0";
+        } else if (col >= 5) {
+          hClass = "right-0";
+        } else {
+          hClass = "left-1/2 -translate-x-1/2";
+        }
+      }
+
+      return `${vClass} ${hClass}`;
+    };
+
+    const getAttHours = (attRecord) => {
+      if (!attRecord || !attRecord.check_in) return "8 h";
+      if (!attRecord.check_out) {
+        const todayStr = getKolkataToday();
+        const dateKey = parseDbDateKey(attRecord.date || attRecord.check_in);
+        if (dateKey === todayStr) {
+          const checkInTime = new Date(attRecord.check_in).getTime();
+          const nowTime = new Date().getTime();
+          const diffHours = (nowTime - checkInTime) / (1000 * 60 * 60);
+          if (diffHours > 0 && diffHours < 24) {
+            const rounded = Math.round(diffHours * 10) / 10;
+            return `${rounded} h`;
+          }
+        }
+        return "8 h";
+      }
+      const diffMs = new Date(attRecord.check_out).getTime() - new Date(attRecord.check_in).getTime();
+      if (diffMs > 0) {
+        const hours = diffMs / (1000 * 60 * 60);
+        const rounded = Math.round(hours * 10) / 10;
+        return `${rounded} h`;
       }
       return "8 h";
-    }
-    const diffMs = new Date(attRecord.check_out).getTime() - new Date(attRecord.check_in).getTime();
-    if (diffMs > 0) {
-      const hours = diffMs / (1000 * 60 * 60);
-      const rounded = Math.round(hours * 10) / 10;
-      return `${rounded} h`;
-    }
-    return "8 h";
-  };
+    };
 
-  const getCardClasses = (d, index, isToday, customClass = "") => {
-    const baseClasses = "relative group flex flex-col justify-between h-full min-h-0 p-1.5 sm:p-2 transition-all duration-150 cursor-pointer overflow-hidden";
-    const activeClass = isToday ? "bg-blue-50/20" : "";
+    const getCardClasses = (d, index, isToday, customClass = "") => {
+      const baseClasses = "relative group flex flex-col justify-between h-full min-h-0 p-1.5 sm:p-2 transition-all duration-150 cursor-pointer overflow-hidden";
+      const activeClass = isToday ? "bg-blue-50/20" : "";
 
-    if (customClass) {
-      return `${baseClasses} ${customClass} ${activeClass}`;
-    }
+      if (customClass) {
+        return `${baseClasses} ${customClass} ${activeClass}`;
+      }
 
-    const defaultMonthClass = d.isCurrentMonth
-      ? "bg-white hover:bg-slate-50/70"
-      : "bg-slate-50/40 opacity-40 text-slate-400";
+      const defaultMonthClass = d.isCurrentMonth
+        ? "bg-white hover:bg-slate-50/70"
+        : "bg-slate-50/40 opacity-40 text-slate-400";
 
-    return `${baseClasses} ${defaultMonthClass} ${activeClass}`;
-  };
+      return `${baseClasses} ${defaultMonthClass} ${activeClass}`;
+    };
 
-  const getCalendarDays = () => {
-    const firstDayIndex = getFirstDayOfMonth(selectedMonth, selectedYear);
-    const totalDays = getDaysInMonth(selectedMonth, selectedYear);
+    const getCalendarDays = () => {
+      const firstDayIndex = getFirstDayOfMonth(selectedMonth, selectedYear);
+      const totalDays = getDaysInMonth(selectedMonth, selectedYear);
 
-    const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
-    const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
-    const prevMonthDays = getDaysInMonth(prevMonth, prevYear);
+      const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+      const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+      const prevMonthDays = getDaysInMonth(prevMonth, prevYear);
 
-    const days = [];
+      const days = [];
 
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      days.push({
-        day: prevMonthDays - i,
-        month: prevMonth,
-        year: prevYear,
-        isCurrentMonth: false,
-      });
-    }
+      for (let i = firstDayIndex - 1; i >= 0; i--) {
+        days.push({
+          day: prevMonthDays - i,
+          month: prevMonth,
+          year: prevYear,
+          isCurrentMonth: false,
+        });
+      }
 
-    for (let i = 1; i <= totalDays; i++) {
-      days.push({
-        day: i,
-        month: selectedMonth,
-        year: selectedYear,
-        isCurrentMonth: true,
-      });
-    }
+      for (let i = 1; i <= totalDays; i++) {
+        days.push({
+          day: i,
+          month: selectedMonth,
+          year: selectedYear,
+          isCurrentMonth: true,
+        });
+      }
 
-    const nextMonth = selectedMonth === 11 ? 0 : selectedMonth + 1;
-    const nextYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
-    const remainingCells = 42 - days.length;
-    for (let i = 1; i <= remainingCells; i++) {
-      days.push({
-        day: i,
-        month: nextMonth,
-        year: nextYear,
-        isCurrentMonth: false,
-      });
-    }
+      const nextMonth = selectedMonth === 11 ? 0 : selectedMonth + 1;
+      const nextYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
+      const remainingCells = 42 - days.length;
+      for (let i = 1; i <= remainingCells; i++) {
+        days.push({
+          day: i,
+          month: nextMonth,
+          year: nextYear,
+          isCurrentMonth: false,
+        });
+      }
 
-    return days;
-  };
+      return days;
+    };
 
-  const getPageTitle = () => {
-    if (selectedEmployeeId === "all") {
-      return "All Employees Attendance";
-    }
-    if (selectedEmployeeId === "my") {
-      return "My Attendance Logs";
-    }
-    const emp = employees.find(e => e.user_id === selectedEmployeeId);
-    return emp ? `${emp.name}'s Attendance` : "Attendance Logs";
-  };
+    const getPageTitle = () => {
+      if (selectedEmployeeId === "all") {
+        return "All Employees Attendance";
+      }
+      if (selectedEmployeeId === "my") {
+        return "My Attendance Logs";
+      }
+      const emp = employees.find(e => e.user_id === selectedEmployeeId);
+      return emp ? `${emp.name}'s Attendance` : "Attendance Logs";
+    };
 
-  const getPageSubtext = () => {
-    if (selectedEmployeeId === "all") {
-      return "Viewing team-wide attendance records, leaves, and presence.";
-    }
-    if (selectedEmployeeId === "my") {
-      return "Review your historical punch-in records and site presence.";
-    }
-    const emp = employees.find(e => e.user_id === selectedEmployeeId);
-    return emp ? `Reviewing records for ${emp.email}` : "";
-  };
+    const getPageSubtext = () => {
+      if (selectedEmployeeId === "all") {
+        return "Viewing team-wide attendance records, leaves, and presence.";
+      }
+      if (selectedEmployeeId === "my") {
+        return "Review your historical punch-in records and site presence.";
+      }
+      const emp = employees.find(e => e.user_id === selectedEmployeeId);
+      return emp ? `Reviewing records for ${emp.email}` : "";
+    };
 
-  // Build the same detail data used by the desktop tooltip, for the mobile tap panel
-  const getDayDetail = (d, index) => {
-    const dateKey = formatDateKey(new Date(d.year, d.month, d.day));
-    const holiday = holidays.find(h => parseDbDateKey(h.date) === dateKey);
-    const dayOfWeek = new Date(d.year, d.month, d.day).getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const todayStr = getKolkataToday();
-    const isPast = dateKey < todayStr;
+    // Build the same detail data used by the desktop tooltip, for the mobile tap panel
+    const getDayDetail = (d, _index) => {
+      const dateKey = formatDateKey(new Date(d.year, d.month, d.day));
+      const holiday = holidays.find(h => parseDbDateKey(h.date) === dateKey);
+      const dayOfWeek = new Date(d.year, d.month, d.day).getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const todayStr = getKolkataToday();
+      const isPast = dateKey < todayStr;
+      const isToday = dateKey === todayStr;
 
-    if (selectedEmployeeId === "all") {
-      const presentList = [];
-      const leaveList = [];
-      const absentList = [];
+      if (selectedEmployeeId === "all") {
+        const presentList = [];
+        const absentList = [];
 
-      employees.forEach(emp => {
-        const empAtt = attendance.find(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
-        const empLeave = allLeaves.find(l => {
-          if (l.status !== 'Approved') return false;
-          if (l.user_id !== emp.user_id) return false;
-          const start = parseDbDateKey(l.start_date);
-          const end = parseDbDateKey(l.end_date);
-          return dateKey >= start && dateKey <= end;
+        employees.forEach(emp => {
+          const empAtt = attendance.find(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
+
+          if (empAtt) {
+            presentList.push(emp);
+          } else if ((isPast || isToday) && !isWeekend && !holiday) {
+            absentList.push(emp);
+          }
         });
 
-        if (empAtt) {
-          presentList.push(emp);
-        } else if (empLeave) {
-          leaveList.push({ ...emp, leave: empLeave });
-        } else if (isPast && !isWeekend && !holiday) {
-          absentList.push(emp);
-        }
-      });
+        return { type: "all", dateKey, holiday, presentList, absentList };
+      } else {
+        const attRecord = attendance.find(a => parseDbDateKey(a.date) === dateKey);
 
-      return { type: "all", dateKey, holiday, presentList, leaveList, absentList };
-    } else {
-      const attRecord = attendance.find(a => parseDbDateKey(a.date) === dateKey);
-      const targetUserId = selectedEmployeeId === "my" ? null : selectedEmployeeId;
-      const leaveRecord = allLeaves.find(l => {
-        if (l.status !== 'Approved') return false;
-        if (targetUserId && l.user_id !== targetUserId) return false;
-        const start = parseDbDateKey(l.start_date);
-        const end = parseDbDateKey(l.end_date);
-        return dateKey >= start && dateKey <= end;
-      });
+        let status = "None";
+        if (attRecord) status = attRecord.status || "Present";
+        else if (holiday) status = "Holiday";
+        else if (isWeekend) status = "Weekend";
+        else if (isPast || isToday) status = "Absent";
 
-      let status = "None";
-      if (attRecord) status = attRecord.status || "Present";
-      else if (leaveRecord) status = "Leave";
-      else if (holiday) status = "Holiday";
-      else if (isWeekend) status = "Weekend";
-      else if (isPast) status = "Absent";
+        return { type: "single", dateKey, holiday, attRecord, status };
+      }
+    };
 
-      return { type: "single", dateKey, holiday, attRecord, leaveRecord, status };
+    if (loading) {
+      return (
+        <div className="space-y-6 sm:space-y-8 pb-10 px-4 sm:px-6 lg:px-0">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48 sm:w-64" />
+            <Skeleton className="h-4 w-full max-w-xs sm:w-96" />
+            <Skeleton className="h-8 w-full sm:w-[400px] rounded-lg" />
+          </div>
+          <Skeleton className="h-[500px] rounded-2xl" />
+        </div>
+      );
     }
-  };
+    const activeStats = calculateCalendarStats();
+    const calendarDays = getCalendarDays();
+    const selectedDetail = selectedDay !== null ? getDayDetail(calendarDays[selectedDay], selectedDay) : null;
 
-  if (loading) {
     return (
-      <div className="space-y-6 sm:space-y-8 pb-10 px-4 sm:px-6 lg:px-0">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-48 sm:w-64" />
-          <Skeleton className="h-4 w-full max-w-xs sm:w-96" />
-          <Skeleton className="h-8 w-full sm:w-[400px] rounded-lg" />
-        </div>
-        <Skeleton className="h-[500px] rounded-2xl" />
-      </div>
-    );
-  }
-  const activeStats = calculateCalendarStats();
-  const calendarDays = getCalendarDays();
-  const selectedDetail = selectedDay !== null ? getDayDetail(calendarDays[selectedDay], selectedDay) : null;
+      <div className="flex-1 min-h-0 flex flex-col w-full gap-2 overflow-hidden">
 
-  return (
-    <div className="flex-1 min-h-0 flex flex-col w-full gap-2 overflow-hidden">
-
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-            {getPageTitle()}
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-normal">
-            {getPageSubtext()}
-          </p>
-        </div>
-
-        {/* Toolbar controls in header */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 w-full md:w-auto">
-          <div className="flex items-center bg-white border border-slate-200/70 p-0.5 rounded-xl shadow-2xs flex-1 min-w-[190px] sm:flex-initial">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95 shrink-0"
-              title="Previous Month"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <Calendar className="w-3.5 h-3.5 text-slate-400 ml-1 shrink-0" />
-            <select
-              className="bg-transparent border-none text-xs font-bold text-slate-700 pl-1 sm:px-2 py-1.5 outline-none cursor-pointer focus:ring-0 flex-1 min-w-0"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-            >
-              {months.map((m, i) => (
-                <option key={m} value={i}>{m}</option>
-              ))}
-            </select>
-            <select
-              className="bg-transparent border-none text-xs font-bold text-slate-700 px-1.5 sm:px-2 py-1.5 outline-none cursor-pointer border-l border-slate-200 focus:ring-0"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95 shrink-0"
-              title="Next Month"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+              {getPageTitle()}
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5 font-normal">
+              {getPageSubtext()}
+            </p>
           </div>
 
-          {canViewAll && (
-            <div className="relative flex-1 min-w-[160px] sm:flex-initial">
-              <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 z-10" />
-              <select
-                className="pl-8.5 pr-6 h-9 w-full bg-white border border-slate-200/70 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer shadow-2xs"
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                value={selectedEmployeeId}
+          {/* Toolbar controls in header */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 w-full md:w-auto">
+            <div className="flex items-center bg-white border border-slate-200/70 p-0.5 rounded-xl shadow-2xs flex-1 min-w-[190px] sm:flex-initial">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95 shrink-0"
+                title="Previous Month"
               >
-                <option value="all">All Employees</option>
-                <option value="my">My Own Logs</option>
-                {employees.map((emp) => (
-                  <option key={emp.user_id} value={emp.user_id}>{emp.name}</option>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <Calendar className="w-3.5 h-3.5 text-slate-400 ml-1 shrink-0" />
+              <select
+                className="bg-transparent border-none text-xs font-bold text-slate-700 pl-1 sm:px-2 py-1.5 outline-none cursor-pointer focus:ring-0 flex-1 min-w-0"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              >
+                {months.map((m, i) => (
+                  <option key={m} value={i}>{m}</option>
                 ))}
               </select>
+              <select
+                className="bg-transparent border-none text-xs font-bold text-slate-700 px-1.5 sm:px-2 py-1.5 outline-none cursor-pointer border-l border-slate-200 focus:ring-0"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              >
+                {years.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95 shrink-0"
+                title="Next Month"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-          )}
 
-          <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
-            <Button
-              onClick={handleExport}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-1.5 px-3 sm:px-3.5 text-xs font-semibold shadow-2xs flex items-center justify-center gap-1.5 w-full h-9"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden xs:inline sm:inline">Export</span>
-            </Button>
+            {canViewAll && (
+              <div className="relative flex-1 min-w-[160px] sm:flex-initial">
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 z-10" />
+                <select
+                  className="pl-8.5 pr-6 h-9 w-full bg-white border border-slate-200/70 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer shadow-2xs"
+                  onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                  value={selectedEmployeeId}
+                >
+                  <option value="all">All Employees</option>
+                  <option value="my">My Own Logs</option>
+                  {employees.map((emp) => (
+                    <option key={emp.user_id} value={emp.user_id}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+              <Button
+                onClick={handleExport}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-1.5 px-3 sm:px-3.5 text-xs font-semibold shadow-2xs flex items-center justify-center gap-1.5 w-full h-9"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden xs:inline sm:inline">Export</span>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Full-width Calendar with inline KPI strip */}
-      <PremiumCard
-        className="flex-1 min-h-0 flex flex-col"
-        icon={CalendarClock}
-        headerRight={
-          <div className="flex items-center gap-1.5 sm:gap-2 w-max sm:w-auto">
-            {/* KPI Stat 1: Present */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-emerald-50/80 border border-emerald-200/60 rounded-xl shadow-2xs">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider leading-none whitespace-nowrap">
-                  {selectedEmployeeId === "all" ? "Employees" : "Present"}
-                </span>
-                <span className="text-xs sm:text-sm font-extrabold text-emerald-950 font-mono leading-tight mt-0.5">
-                  {activeStats.card1Value}
-                </span>
-              </div>
-            </div>
-
-            {/* KPI Stat 2: Rate / In */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-blue-50/80 border border-blue-200/60 rounded-xl shadow-2xs">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider leading-none whitespace-nowrap">
-                  {selectedEmployeeId === "all" ? "Avg Rate" : "Avg In"}
-                </span>
-                <span className="text-xs sm:text-sm font-extrabold text-blue-950 font-mono leading-tight mt-0.5">
-                  {activeStats.card2Value}
-                </span>
-              </div>
-            </div>
-
-            {/* KPI Stat 3: Leaves */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-amber-50/80 border border-amber-200/60 rounded-xl shadow-2xs">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-amber-800 uppercase tracking-wider leading-none whitespace-nowrap">
-                  {selectedEmployeeId === "all" ? "Leaves" : "On Leave"}
-                </span>
-                <span className="text-xs sm:text-sm font-extrabold text-amber-950 font-mono leading-tight mt-0.5">
-                  {activeStats.card3Value}
-                </span>
-              </div>
-            </div>
-
-            {/* KPI Stat 4: Holidays / Absent */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-rose-50/80 border border-rose-200/60 rounded-xl shadow-2xs">
-              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-rose-800 uppercase tracking-wider leading-none whitespace-nowrap">
-                  {selectedEmployeeId === "all" ? "Holidays" : "Absent"}
-                </span>
-                <span className="text-xs sm:text-sm font-extrabold text-rose-950 font-mono leading-tight mt-0.5">
-                  {activeStats.card4Value}
-                </span>
-              </div>
-            </div>
-          </div>
-        }
-        title={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
-              title="Previous Month"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-base font-bold text-slate-900 tracking-tight">
-              {months[selectedMonth]} {selectedYear}
-            </span>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
-              title="Next Month"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        }
-        subtitle={`${getPageSubtext()}`}
-      >
-        {/* Legend row for mobile, shown below header since it's hidden in the scroll strip above */}
-        <div className="flex sm:hidden items-center gap-3 px-4 pt-3 text-[9px] font-semibold text-slate-400 uppercase tracking-widest flex-wrap">
-          <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> In</div>
-          <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div> Leave</div>
-          {selectedEmployeeId !== "all" && <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> Holiday</div>}
-          <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div> Out</div>
-          <div className="text-slate-300 normal-case font-medium tracking-normal ml-auto">Tap a day for details</div>
-        </div>
-
-        <div className="flex-1 flex flex-col min-h-0 p-1 sm:p-2 overflow-hidden">
-          <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs flex-1 flex flex-col min-h-0">
-            {/* Weekday header row */}
-            <div className="grid grid-cols-7 border-b border-slate-200/90 bg-slate-50/90 divide-x divide-slate-200/60 shrink-0">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, dIdx) => (
-                <div key={day} className={cn(
-                  "px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] font-bold uppercase tracking-wider",
-                  dIdx === 0 || dIdx === 6 ? "text-slate-400 bg-slate-100/40" : "text-slate-600"
-                )}>
-                  <span className="sm:hidden">{day.charAt(0)}</span>
-                  <span className="hidden sm:inline">{day.toUpperCase()}</span>
+        {/* Full-width Calendar with inline KPI strip */}
+        <PremiumCard
+          className="flex-1 min-h-0 flex flex-col"
+          icon={CalendarClock}
+          headerRight={
+            <div className="flex items-center gap-1.5 sm:gap-2 w-max sm:w-auto">
+              {/* KPI Stat 1: Present */}
+              <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-emerald-50/80 border border-emerald-200/60 rounded-xl shadow-2xs">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider leading-none whitespace-nowrap">
+                    Present
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-emerald-950 font-mono leading-tight mt-0.5">
+                    {activeStats.card1Value}
+                  </span>
                 </div>
-              ))}
+              </div>
+
+              {/* KPI Stat 2: Absent */}
+              <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-rose-50/80 border border-rose-200/60 rounded-xl shadow-2xs">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold text-rose-800 uppercase tracking-wider leading-none whitespace-nowrap">
+                    Absent
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-rose-950 font-mono leading-tight mt-0.5">
+                    {activeStats.card2Value}
+                  </span>
+                </div>
+              </div>
+
+              {/* KPI Stat 3: Rate / Avg In */}
+              <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-blue-50/80 border border-blue-200/60 rounded-xl shadow-2xs">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider leading-none whitespace-nowrap">
+                    {selectedEmployeeId === "all" ? "Avg Rate" : "Avg In"}
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-blue-950 font-mono leading-tight mt-0.5">
+                    {activeStats.card3Value}
+                  </span>
+                </div>
+              </div>
+
+              {/* KPI Stat 4: Holidays */}
+              <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-slate-50/80 border border-slate-200/60 rounded-xl shadow-2xs">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold text-slate-700 uppercase tracking-wider leading-none whitespace-nowrap">
+                    Holidays
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-mono leading-tight mt-0.5">
+                    {activeStats.card4Value}
+                  </span>
+                </div>
+              </div>
             </div>
+          }
+          title={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
+                title="Previous Month"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-base font-bold text-slate-900 tracking-tight">
+                {months[selectedMonth]} {selectedYear}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
+                title="Next Month"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          }
+          subtitle={`${getPageSubtext()}`}
+        >
+          {/* Legend row for mobile */}
+          <div className="flex sm:hidden items-center gap-3 px-4 pt-3 text-[9px] font-semibold text-slate-400 uppercase tracking-widest flex-wrap">
+            <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> In</div>
+            <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div> Out</div>
+            {selectedEmployeeId !== "all" && <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> Holiday</div>}
+            <div className="text-slate-300 normal-case font-medium tracking-normal ml-auto">Tap a day for details</div>
+          </div>
 
-            {/* Calendar grid */}
-            <div className="grid grid-cols-7 grid-rows-6 flex-1 min-h-0 divide-x divide-y divide-slate-100">
-              {calendarDays.map((d, index) => {
-                const dateKey = formatDateKey(new Date(d.year, d.month, d.day));
-                const holiday = holidays.find(h => parseDbDateKey(h.date) === dateKey);
-                const dayOfWeek = new Date(d.year, d.month, d.day).getDay();
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                const todayStr = getKolkataToday();
-                const isPast = dateKey < todayStr;
-                const isToday = dateKey === todayStr;
-                const isSelected = selectedDay === index;
+          <div className="flex-1 flex flex-col min-h-0 p-1 sm:p-2 overflow-hidden">
+            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs flex-1 flex flex-col min-h-0">
+              {/* Weekday header row */}
+              <div className="grid grid-cols-7 border-b border-slate-200/90 bg-slate-50/90 divide-x divide-slate-200/60 shrink-0">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, dIdx) => (
+                  <div key={day} className={cn(
+                    "px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] font-bold uppercase tracking-wider",
+                    dIdx === 0 || dIdx === 6 ? "text-slate-400 bg-slate-100/40" : "text-slate-600"
+                  )}>
+                    <span className="sm:hidden">{day.charAt(0)}</span>
+                    <span className="hidden sm:inline">{day.toUpperCase()}</span>
+                  </div>
+                ))}
+              </div>
 
-                if (selectedEmployeeId === "all") {
-                  const presentList = [];
-                  const leaveList = [];
-                  const absentList = [];
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 grid-rows-6 flex-1 min-h-0 divide-x divide-y divide-slate-100">
+                {calendarDays.map((d, index) => {
+                  const dateKey = formatDateKey(new Date(d.year, d.month, d.day));
+                  const holiday = holidays.find(h => parseDbDateKey(h.date) === dateKey);
+                  const dayOfWeek = new Date(d.year, d.month, d.day).getDay();
+                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                  const todayStr = getKolkataToday();
+                  const isPast = dateKey < todayStr;
+                  const isToday = dateKey === todayStr;
+                  const isSelected = selectedDay === index;
 
-                  if (d.isCurrentMonth) {
-                    employees.forEach(emp => {
-                      const empAtt = attendance.find(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
-                      const empLeave = allLeaves.find(l => {
-                        if (l.status !== 'Approved') return false;
-                        if (l.user_id !== emp.user_id) return false;
-                        const start = parseDbDateKey(l.start_date);
-                        const end = parseDbDateKey(l.end_date);
-                        return dateKey >= start && dateKey <= end;
+                  if (selectedEmployeeId === "all") {
+                    const presentList = [];
+                    const absentList = [];
+
+                    if (d.isCurrentMonth) {
+                      employees.forEach(emp => {
+                        const empAtt = attendance.find(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === dateKey);
+
+                        if (empAtt) {
+                          presentList.push(emp);
+                        } else if ((isPast || isToday) && !isWeekend && !holiday) {
+                          absentList.push(emp);
+                        }
                       });
+                    }
 
-                      if (empAtt) {
-                        presentList.push(emp);
-                      } else if (empLeave) {
-                        leaveList.push({ ...emp, leave: empLeave });
-                      } else if (isPast && !isWeekend && !holiday) {
-                        absentList.push(emp);
-                      }
-                    });
-                  }
+                    const totalPresent = presentList.length;
+                    const totalAbsent = absentList.length;
 
-                  const totalPresent = presentList.length;
-                  const totalLeave = leaveList.length;
-                  const totalAbsent = absentList.length;
-
-                  return (
-                    <div
-                      key={index}
-                      onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
-                      className={cn(
-                        getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/40" : ""),
-                        isSelected && "ring-2 ring-inset ring-blue-500 z-10"
-                      )}
-                    >
-                      {/* Cell Top: Day number & status counter */}
-                      <div className="flex items-center justify-between">
-                        {isToday ? (
-                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs ring-2 ring-blue-100">
-                            {d.day}
-                          </div>
-                        ) : (
-                          <span className={cn(
-                            "text-xs sm:text-sm font-semibold",
-                            d.isCurrentMonth ? "text-slate-700" : "text-slate-300"
-                          )}>
-                            {d.day}
-                          </span>
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
+                        className={cn(
+                          getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/40" : ""),
+                          isSelected && "ring-2 ring-inset ring-blue-500 z-10",
+                          openInfo?.dateKey === dateKey && "z-20"
                         )}
-
-                        {holiday ? (
-                          <Badge variant="outline" className="hidden sm:inline-flex text-[9px] sm:text-[10px] bg-blue-50 text-blue-700 border-blue-200/80 py-0 px-1.5 rounded-full scale-90">
-                            Holiday
-                          </Badge>
-                        ) : (
-                          d.isCurrentMonth && totalPresent > 0 && (
-                            <span className="hidden sm:inline text-[11px] font-medium text-slate-400 font-mono">
-                              {totalPresent} in
+                      >
+                        {/* Cell Top: Day number & status counter */}
+                        <div className="flex items-center justify-between">
+                          {isToday ? (
+                            <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs ring-2 ring-blue-100">
+                              {d.day}
+                            </div>
+                          ) : (
+                            <span className={cn(
+                              "text-xs sm:text-sm font-semibold",
+                              d.isCurrentMonth ? "text-slate-700" : "text-slate-300"
+                            )}>
+                              {d.day}
                             </span>
-                          )
-                        )}
+                          )}
 
-                        {d.isCurrentMonth && (
-                          <div
-                            className="relative flex items-center justify-center"
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          {holiday ? (
+                            <Badge variant="outline" className="hidden sm:inline-flex text-[9px] sm:text-[10px] bg-blue-50 text-blue-700 border-blue-200/80 py-0 px-1.5 rounded-full scale-90">
+                              Holiday
+                            </Badge>
+                          ) : (
+                            d.isCurrentMonth && totalPresent > 0 && (
+                              <span className="hidden sm:inline text-[11px] font-medium text-slate-400 font-mono">
+                                {totalPresent} in
+                              </span>
+                            )
+                          )}
+
+                          {d.isCurrentMonth && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setOpenInfoDate(openInfoDate === dateKey ? null : dateKey);
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                if (openInfo?.dateKey === dateKey) {
+                                  setOpenInfo(null);
+                                } else {
+                                  setOpenInfo({
+                                    dateKey,
+                                    rect,
+                                    type: "all",
+                                    holiday,
+                                    presentList,
+                                    absentList,
+                                  });
+                                }
                               }}
                               className={cn(
                                 "w-4 h-4 rounded-full flex items-center justify-center transition-all cursor-pointer",
-                                openInfoDate === dateKey
+                                openInfo?.dateKey === dateKey
                                   ? "bg-primary-600 text-white shadow-xs scale-110"
                                   : "bg-slate-100 hover:bg-primary-50 text-slate-400 hover:text-primary-600"
                               )}
@@ -993,200 +992,128 @@ const AttendancePage = () => {
                             >
                               <Info className="w-2.5 h-2.5" />
                             </button>
+                          )}
+                        </div>
 
-                            {openInfoDate === dateKey && (
-                              <div
-                                className="absolute right-0 top-full mt-1.5 w-52 max-h-64 overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] z-50 space-y-2 cursor-default"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                  <span>Attendance</span>
-                                  {holiday && <span className="text-blue-400">Holiday</span>}
+                        {/* All-employees task bars - Present and Absent only */}
+                        {d.isCurrentMonth && (
+                          <div className="flex flex-col gap-0.5 sm:gap-1 mt-auto pt-0.5 sm:pt-1 w-full">
+                            {totalPresent > 0 && (
+                              <div className="w-full rounded-md sm:rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
+                                <div className="flex items-center gap-1 truncate">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                  <span className="truncate">Present</span>
                                 </div>
-                                {[
-                                  ["Present", presentList, "text-emerald-400"],
-                                  ["On Leave", leaveList, "text-amber-400"],
-                                  ["Absent", absentList, "text-rose-400"],
-                                ].map(([label, users, color]) => (
-                                  <div key={label}>
-                                    <div className={`font-semibold ${color}`}>
-                                      {label} ({users.length})
-                                    </div>
-                                    <div className="text-slate-300 text-[10px] mt-0.5">
-                                      {users.length > 0 ? users.map((user) => user.name).join(", ") : "None"}
-                                    </div>
-                                  </div>
-                                ))}
+                                <span className="font-mono text-[10px] sm:text-[11px] text-emerald-700 shrink-0 font-bold ml-1">{totalPresent}</span>
+                              </div>
+                            )}
+                            {totalAbsent > 0 && (
+                              <div className="w-full rounded-md sm:rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
+                                <div className="flex items-center gap-1 truncate">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                  <span className="truncate">Absent</span>
+                                </div>
+                                <span className="font-mono text-[10px] sm:text-[11px] text-rose-700 shrink-0 font-bold ml-1">{totalAbsent}</span>
                               </div>
                             )}
                           </div>
                         )}
-                      </div>
 
-                      {/* All-employees task bars - Full Width with clean indicator dot */}
-                      {d.isCurrentMonth && (
-                        <div className="flex flex-col gap-0.5 sm:gap-1 mt-auto pt-0.5 sm:pt-1 w-full">
-                          {totalPresent > 0 && (
-                            <div className="w-full rounded-md sm:rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
-                              <div className="flex items-center gap-1 truncate">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                <span className="truncate">Present</span>
-                              </div>
-                              <span className="font-mono text-[10px] sm:text-[11px] text-emerald-700 shrink-0 font-bold ml-1">{totalPresent}</span>
+                        {/* Hover tooltip: desktop only */}
+                        {d.isCurrentMonth && (
+                          <div className={`hidden md:block absolute ${getTooltipPositionClasses(index)} w-72 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-xs border border-slate-800 pointer-events-none`}>
+                            <div className="font-bold border-b border-slate-800 pb-2 mb-2 flex justify-between items-center text-slate-300">
+                              <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+                              {holiday && <span className="text-blue-400 font-bold">{holiday.name}</span>}
                             </div>
-                          )}
-                          {totalLeave > 0 && (
-                            <div className="w-full rounded-md sm:rounded-lg bg-amber-50 text-amber-800 border border-amber-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
-                              <div className="flex items-center gap-1 truncate">
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                                <span className="truncate">Leave</span>
-                              </div>
-                              <span className="font-mono text-[10px] sm:text-[11px] text-amber-700 shrink-0 font-bold ml-1">{totalLeave}</span>
-                            </div>
-                          )}
-                          {totalAbsent > 0 && (
-                            <div className="w-full rounded-md sm:rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-1.5 sm:px-2 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold shadow-2xs">
-                              <div className="flex items-center gap-1 truncate">
-                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                                <span className="truncate">Absent</span>
-                              </div>
-                              <span className="font-mono text-[10px] sm:text-[11px] text-rose-700 shrink-0 font-bold ml-1">{totalAbsent}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Hover tooltip: desktop only */}
-                      {d.isCurrentMonth && (
-                        <div className={`hidden md:block absolute ${getTooltipPositionClasses(index)} w-72 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-xs border border-slate-800 pointer-events-none`}>
-                          <div className="font-bold border-b border-slate-800 pb-2 mb-2 flex justify-between items-center text-slate-300">
-                            <span>{new Date(d.year, d.month, d.day).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-                            {holiday && <span className="text-blue-400 font-bold">{holiday.name}</span>}
-                          </div>
-                          <div className="space-y-3">
-                            <div>
-                              <div className="text-xs font-semibold text-emerald-400 mb-1">
-                                Present ({totalPresent})
-                              </div>
-                              {presentList.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {presentList.map(e => (
-                                    <span key={e.user_id} className="bg-emerald-950/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-emerald-900/30">
-                                      {e.name}
-                                    </span>
-                                  ))}
+                            <div className="space-y-3">
+                              <div>
+                                <div className="text-xs font-semibold text-emerald-400 mb-1">
+                                  Present ({totalPresent})
                                 </div>
-                              ) : (
-                                <div className="text-slate-500 text-[10px] italic">None</div>
-                              )}
-                            </div>
-
-                            <div>
-                              <div className="text-xs font-semibold text-amber-400 mb-1">
-                                On Leave ({totalLeave})
+                                {presentList.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {presentList.map(e => (
+                                      <span key={e.user_id} className="bg-emerald-950/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-emerald-900/30">
+                                        {e.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-slate-500 text-[10px] italic">None</div>
+                                )}
                               </div>
-                              {leaveList.length > 0 ? (
-                                <div className="space-y-1">
-                                  {leaveList.map(e => (
-                                    <div key={e.user_id} className="flex justify-between items-center bg-amber-950/30 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-amber-900/30 font-bold">
-                                      <span>{e.name}</span>
-                                      <span className="text-slate-400 italic font-normal text-[8px]">({e.leave.leave_type || "Leave"})</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="text-slate-500 text-[10px] italic">None</div>
-                              )}
-                            </div>
 
-                            <div>
-                              <div className="text-xs font-semibold text-rose-400 mb-1">
-                                Absent ({totalAbsent})
-                              </div>
-                              {absentList.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {absentList.map(e => (
-                                    <span key={e.user_id} className="bg-rose-950/50 text-rose-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-rose-900/30 font-bold">
-                                      {e.name}
-                                    </span>
-                                  ))}
+                              <div>
+                                <div className="text-xs font-semibold text-rose-400 mb-1">
+                                  Absent ({totalAbsent})
                                 </div>
-                              ) : (
-                                <div className="text-slate-500 text-[10px] italic">None</div>
-                              )}
+                                {absentList.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {absentList.map(e => (
+                                      <span key={e.user_id} className="bg-rose-950/50 text-rose-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-rose-900/30 font-bold">
+                                        {e.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-slate-500 text-[10px] italic">None</div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                } else {
-                  const attRecord = attendance.find(a => parseDbDateKey(a.date) === dateKey);
-                  const targetUserId = selectedEmployeeId === "my" ? null : selectedEmployeeId;
-                  const leaveRecord = allLeaves.find(l => {
-                    if (l.status !== 'Approved') return false;
-                    if (targetUserId && l.user_id !== targetUserId) return false;
-                    const start = parseDbDateKey(l.start_date);
-                    const end = parseDbDateKey(l.end_date);
-                    return dateKey >= start && dateKey <= end;
-                  });
-
-                  let status = "None";
-                  if (d.isCurrentMonth) {
-                    if (attRecord) {
-                      status = "Present";
-                    } else if (leaveRecord) {
-                      status = "Leave";
-                    } else if (holiday) {
-                      status = "Holiday";
-                    } else if (isWeekend) {
-                      status = "Weekend";
-                    } else if (isPast) {
-                      status = "Absent";
-                    }
-                  }
-
-                  const dayDuration = attRecord ? getAttHours(attRecord) : (leaveRecord ? "8 h" : null);
-
-                  return (
-                    <div
-                      key={index}
-                      onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
-                      className={cn(
-                        getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/30" : ""),
-                        isSelected && "ring-2 ring-inset ring-blue-500 z-10",
-                        openInfoDate === dateKey && "!overflow-visible z-30"
-                      )}
-                    >
-                      {/* Cell Top: Day number & (i) info button */}
-                      <div className="flex items-center justify-between">
-                        {isToday ? (
-                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs ring-2 ring-blue-100">
-                            {d.day}
-                          </div>
-                        ) : (
-                          <span className={cn(
-                            "text-xs sm:text-sm font-semibold",
-                            d.isCurrentMonth ? "text-slate-700" : "text-slate-300"
-                          )}>
-                            {d.day}
-                          </span>
                         )}
+                      </div>
+                    );
+                  } else {
+                    const attRecord = attendance.find(a => parseDbDateKey(a.date) === dateKey);
 
-                        {d.isCurrentMonth && attRecord && (() => {
-                          const coords = parseCoordinates(attRecord.location);
-                          const isDropdownOpen = openInfoDate === dateKey;
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => d.isCurrentMonth && setSelectedDay(isSelected ? null : index)}
+                        className={cn(
+                          getCardClasses(d, index, isToday, isWeekend && d.isCurrentMonth ? "bg-slate-50/30" : ""),
+                          isSelected && "ring-2 ring-inset ring-blue-500 z-10",
+                          openInfo?.dateKey === dateKey && "z-20"
+                        )}
+                      >
+                        {/* Cell Top: Day number & (i) info button */}
+                        <div className="flex items-center justify-between">
+                          {isToday ? (
+                            <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs ring-2 ring-blue-100">
+                              {d.day}
+                            </div>
+                          ) : (
+                            <span className={cn(
+                              "text-xs sm:text-sm font-semibold",
+                              d.isCurrentMonth ? "text-slate-700" : "text-slate-300"
+                            )}>
+                              {d.day}
+                            </span>
+                          )}
 
-                          return (
-                            <div
-                              className="relative flex items-center justify-center"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                          {d.isCurrentMonth && attRecord && (() => {
+                            const coords = parseCoordinates(attRecord.location);
+                            const isDropdownOpen = openInfo?.dateKey === dateKey;
+
+                            return (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setOpenInfoDate(isDropdownOpen ? null : dateKey);
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  if (isDropdownOpen) {
+                                    setOpenInfo(null);
+                                  } else {
+                                    setOpenInfo({
+                                      dateKey,
+                                      rect,
+                                      type: "single",
+                                      attRecord,
+                                      coords,
+                                    });
+                                  }
                                 }}
                                 className={cn(
                                   "w-4 h-4 rounded-full flex items-center justify-center transition-all cursor-pointer",
@@ -1194,286 +1121,271 @@ const AttendancePage = () => {
                                     ? "bg-primary-600 text-white shadow-xs scale-110"
                                     : "bg-slate-100 hover:bg-primary-50 text-slate-400 hover:text-primary-600"
                                 )}
+                                title="View punch details"
                               >
                                 <Info className="w-2.5 h-2.5" />
                               </button>
-
-                              {/* Dropdown Below the (i) button */}
-                              {isDropdownOpen && (
-                                <div
-                                  className="absolute right-0 top-full mt-1.5 w-44 bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 cursor-default"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    <span>Punch Info</span>
-                                    <span className="text-emerald-400 font-semibold">{attRecord.status || "Present"}</span>
-                                  </div>
-
-                                  <div className="space-y-1.5">
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-slate-400">Latitude:</span>
-                                      <span className="font-mono text-slate-200 text-[10px] truncate max-w-[90px]" title={coords.lat}>
-                                        {coords.lat}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-slate-400">Longitude:</span>
-                                      <span className="font-mono text-slate-200 text-[10px] truncate max-w-[90px]" title={coords.lng}>
-                                        {coords.lng}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
-                                      <span className="text-slate-400">Punch In:</span>
-                                      <span className={cn(
-                                        "px-1.5 py-0.5 rounded text-[10px] font-bold",
-                                        attRecord.check_in ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"
-                                      )}>
-                                        {attRecord.check_in ? "Yes" : "No"}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-slate-400">Punch Out:</span>
-                                      <span className={cn(
-                                        "px-1.5 py-0.5 rounded text-[10px] font-bold",
-                                        attRecord.check_out ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
-                                      )}>
-                                        {attRecord.check_out ? "Yes" : "No"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* Event Task Bar - Full Width with Micro Dot */}
-                      {d.isCurrentMonth && attRecord && (
-                        <div className={cn(
-                          "mt-auto w-full rounded-lg px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs",
-                          attRecord.status === "Half-day"
-                            ? "bg-amber-50 text-amber-900 border border-amber-200/80"
-                            : "bg-emerald-50 text-emerald-800 border border-emerald-200/70"
-                        )}>
-                          <div className="flex items-center gap-1.5 truncate">
-                            <div className={cn(
-                              "w-1.5 h-1.5 rounded-full shrink-0",
-                              attRecord.status === "Half-day" ? "bg-amber-500" : "bg-emerald-500"
-                            )} />
-                            <span className="truncate">
-                              {attRecord.status === "Half-day" ? "Half-day (Off)" : "Present"}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {d.isCurrentMonth && leaveRecord && (
-                        <div className="mt-auto w-full rounded-lg bg-amber-50 text-amber-800 border border-amber-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                            <span className="truncate">{leaveRecord.leave_type || "Unpaid leave"}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {d.isCurrentMonth && holiday && (
-                        <div className="mt-auto w-full rounded-lg bg-blue-50 text-blue-800 border border-blue-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                            <span className="truncate">{holiday.name}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {d.isCurrentMonth && !attRecord && !leaveRecord && !holiday && isPast && !isWeekend && (
-                        <div className="mt-auto w-full rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                            <span className="truncate">Absent</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-              })}
-            </div>
-          </div>
-
-              {/* Mobile / touch detail panel: replaces hover tooltip below sm breakpoint effectively (md) */}
-              {selectedDetail && (
-                <div className="md:hidden mt-3 bg-slate-900/95 text-white p-4 rounded-2xl shadow-lg text-xs border border-slate-800 space-y-3">
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                    <span className="font-bold text-slate-200">
-                      {new Date(
-                        calendarDays[selectedDay].year,
-                        calendarDays[selectedDay].month,
-                        calendarDays[selectedDay].day
-                      ).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}
-                    </span>
-                    <button
-                      onClick={() => setSelectedDay(null)}
-                      className="text-slate-400 text-[11px] font-semibold uppercase tracking-wide"
-                    >
-                      Close
-                    </button>
-                  </div>
-
-                  {selectedDetail.type === "all" ? (
-                    <div className="space-y-3">
-                      {selectedDetail.holiday && (
-                        <div className="text-blue-400 font-bold">{selectedDetail.holiday.name}</div>
-                      )}
-                      <div>
-                        <div className="text-xs font-semibold text-emerald-400 mb-1">
-                          Present ({selectedDetail.presentList.length})
-                        </div>
-                        {selectedDetail.presentList.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {selectedDetail.presentList.map(e => (
-                              <span key={e.user_id} className="bg-emerald-950/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-emerald-900/30">
-                                {e.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-slate-500 text-[10px] italic">None</div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-amber-400 mb-1">
-                          On Leave ({selectedDetail.leaveList.length})
-                        </div>
-                        {selectedDetail.leaveList.length > 0 ? (
-                          <div className="space-y-1">
-                            {selectedDetail.leaveList.map(e => (
-                              <div key={e.user_id} className="flex justify-between items-center bg-amber-950/30 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-amber-900/30">
-                                <span>{e.name}</span>
-                                <span className="text-slate-400 italic font-normal text-[8px]">({e.leave.leave_type || "Leave"})</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-slate-500 text-[10px] italic">None</div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-rose-400 mb-1">
-                          Absent ({selectedDetail.absentList.length})
-                        </div>
-                        {selectedDetail.absentList.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {selectedDetail.absentList.map(e => (
-                              <span key={e.user_id} className="bg-rose-950/50 text-rose-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-rose-900/30">
-                                {e.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-slate-500 text-[10px] italic">None</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Status:</span>
-                        <span className={`font-bold ${
-                          selectedDetail.status === "Present" ? "text-emerald-400" :
-                          selectedDetail.status === "Leave" ? "text-amber-400" :
-                          selectedDetail.status === "Holiday" ? "text-blue-400" :
-                          selectedDetail.status === "Absent" ? "text-rose-400" : "text-slate-400"
-                        }`}>{selectedDetail.status}</span>
-                      </div>
-
-                      {selectedDetail.attRecord && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Punch In:</span>
-                            <span className="font-bold text-slate-200">
-                              {selectedDetail.attRecord.check_in ? new Date(selectedDetail.attRecord.check_in).toLocaleTimeString("en-IN", {
-                                hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
-                              }) : "--:--"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Punch Out:</span>
-                            <span className="font-bold text-slate-200">
-                              {selectedDetail.attRecord.check_out ? new Date(selectedDetail.attRecord.check_out).toLocaleTimeString("en-IN", {
-                                hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
-                              }) : "Not logged"}
-                            </span>
-                          </div>
-                          {(() => {
-                            const coords = parseCoordinates(selectedDetail.attRecord.location);
-                            return (
-                              <>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-400">Latitude:</span>
-                                  <span className="font-mono text-slate-200 text-[10px]">{coords.lat}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-400">Longitude:</span>
-                                  <span className="font-mono text-slate-200 text-[10px]">{coords.lng}</span>
-                                </div>
-                              </>
                             );
                           })()}
-                          {selectedDetail.attRecord.status === "Half-day" && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Day Type:</span>
-                              <span className="font-bold text-amber-300">Half-Day (Off-Day)</span>
-                            </div>
-                          )}
-                          {selectedDetail.attRecord.early_leave_reason && (
-                            <div className="flex justify-between items-start gap-2">
-                              <span className="text-slate-400 whitespace-nowrap">Left Early:</span>
-                              <span className="font-semibold text-rose-300 text-right max-w-[140px] truncate">
-                                {selectedDetail.attRecord.early_leave_reason}
-                              </span>
-                            </div>
-                          )}
-                          {selectedDetail.attRecord.early_leave_notes && (
-                            <div className="flex justify-between items-start gap-2">
-                              <span className="text-slate-400 whitespace-nowrap">Note:</span>
-                              <span className="font-medium text-slate-300 text-right italic max-w-[140px] break-words text-[10px]">
-                                {selectedDetail.attRecord.early_leave_notes}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {selectedDetail.leaveRecord && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Leave Type:</span>
-                            <span className="font-bold text-amber-300">{selectedDetail.leaveRecord.leave_type || "Available"}</span>
-                          </div>
-                          <div className="flex justify-between items-start gap-2">
-                            <span className="text-slate-400 whitespace-nowrap">Reason:</span>
-                            <span className="font-semibold text-slate-300 text-right italic break-words max-w-[140px]">
-                              {selectedDetail.leaveRecord.reason || "No reason given"}
-                            </span>
-                          </div>
-                        </>
-                      )}
-
-                      {selectedDetail.holiday && (
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="text-slate-400 whitespace-nowrap">Holiday:</span>
-                          <span className="font-bold text-blue-300 text-right max-w-[140px]">{selectedDetail.holiday.name}</span>
                         </div>
+
+                        {/* Event Task Bar - Full Width with Micro Dot */}
+                        {d.isCurrentMonth && attRecord && (
+                          <div className={cn(
+                            "mt-auto w-full rounded-lg px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs",
+                            attRecord.status === "Half-day"
+                              ? "bg-amber-50 text-amber-900 border border-amber-200/80"
+                              : "bg-emerald-50 text-emerald-800 border border-emerald-200/70"
+                          )}>
+                            <div className="flex items-center gap-1.5 truncate">
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full shrink-0",
+                                attRecord.status === "Half-day" ? "bg-amber-500" : "bg-emerald-500"
+                              )} />
+                              <span className="truncate">
+                                {attRecord.status === "Half-day" ? "Half-day (Off)" : "Present"}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {d.isCurrentMonth && holiday && (
+                          <div className="mt-auto w-full rounded-lg bg-blue-50 text-blue-800 border border-blue-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                              <span className="truncate">{holiday.name}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {d.isCurrentMonth && !attRecord && !holiday && (isPast || isToday) && !isWeekend && (
+                          <div className="mt-auto w-full rounded-lg bg-rose-50 text-rose-800 border border-rose-200/70 px-2 py-1 flex items-center text-xs font-semibold transition-all hover:brightness-98 shadow-2xs">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                              <span className="truncate">Absent</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            </div>
+
+            {/* Mobile / touch detail panel: replaces hover tooltip below sm breakpoint effectively (md) */}
+            {selectedDetail && (
+              <div className="md:hidden mt-3 bg-slate-900/95 text-white p-4 rounded-2xl shadow-lg text-xs border border-slate-800 space-y-3">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <span className="font-bold text-slate-200">
+                    {new Date(
+                      calendarDays[selectedDay].year,
+                      calendarDays[selectedDay].month,
+                      calendarDays[selectedDay].day
+                    ).toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'short' })}
+                  </span>
+                  <button
+                    onClick={() => setSelectedDay(null)}
+                    className="text-slate-400 text-[11px] font-semibold uppercase tracking-wide"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {selectedDetail.type === "all" ? (
+                  <div className="space-y-3">
+                    {selectedDetail.holiday && (
+                      <div className="text-blue-400 font-bold">{selectedDetail.holiday.name}</div>
+                    )}
+                    <div>
+                      <div className="text-xs font-semibold text-emerald-400 mb-1">
+                        Present ({selectedDetail.presentList.length})
+                      </div>
+                      {selectedDetail.presentList.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedDetail.presentList.map(e => (
+                            <span key={e.user_id} className="bg-emerald-950/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-emerald-900/30">
+                              {e.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-slate-500 text-[10px] italic">None</div>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </PremiumCard>
-    </div>
-  );
-};
+                    <div>
+                      <div className="text-xs font-semibold text-rose-400 mb-1">
+                        Absent ({selectedDetail.absentList.length})
+                      </div>
+                      {selectedDetail.absentList.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedDetail.absentList.map(e => (
+                            <span key={e.user_id} className="bg-rose-950/50 text-rose-300 px-1.5 py-0.5 rounded text-[10px] font-semibold border border-rose-900/30">
+                              {e.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-slate-500 text-[10px] italic">None</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Status:</span>
+                      <span className={`font-bold ${selectedDetail.status === "Present" ? "text-emerald-400" :
+                        selectedDetail.status === "Holiday" ? "text-blue-400" :
+                        selectedDetail.status === "Absent" ? "text-rose-400" : "text-slate-400"
+                      }`}>{selectedDetail.status}</span>
+                    </div>
 
-export default AttendancePage;
+                    {selectedDetail.attRecord && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Punch In:</span>
+                          <span className="font-bold text-slate-200">
+                            {selectedDetail.attRecord.check_in ? new Date(selectedDetail.attRecord.check_in).toLocaleTimeString("en-IN", {
+                              hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
+                            }) : "--:--"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Punch Out:</span>
+                          <span className="font-bold text-slate-200">
+                            {selectedDetail.attRecord.check_out ? new Date(selectedDetail.attRecord.check_out).toLocaleTimeString("en-IN", {
+                              hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
+                            }) : "Not logged"}
+                          </span>
+                        </div>
+                        {(() => {
+                          const coords = parseCoordinates(selectedDetail.attRecord.location);
+                          return (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400">Latitude:</span>
+                                <span className="font-mono text-slate-200 text-[10px]">{coords.lat}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400">Longitude:</span>
+                                <span className="font-mono text-slate-200 text-[10px]">{coords.lng}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                        {selectedDetail.attRecord.status === "Half-day" && (
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Day Type:</span>
+                            <span className="font-bold text-amber-300">Half-Day (Off-Day)</span>
+                          </div>
+                        )}
+                        {selectedDetail.attRecord.early_leave_reason && (
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="text-slate-400 whitespace-nowrap">Left Early:</span>
+                            <span className="font-semibold text-rose-300 text-right max-w-[140px] truncate">
+                              {selectedDetail.attRecord.early_leave_reason}
+                            </span>
+                          </div>
+                        )}
+                        {selectedDetail.attRecord.early_leave_notes && (
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="text-slate-400 whitespace-nowrap">Note:</span>
+                            <span className="font-medium text-slate-300 text-right italic max-w-[140px] break-words text-[10px]">
+                              {selectedDetail.attRecord.early_leave_notes}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+
+                    {selectedDetail.holiday && (
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-slate-400 whitespace-nowrap">Holiday:</span>
+                        <span className="font-bold text-blue-300 text-right max-w-[140px]">{selectedDetail.holiday.name}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </PremiumCard>
+
+        {/* Previous Dropdown Popup - rendered via Portal so it is never clipped and always clear */}
+        {openInfo && openInfo.type === "all" && (
+          <InfoDropdownPopover anchorRect={openInfo.rect} onClose={() => setOpenInfo(null)}>
+            <div className="w-56 max-h-72 overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] space-y-2 cursor-default custom-scrollbar">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span>Attendance</span>
+                {openInfo.holiday && <span className="text-blue-400">Holiday</span>}
+              </div>
+              {[
+                ["Present", openInfo.presentList, "text-emerald-400"],
+                ["Absent", openInfo.absentList, "text-rose-400"],
+              ].map(([label, users, color]) => (
+                <div key={label}>
+                  <div className={`font-semibold ${color}`}>
+                    {label} ({users.length})
+                  </div>
+                  <div className="text-slate-300 text-[10px] mt-0.5 max-h-28 overflow-y-auto custom-scrollbar">
+                    {users.length > 0 ? (
+                      users.map((u) => u.name).join(", ")
+                    ) : (
+                      "None"
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </InfoDropdownPopover>
+        )}
+
+        {openInfo && openInfo.type === "single" && (
+          <InfoDropdownPopover anchorRect={openInfo.rect} onClose={() => setOpenInfo(null)}>
+            <div className="w-48 bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] space-y-2 cursor-default">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span>Punch Info</span>
+                <span className="text-emerald-400 font-semibold">{openInfo.attRecord.status || "Present"}</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Latitude:</span>
+                  <span className="font-mono text-slate-200 text-[10px] truncate max-w-[100px]" title={openInfo.coords.lat}>
+                    {openInfo.coords.lat}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Longitude:</span>
+                  <span className="font-mono text-slate-200 text-[10px] truncate max-w-[100px]" title={openInfo.coords.lng}>
+                    {openInfo.coords.lng}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                  <span className="text-slate-400">Punch In:</span>
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                    openInfo.attRecord.check_in ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"
+                  )}>
+                    {openInfo.attRecord.check_in ? (openInfo.attRecord.check_in.includes("T") ? new Date(openInfo.attRecord.check_in).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) : "Yes") : "No"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Punch Out:</span>
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                    openInfo.attRecord.check_out ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
+                  )}>
+                    {openInfo.attRecord.check_out ? (openInfo.attRecord.check_out.includes("T") ? new Date(openInfo.attRecord.check_out).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) : "Yes") : (openInfo.attRecord.check_in ? "In Progress" : "No")}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </InfoDropdownPopover>
+        )}
+      </div>
+    );
+  };
+
+  export default AttendancePage;
