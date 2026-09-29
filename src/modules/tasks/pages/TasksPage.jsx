@@ -157,7 +157,7 @@ const TasksPage = () => {
   const [loadingAssigned, setLoadingAssigned] = useState(false);
 
   const tabsList = [
-    ...(showBoardsTab ? [{ id: 'boards', label: 'Project Boards', count: projects.length, icon: LayoutGrid }] : []),
+    { id: 'boards', label: 'Global Boards', count: projects.length, icon: LayoutGrid },
     { id: 'my', label: 'My Pipeline', count: myTasks.length, icon: CheckSquare },
     ...(isAdmin ? [{ id: 'assignees', label: 'Assignees', count: allTasks.length, icon: Users }] : [])
   ];
@@ -176,7 +176,7 @@ const TasksPage = () => {
         ready: true
       });
     }
-  }, [activeTab, projects.length, myTasks.length, allTasks.length, showBoardsTab]);
+  }, [activeTab, projects.length, myTasks.length, allTasks.length]);
 
   useEffect(() => {
     fetchData();
@@ -213,14 +213,9 @@ const TasksPage = () => {
       const requests = [
         axios.get('/projects/stats/tasks'),
         axios.get('/projects/tasks/my'),
-        axios.get('/users/selection').catch(() => ({ data: { data: [] } }))
+        axios.get('/users/selection').catch(() => ({ data: { data: [] } })),
+        axios.get('/projects').catch(() => ({ data: { data: [] } }))
       ];
-
-      let projectsResIndex = -1;
-      if (showBoardsTab) {
-        projectsResIndex = requests.length;
-        requests.push(axios.get('/projects').catch(() => ({ data: { data: [] } })));
-      }
 
       let allTasksResIndex = -1;
       if (canViewAll) {
@@ -230,16 +225,15 @@ const TasksPage = () => {
 
       const results = await Promise.all(requests);
 
-      setStats(results[0].data.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
-      setMyTasks(results[1].data.data || []);
-
-      if (projectsResIndex > -1) {
-        setProjects(Array.isArray(results[projectsResIndex].data.data) ? results[projectsResIndex].data.data : []);
-      }
+      setStats(results[0].data?.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
+      setMyTasks(results[1].data?.data || []);
+      setProjects(Array.isArray(results[3].data?.data) ? results[3].data.data : []);
 
       if (allTasksResIndex > -1) {
-        const rawTasks = results[allTasksResIndex].data.data || [];
+        const rawTasks = results[allTasksResIndex].data?.data || [];
         setAllTasks(Array.isArray(rawTasks) ? rawTasks : (rawTasks.items || []));
+      } else {
+        setAllTasks([]);
       }
 
       setLoading(false);
@@ -518,51 +512,49 @@ const TasksPage = () => {
           </p>
         </div>
 
-        {/* Smooth Toggle Slider Tabs at the end of header */}
-        {showBoardsTab && (
-          <div className="relative bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 flex items-center overflow-x-auto no-scrollbar shadow-inner shrink-0">
-            {/* Smooth Sliding Background Pill */}
-            <div
-              className={cn(
-                "absolute bg-white rounded-lg shadow-sm border border-slate-200/90 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none",
-                !sliderStyle.ready && "opacity-0"
-              )}
-              style={{
-                left: `${sliderStyle.left}px`,
-                top: `${sliderStyle.top}px`,
-                width: `${sliderStyle.width}px`,
-                height: `${sliderStyle.height}px`
-              }}
-            />
+        {/* Smooth Toggle Slider Tabs on right top side of header */}
+        <div className="relative bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 flex items-center overflow-x-auto no-scrollbar shadow-inner shrink-0">
+          {/* Smooth Sliding Background Pill */}
+          <div
+            className={cn(
+              "absolute bg-white rounded-lg shadow-sm border border-slate-200/90 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none",
+              !sliderStyle.ready && "opacity-0"
+            )}
+            style={{
+              left: `${sliderStyle.left}px`,
+              top: `${sliderStyle.top}px`,
+              width: `${sliderStyle.width}px`,
+              height: `${sliderStyle.height}px`
+            }}
+          />
 
-            {tabsList.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  ref={(el) => (tabRefs.current[tab.id] = el)}
-                  onClick={() => setActiveTab(tab.id)}
+          {tabsList.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                ref={(el) => (tabRefs.current[tab.id] = el)}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold tracking-normal transition-colors duration-200 cursor-pointer",
+                  isActive ? "text-slate-900" : "text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <Icon className={cn("w-3.5 h-3.5 transition-colors", isActive ? "text-blue-600" : "text-slate-400")} />
+                <span>{tab.label}</span>
+                <span
                   className={cn(
-                    "relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold tracking-normal transition-colors duration-200",
-                    isActive ? "text-slate-900" : "text-slate-500 hover:text-slate-800"
+                    "px-1.5 py-0.5 rounded-md text-[10px] font-bold transition-colors",
+                    isActive ? "bg-blue-50 text-blue-700" : "bg-slate-200/70 text-slate-500"
                   )}
                 >
-                  <Icon className={cn("w-3.5 h-3.5 transition-colors", isActive ? "text-blue-600" : "text-slate-400")} />
-                  <span>{tab.label}</span>
-                  <span
-                    className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[10px] font-bold transition-colors",
-                      isActive ? "bg-blue-50 text-blue-700" : "bg-slate-200/70 text-slate-500"
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Manage Board Toggle Button (Commented out) */}
@@ -608,7 +600,7 @@ const TasksPage = () => {
       {/* Main Container Card in Double-Bezel layout */}
       <PremiumCard
         className="flex-1 min-h-0 flex flex-col overflow-hidden"
-        title={activeTab === 'boards' ? 'Project Boards' : (activeTab === 'assignees' && isAdmin) ? 'Manage Task Assignees' : 'Personal Pipeline'}
+        title={activeTab === 'boards' ? 'Global Boards' : (activeTab === 'assignees' && isAdmin) ? 'Manage Task Assignees' : 'Personal Pipeline'}
         subtitle={
           activeTab === 'boards'
             ? `Managing tasks across ${projects.length} project pipelines.`

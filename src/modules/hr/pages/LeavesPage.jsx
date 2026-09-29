@@ -74,8 +74,8 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1.5 rounded-2xl border border-slate-200/10 flex flex-col min-h-0", className)}>
-      <div className="bg-white rounded-[calc(1rem-0.125rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col min-h-0 flex-1">
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-2xl border border-slate-200/10 flex flex-col", className)}>
+      <div className="bg-white rounded-[calc(1rem-0.125rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col flex-1">
         {(title || subtitle) && (
           <div className="px-4 py-2.5 sm:py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 shrink-0">
             <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
             {headerRight}
           </div>
         )}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col">
           {children}
         </div>
       </div>
@@ -199,7 +199,7 @@ const LeavesPage = () => {
   }
 
   return (
-    <div className="w-full min-w-0 flex-1 flex flex-col lg:h-full lg:overflow-hidden gap-3 pb-1">
+    <div className="w-full min-w-0 flex-1 flex flex-col gap-3 pb-4">
       {/* Header section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
         <div>
@@ -212,9 +212,9 @@ const LeavesPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full min-w-0 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full min-w-0 items-start">
         {/* Left Column: Apply for Leave at TOP + Monthly Allowance Note underneath */}
-        <div className="lg:col-span-1 flex flex-col gap-3 w-full min-w-0 overflow-y-auto lg:overflow-visible">
+        <div className="lg:col-span-1 flex flex-col gap-3 w-full min-w-0">
           {/* Apply for Leave Card */}
           <PremiumCard title="Apply for Leave" subtitle="Submit request for authorization" icon={Calendar}>
             <div className="p-3.5 sm:p-4">
@@ -341,19 +341,19 @@ const LeavesPage = () => {
         </div>
 
         {/* Right Column: Leave History */}
-        <div className="lg:col-span-2 w-full min-w-0 flex flex-col h-full min-h-0">
+        <div className="lg:col-span-2 w-full min-w-0 flex flex-col">
           <PremiumCard
             title="Leave History"
             subtitle="Historical timeline of requests & approvals"
             icon={History}
-            className="h-full flex-1 flex flex-col min-h-0"
+            className="w-full flex flex-col"
             headerRight={
               <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md font-mono border border-slate-200/60">
                 {leaves.length} {leaves.length === 1 ? 'Record' : 'Records'}
               </span>
             }
           >
-            <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 custom-scrollbar">
+            <div className="max-h-[440px] overflow-y-auto overflow-x-auto custom-scrollbar">
               {leaves.length === 0 ? (
                 <div className="p-12 text-center text-slate-400">
                   <Clock className="w-9 h-9 mx-auto mb-3 opacity-20" />
@@ -363,10 +363,10 @@ const LeavesPage = () => {
                 <Table>
                   <TableHeader className="sticky top-0 bg-slate-50/95 backdrop-blur-xs z-10 shadow-xs border-b border-slate-200">
                     <TableRow>
-                      <TableHead className="py-1.5 px-3 sm:py-2 sm:px-3 text-[11px] font-semibold text-slate-500">Dates</TableHead>
-                      <TableHead className="py-1.5 px-3 sm:py-2 sm:px-3 text-[11px] font-semibold text-slate-500">Type</TableHead>
-                      <TableHead className="py-1.5 px-3 sm:py-2 sm:px-3 text-[11px] font-semibold text-slate-500">Reason</TableHead>
-                      <TableHead className="py-1.5 px-3 sm:py-2 sm:px-3 text-[11px] font-semibold text-slate-500 text-right">Status</TableHead>
+                      <TableHead className="py-2 px-3 text-[11px] font-semibold text-slate-500 w-[26%] min-w-[125px]">Dates</TableHead>
+                      <TableHead className="py-2 px-3 text-[11px] font-semibold text-slate-500 w-[16%] min-w-[90px]">Type</TableHead>
+                      <TableHead className="py-2 px-3 text-[11px] font-semibold text-slate-500 w-[42%] min-w-[160px]">Reason</TableHead>
+                      <TableHead className="py-2 px-3 text-[11px] font-semibold text-slate-500 text-right w-[16%] min-w-[80px]">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <tbody>
