@@ -62,6 +62,7 @@ const InvoicesTab = ({
       title="Invoice Management" 
       subtitle={`Tracking ${invoices.length} billing records.`} 
       icon={FileText}
+      headerClassName="border-b-0 pb-2"
       className="animate-in fade-in slide-in-from-bottom-2 duration-300"
       headerRight={
         <div className="flex flex-wrap items-center gap-2">
@@ -91,8 +92,8 @@ const InvoicesTab = ({
     >
       <div className="flex-grow">
         {/* Inbound / Outbound View Tabs */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl w-fit">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-6 pt-1 pb-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {[
               { id: 'All', label: 'All Invoices', count: invoices.length },
               { id: 'Outbound', label: 'Outbound (Billing)', count: outboundCount, icon: ArrowUpRight },
@@ -106,10 +107,10 @@ const InvoicesTab = ({
                   type="button"
                   onClick={() => setInvoiceTypeFilter(tab.id)}
                   className={cn(
-                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-[0.98]",
+                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-[0.98] border cursor-pointer shadow-2xs",
                     isActive 
-                      ? "bg-white text-slate-900 shadow-sm font-bold" 
-                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
+                      ? "bg-white text-slate-900 border-slate-400 font-bold shadow-xs ring-1 ring-slate-300/40" 
+                      : "bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50"
                   )}
                 >
                   {Icon && (
@@ -121,7 +122,7 @@ const InvoicesTab = ({
                   <span>{tab.label}</span>
                   <span className={cn(
                     "px-1.5 py-0.5 text-[10px] rounded-full font-bold",
-                    isActive ? "bg-slate-100 text-slate-800" : "bg-slate-200/60 text-slate-500"
+                    isActive ? "bg-slate-100 text-slate-800" : "bg-slate-100 text-slate-500"
                   )}>
                     {tab.count}
                   </span>

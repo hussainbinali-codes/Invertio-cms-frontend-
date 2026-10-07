@@ -46,6 +46,7 @@ const Input = React.forwardRef(({ className, label, error, icon: Icon, type, ...
           }}
           className={cn(
             'flex w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all shadow-sm',
+            (type === 'date' || type === 'time' || type === 'datetime-local') && '[&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:cursor-pointer cursor-pointer',
             Icon && 'pl-10',
             isPassword && 'pr-12',
             error && 'border-red-500 focus:border-red-500 focus:ring-red-500/10',

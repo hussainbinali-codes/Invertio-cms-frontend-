@@ -108,8 +108,8 @@ const InvoiceModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
-      <Card className="w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[95vh] flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between py-6">
+      <Card className="w-full max-w-2xl sm:max-w-3xl shadow-2xl animate-in fade-in zoom-in duration-200">
+        <CardHeader className="flex flex-row items-center justify-between py-5 px-6 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isOutbound ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
@@ -125,11 +125,11 @@ const InvoiceModal = ({
                 : 'Record a vendor bill or received invoice and upload the bill document.'}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200">
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
-        <CardContent className="p-6 overflow-y-auto flex-1">
+        <CardContent className="p-6">
           <form onSubmit={onSubmit} className="space-y-4">
             <input type="hidden" name="type" value={invoiceType} />
 
@@ -169,6 +169,7 @@ const InvoiceModal = ({
                   type="date" 
                   defaultValue={new Date().toISOString().split('T')[0]}
                   required 
+                  className="cursor-pointer [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                 />
               </div>
             )}
@@ -231,7 +232,13 @@ const InvoiceModal = ({
 
             {/* Dates & Upload */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label={<span>Due Date <span className="text-red-500 font-bold">*</span></span>} name="due_date" type="date" required />
+              <Input 
+                label={<span>Due Date <span className="text-red-500 font-bold">*</span></span>} 
+                name="due_date" 
+                type="date" 
+                required 
+                className="cursor-pointer [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+              />
               
               {!isOutbound ? (
                 <div className="space-y-1">
