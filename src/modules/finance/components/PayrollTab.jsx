@@ -18,10 +18,35 @@ const PayrollTab = ({
   loading,
   onOpenGenerateModal,
   onViewBatchDetails,
-  stats = {}
+  stats = {},
+  searchQuery: externalSearchQuery,
+  setSearchQuery: setExternalSearchQuery,
+  statusFilter: externalStatusFilter,
+  setStatusFilter: setExternalStatusFilter,
+  yearFilter: externalYearFilter,
+  setYearFilter: setExternalYearFilter,
+  monthFilter: externalMonthFilter,
+  setMonthFilter: setExternalMonthFilter,
+  dateFilter: externalDateFilter,
+  setDateFilter: setExternalDateFilter
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
+  const [internalStatusFilter, setInternalStatusFilter] = useState('All');
+  const [internalYearFilter, setInternalYearFilter] = useState('All');
+  const [internalMonthFilter, setInternalMonthFilter] = useState('All');
+  const [internalDateFilter, setInternalDateFilter] = useState('');
+
+  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
+  const setSearchQuery = setExternalSearchQuery || setInternalSearchQuery;
+  const statusFilter = externalStatusFilter !== undefined ? externalStatusFilter : internalStatusFilter;
+  const setStatusFilter = setExternalStatusFilter || setInternalStatusFilter;
+  const yearFilter = externalYearFilter !== undefined ? externalYearFilter : internalYearFilter;
+  const setYearFilter = setExternalYearFilter || setInternalYearFilter;
+  const monthFilter = externalMonthFilter !== undefined ? externalMonthFilter : internalMonthFilter;
+  const setMonthFilter = setExternalMonthFilter || setInternalMonthFilter;
+  const dateFilter = externalDateFilter !== undefined ? externalDateFilter : internalDateFilter;
+  const setDateFilter = setExternalDateFilter || setInternalDateFilter;
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
@@ -37,7 +62,7 @@ const PayrollTab = ({
     if (!dateStr) return 'N/A';
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
              ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
       return dateStr;
@@ -52,8 +77,11 @@ const PayrollTab = ({
 
     const matchesSearch = !searchLower || monthName.includes(searchLower) || yearStr.includes(searchLower);
     const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
+    const matchesYear = yearFilter === 'All' || String(b.year) === String(yearFilter);
+    const matchesMonth = monthFilter === 'All' || String(b.month) === String(monthFilter);
+    const matchesDate = !dateFilter || (b.generated_at && b.generated_at.startsWith(dateFilter));
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesYear && matchesMonth && matchesDate;
   });
 
   // Pagination
@@ -167,7 +195,7 @@ const PayrollTab = ({
             <p className="text-xs text-slate-500 mt-0.5">View all payroll runs generated for different months.</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -175,14 +203,36 @@ const PayrollTab = ({
                 placeholder="Search month or year..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
+                className="pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
               />
             </div>
 
             <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="text-xs font-semibold py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="All">All Years</option>
+              {[2026, 2025, 2024, 2023].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="text-xs font-semibold py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="All">All Months</option>
+              {MONTH_NAMES.map((name, i) => (
+                <option key={name} value={i + 1}>{name}</option>
+              ))}
+            </select>
+
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-xs font-bold py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className="text-xs font-semibold py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
             >
               <option value="All">All Status</option>
               <option value="Draft">Draft</option>

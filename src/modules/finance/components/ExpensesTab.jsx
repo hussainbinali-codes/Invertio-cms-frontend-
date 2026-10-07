@@ -14,7 +14,10 @@ const ExpensesTab = ({
   currencies,
   categories = [],
   onCategoriesChange,
-  fileBaseUrl
+  fileBaseUrl,
+  yearFilter = 'All',
+  monthFilter = 'All',
+  dateFilter = ''
 }) => {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
 
@@ -32,11 +35,19 @@ const ExpensesTab = ({
   }, [categories, expenses]);
 
   const filteredExpenses = expenses.filter(exp => {
+    const rawDate = exp.date || exp.created_at;
+    const expDateObj = rawDate ? new Date(rawDate) : null;
+
     const matchesSearch = exp.description?.toLowerCase().includes(expenseSearch.toLowerCase()) || 
                         exp.project_name?.toLowerCase().includes(expenseSearch.toLowerCase()) ||
                         exp.category?.toLowerCase().includes(expenseSearch.toLowerCase());
     const matchesCategory = expenseCategoryFilter === 'All' || exp.category === expenseCategoryFilter;
-    return matchesSearch && matchesCategory;
+
+    const matchesYear = !expDateObj || yearFilter === 'All' || expDateObj.getFullYear() === Number(yearFilter);
+    const matchesMonth = !expDateObj || monthFilter === 'All' || (expDateObj.getMonth() + 1) === Number(monthFilter);
+    const matchesDate = !dateFilter || (rawDate && rawDate.startsWith(dateFilter));
+
+    return matchesSearch && matchesCategory && matchesYear && matchesMonth && matchesDate;
   });
 
   return (

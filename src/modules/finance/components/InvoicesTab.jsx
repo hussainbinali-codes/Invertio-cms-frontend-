@@ -22,7 +22,10 @@ const InvoicesTab = ({
   sendPaymentReminder,
   reminderSendingId,
   isSuperAdmin,
-  fileBaseUrl
+  fileBaseUrl,
+  yearFilter = 'All',
+  monthFilter = 'All',
+  dateFilter = ''
 }) => {
   const [statusModal, setStatusModal] = React.useState({
     isOpen: false,
@@ -31,11 +34,19 @@ const InvoicesTab = ({
   });
 
   const filteredInvoices = invoices.filter(inv => {
+    const rawDate = inv.invoice_date || inv.created_at;
+    const invDateObj = rawDate ? new Date(rawDate) : null;
+
     const matchesSearch = inv.invoice_number?.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
       inv.client_name?.toLowerCase().includes(invoiceSearch.toLowerCase());
     const matchesStatus = invoiceStatusFilter === 'All' || inv.status === invoiceStatusFilter;
     const matchesType = invoiceTypeFilter === 'All' || inv.type === invoiceTypeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+
+    const matchesYear = !invDateObj || yearFilter === 'All' || invDateObj.getFullYear() === Number(yearFilter);
+    const matchesMonth = !invDateObj || monthFilter === 'All' || (invDateObj.getMonth() + 1) === Number(monthFilter);
+    const matchesDate = !dateFilter || (rawDate && rawDate.startsWith(dateFilter));
+
+    return matchesSearch && matchesStatus && matchesType && matchesYear && matchesMonth && matchesDate;
   });
 
   const resolveFileUrl = (url) => {
