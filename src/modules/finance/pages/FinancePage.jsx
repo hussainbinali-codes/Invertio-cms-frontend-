@@ -1383,7 +1383,7 @@ const FinancePage = () => {
             </select>
           )}
 
-          {/* Custom Date Range Picker */}
+          {/* Date Range Dropdown with From & To Calendars */}
           <DateRangePicker
             startDate={startDateFilter}
             endDate={endDateFilter}
@@ -1398,8 +1398,8 @@ const FinancePage = () => {
             <button
               type="button"
               onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 shadow-2xs border border-rose-200/50 shrink-0"
-              title="Reset date range filter"
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow-2xs border border-rose-200/50 shrink-0 cursor-pointer"
+              title="Reset date filter"
             >
               <X className="w-3 h-3" />
               <span>Reset</span>

@@ -1,18 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar as CalendarIcon, X } from 'lucide-react';
+import { ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '../../utils/cn';
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
 
 const SHORT_MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
-
-const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 export const formatDateDisplay = (dateStr) => {
   if (!dateStr) return '';
@@ -35,53 +28,20 @@ export const toDateString = (year, month, day) => {
 };
 
 export const DateRangePicker = ({
-  startDate,
-  endDate,
+  startDate = '',
+  endDate = '',
   onChange,
   className,
-  placeholder = "Select date range"
+  placeholder = "Date Range"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  // Month currently displayed in calendar view
-  const [viewDate, setViewDate] = useState(() => {
-    if (endDate) {
-      const parts = endDate.split('-').map(Number);
-      return new Date(parts[0], parts[1] - 1, 1);
-    }
-    if (startDate) {
-      const parts = startDate.split('-').map(Number);
-      return new Date(parts[0], parts[1] - 1, 1);
-    }
-    return new Date();
-  });
-
-  // Range selection temporary state while selecting
-  const [tempStart, setTempStart] = useState(null);
-  const [hoveredDate, setHoveredDate] = useState(null);
-
-  // Sync viewDate when popover opens
-  useEffect(() => {
-    if (isOpen) {
-      if (endDate) {
-        const parts = endDate.split('-').map(Number);
-        setViewDate(new Date(parts[0], parts[1] - 1, 1));
-      } else if (startDate) {
-        const parts = startDate.split('-').map(Number);
-        setViewDate(new Date(parts[0], parts[1] - 1, 1));
-      }
-      setTempStart(null);
-      setHoveredDate(null);
-    }
-  }, [isOpen]);
-
-  // Close on outside click
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false);
-        setTempStart(null);
       }
     };
     if (isOpen) {
@@ -92,87 +52,7 @@ export const DateRangePicker = ({
     };
   }, [isOpen]);
 
-  const viewYear = viewDate.getFullYear();
-  const viewMonth = viewDate.getMonth();
-
-  const handlePrevMonth = (e) => {
-    e.stopPropagation();
-    setViewDate(new Date(viewYear, viewMonth - 1, 1));
-  };
-
-  const handleNextMonth = (e) => {
-    e.stopPropagation();
-    setViewDate(new Date(viewYear, viewMonth + 1, 1));
-  };
-
-  // Build grid of days
-  const calendarDays = React.useMemo(() => {
-    const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
-    const daysInCurrentMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-    const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
-
-    const days = [];
-
-    // Preceding month days
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      const d = daysInPrevMonth - i;
-      const prevDate = new Date(viewYear, viewMonth - 1, d);
-      days.push({
-        day: d,
-        dateStr: toDateString(prevDate.getFullYear(), prevDate.getMonth(), d),
-        isCurrentMonth: false
-      });
-    }
-
-    // Current month days
-    for (let d = 1; d <= daysInCurrentMonth; d++) {
-      days.push({
-        day: d,
-        dateStr: toDateString(viewYear, viewMonth, d),
-        isCurrentMonth: true
-      });
-    }
-
-    // Trailing next month days (fill up to total multiple of 7)
-    const totalSlots = days.length <= 35 ? 35 : 42;
-    const remaining = totalSlots - days.length;
-    for (let d = 1; d <= remaining; d++) {
-      const nextDate = new Date(viewYear, viewMonth + 1, d);
-      days.push({
-        day: d,
-        dateStr: toDateString(nextDate.getFullYear(), nextDate.getMonth(), d),
-        isCurrentMonth: false
-      });
-    }
-
-    return days;
-  }, [viewYear, viewMonth]);
-
-  const handleDateClick = (dateStr) => {
-    if (!tempStart) {
-      // First click: sets start date
-      setTempStart(dateStr);
-    } else {
-      // Second click: completes range
-      let finalStart = tempStart;
-      let finalEnd = dateStr;
-      if (finalStart > finalEnd) {
-        [finalStart, finalEnd] = [finalEnd, finalStart];
-      }
-      onChange({ startDate: finalStart, endDate: finalEnd });
-      setTempStart(null);
-      setIsOpen(false);
-    }
-  };
-
-  // Effective bounds for display
-  const effectiveStart = tempStart || startDate;
-  const effectiveEnd = tempStart ? (hoveredDate || tempStart) : endDate;
-
-  const actualStart = effectiveStart && effectiveEnd && effectiveStart > effectiveEnd ? effectiveEnd : effectiveStart;
-  const actualEnd = effectiveStart && effectiveEnd && effectiveStart > effectiveEnd ? effectiveStart : effectiveEnd;
-
-  // Preset helpers
+  // Quick preset handlers
   const applyPreset = (preset) => {
     const today = new Date();
     const currYear = today.getFullYear();
@@ -194,149 +74,111 @@ export const DateRangePicker = ({
       });
     } else if (preset === 'clear') {
       onChange({ startDate: '', endDate: '' });
-      setTempStart(null);
     }
-    setIsOpen(false);
   };
 
   const displayText = startDate && endDate
     ? `${formatDateDisplay(startDate)} - ${formatDateDisplay(endDate)}`
     : startDate
-      ? `${formatDateDisplay(startDate)} - ...`
+      ? `From ${formatDateDisplay(startDate)}`
       : placeholder;
+
+  const isCustomRangeActive = Boolean(startDate || endDate);
 
   return (
     <div className={cn("relative inline-block text-left", className)} ref={containerRef}>
-      {/* Trigger Button styled exactly as the screenshot */}
+      {/* Trigger Button: 'Date Range' with Down Arrow */}
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
         className={cn(
-          "bg-white border border-slate-200/80 rounded-md sm:rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs hover:bg-slate-50 transition-all flex items-center justify-between gap-3 cursor-pointer min-w-[200px]",
-          isOpen && "ring-2 ring-blue-500/20 border-blue-500"
+          "bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-800 shadow-2xs hover:bg-slate-50 transition-all flex items-center justify-between gap-2.5 cursor-pointer min-w-[140px]",
+          isOpen && "ring-2 ring-blue-500/20 border-blue-500",
+          isCustomRangeActive && "border-slate-300 font-semibold"
         )}
       >
-        <span className="whitespace-nowrap font-medium text-slate-800">
-          {displayText}
-        </span>
-        <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-auto", isOpen && "rotate-180")} />
+        <div className="flex items-center gap-1.5 truncate">
+          <CalendarIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className="truncate">{displayText}</span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-1",
+            isOpen && "rotate-180"
+          )}
+        />
       </button>
 
-      {/* Popover Calendar Modal */}
+      {/* Dropdown Popover with Two Normal From and To Calendars */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 z-50 bg-white border border-slate-200/90 rounded-2xl shadow-xl p-4 w-[290px] animate-in fade-in zoom-in-95 duration-150 select-none">
-          {/* Calendar Header with Navigation */}
-          <div className="flex items-center justify-between mb-3 px-1">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Previous month"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <h3 className="text-sm font-semibold text-slate-900">
-              {MONTH_NAMES[viewMonth]} {viewYear}
-            </h3>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Next month"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+        <div className="absolute right-0 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-4 w-72 animate-in fade-in zoom-in-95 duration-150 select-none">
+          <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100">
+            <span className="text-xs font-semibold text-slate-800">Date Range</span>
+            {isCustomRangeActive && (
+              <button
+                type="button"
+                onClick={() => applyPreset('clear')}
+                className="text-[11px] font-medium text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
-          {/* Weekday Labels (Su, Mo, Tu, We, Th, Fr, Sa) */}
-          <div className="grid grid-cols-7 gap-0 text-center mb-1">
-            {WEEK_DAYS.map((wd) => (
-              <span key={wd} className="text-[11px] font-medium text-slate-400 py-1">
-                {wd}
-              </span>
-            ))}
+          {/* Two Normal Calendar Inputs: From and To */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                From Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => onChange({ startDate: e.target.value, endDate })}
+                className="w-full text-xs rounded-lg border border-slate-200 py-1.5 px-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                To Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => onChange({ startDate, endDate: e.target.value })}
+                className="w-full text-xs rounded-lg border border-slate-200 py-1.5 px-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+              />
+            </div>
           </div>
 
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-y-1 text-center">
-            {calendarDays.map((item, idx) => {
-              const { day, dateStr, isCurrentMonth } = item;
-
-              const isStart = actualStart === dateStr;
-              const isEnd = actualEnd === dateStr;
-              const isBetween = actualStart && actualEnd && dateStr > actualStart && dateStr < actualEnd;
-
-              const colIndex = idx % 7;
-              const isRowStart = colIndex === 0;
-              const isRowEnd = colIndex === 6;
-
-              return (
-                <div
-                  key={`${dateStr}-${idx}`}
-                  className={cn(
-                    "relative py-0.5 flex items-center justify-center",
-                    // Continuous grey background bar connecting the range
-                    isBetween && "bg-slate-100",
-                    isStart && actualEnd && actualStart !== actualEnd && (colIndex !== 6 ? "bg-gradient-to-r from-transparent 50% to-slate-100 50%" : ""),
-                    isEnd && actualStart && actualStart !== actualEnd && (colIndex !== 0 ? "bg-gradient-to-l from-transparent 50% to-slate-100 50%" : ""),
-                    // Rounded ends on row boundaries
-                    isBetween && isRowStart && "rounded-l-full",
-                    isBetween && isRowEnd && "rounded-r-full"
-                  )}
-                  onMouseEnter={() => tempStart && setHoveredDate(dateStr)}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleDateClick(dateStr)}
-                    className={cn(
-                      "w-8 h-8 rounded-full text-xs transition-all flex items-center justify-center font-medium cursor-pointer relative z-10",
-                      // Selected Start / End circular badge (matches dark badge in screenshot)
-                      (isStart || isEnd) && "bg-slate-900 text-white font-semibold shadow-sm hover:bg-slate-800",
-                      // In-between days
-                      isBetween && "text-slate-800 hover:bg-slate-200/80 rounded-full",
-                      // Normal unselected day
-                      !isStart && !isEnd && !isBetween && (
-                        isCurrentMonth
-                          ? "text-slate-700 hover:bg-slate-100"
-                          : "text-slate-300 hover:bg-slate-50"
-                      )
-                    )}
-                  >
-                    {day}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Presets and Clear Footer */}
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5">
+          {/* Quick Presets & Action Buttons */}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => applyPreset('month')}
-                className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 This Month
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset('year')}
-                className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 This Year
               </button>
             </div>
 
-            {(startDate || endDate) && (
-              <button
-                type="button"
-                onClick={() => applyPreset('clear')}
-                className="text-[11px] font-medium text-rose-600 hover:text-rose-700 hover:underline px-1 py-0.5"
-              >
-                Clear
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
