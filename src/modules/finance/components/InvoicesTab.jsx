@@ -358,10 +358,32 @@ const InvoicesTab = ({
                       <TableCell className="py-4 px-4 whitespace-nowrap">
                         <div className="font-semibold text-slate-900 text-sm tabular-nums tracking-tight">
                           <span className="text-slate-500 mr-0.5 text-xs font-normal">
-                            {currencies.find(c => c.code === inv.currency)?.symbol || '$'}
+                            {currencies.find(c => c.code === inv.currency)?.symbol || (inv.currency === 'INR' ? '₹' : '$')}
                           </span>
                           {Number(inv.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
+                        {inv.currency === 'INR' && inv.type === 'Outbound' && (() => {
+                          let items = inv.line_items;
+                          if (typeof items === 'string') {
+                            try { items = JSON.parse(items); } catch { items = []; }
+                          }
+                          const hasGst = Array.isArray(items) && items.length > 0 ? items[0].apply_gst !== false : true;
+                          const total = Number(inv.amount || 0);
+                          if (hasGst && total > 0) {
+                            const subtotal = total / 1.18;
+                            const gst = total - subtotal;
+                            return (
+                              <div className="text-[10px] text-amber-700/90 font-medium tabular-nums mt-0.5" title={`Subtotal: ₹${subtotal.toFixed(2)} + GST: ₹${gst.toFixed(2)}`}>
+                                Incl. 18% GST (₹{Math.round(gst).toLocaleString()})
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="text-[10px] text-slate-400 font-medium tabular-nums mt-0.5">
+                              No GST
+                            </div>
+                          );
+                        })()}
                         {inv.currency !== 'INR' && inv.amount_inr && (
                           <div className="text-[10px] text-slate-400 font-medium tabular-nums mt-0.5">
                             ≈ ₹{Number(inv.amount_inr).toLocaleString(undefined, { maximumFractionDigits: 0 })}

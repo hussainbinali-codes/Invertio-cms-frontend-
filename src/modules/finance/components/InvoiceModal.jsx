@@ -4,6 +4,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
+import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
 
 const MAX_LINE_ITEMS = 7;
@@ -24,6 +25,7 @@ const InvoiceModal = ({
   const [invoiceType, setInvoiceType] = useState(modalType);
   const [manualClientName, setManualClientName] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [applyGst, setApplyGst] = useState(true);
   const [lineItems, setLineItems] = useState([
     { description: '', amount: '' }
   ]);
@@ -37,6 +39,7 @@ const InvoiceModal = ({
       setInvoiceType(modalType);
       setManualClientName('');
       setSelectedCurrency(currencies[0]?.code || 'USD');
+      setApplyGst(true);
       setLineItems([{ description: '', amount: '' }]);
       if (typeof onOpen === 'function') onOpen();
     }
@@ -150,12 +153,18 @@ const InvoiceModal = ({
   if (!isOpen) return null;
 
   const isOutbound = invoiceType === 'Outbound';
+  const isINR = selectedCurrency === 'INR';
 
-  // Calculate live total for outbound line items
-  const outboundTotal = lineItems.reduce((sum, item) => {
+  // Calculate live subtotal for outbound line items
+  const outboundSubtotal = lineItems.reduce((sum, item) => {
     const val = parseFloat(item.amount) || 0;
     return sum + val;
   }, 0);
+
+  // Calculate GST amount and final total
+  const gstRate = (isOutbound && isINR && applyGst) ? 0.18 : 0;
+  const gstAmount = outboundSubtotal * gstRate;
+  const outboundTotal = outboundSubtotal + gstAmount;
 
   // Active currency symbol
   const activeCurrencyObj = currencies.find(c => c.code === selectedCurrency);
@@ -170,12 +179,13 @@ const InvoiceModal = ({
   // Prepare sanitized line items for PDF & backend
   const preparedLineItems = lineItems.map((item, idx) => ({
     description: (item.description || '').trim() || `Professional Services (Item ${idx + 1})`,
-    amount: parseFloat(item.amount) || 0
+    amount: parseFloat(item.amount) || 0,
+    apply_gst: isINR ? applyGst : false
   }));
 
   const handleFormSubmit = (e) => {
     if (isOutbound) {
-      if (outboundTotal <= 0) {
+      if (outboundSubtotal <= 0) {
         e.preventDefault();
         toast.error('Please enter at least one valid amount greater than 0.');
         return;
@@ -400,6 +410,58 @@ const InvoiceModal = ({
                   ))}
                 </div>
 
+                {/* GST Option for Indian Rupees (INR) */}
+                {isINR && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                          <span>Apply GST (18%)</span>
+                          <span className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
+                            applyGst ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-slate-200 text-slate-700"
+                          )}>
+                            {applyGst ? "18% Included" : "Exempt / No GST"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {applyGst 
+                            ? "18% GST (CGST+SGST / IGST) will be added and itemized on the PDF invoice." 
+                            : "No GST will be applied. The PDF invoice will display 0% tax."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-white/90 p-1 rounded-lg border border-amber-200/70 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setApplyGst(true)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer",
+                          applyGst
+                            ? "bg-amber-500 text-white shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                        )}
+                      >
+                        Yes (With GST)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setApplyGst(false)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer",
+                          !applyGst
+                            ? "bg-slate-700 text-white shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                        )}
+                      >
+                        No (No GST)
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Add Row Button & Total Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                   <div>
@@ -419,13 +481,36 @@ const InvoiceModal = ({
                     )}
                   </div>
 
-                  {/* Computed Total */}
-                  <div className="flex items-center gap-3 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Amount:</span>
-                    <span className="text-base font-extrabold text-blue-700">
-                      {currencySymbol} {outboundTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
+                  {/* Computed Total with GST breakdown for INR */}
+                  {isINR ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-slate-400 font-semibold">Subtotal:</span>
+                        <span className="font-bold text-slate-700">₹ {outboundSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-slate-400 font-semibold">GST (18%):</span>
+                        <span className={cn("font-bold", applyGst ? "text-amber-600" : "text-slate-400")}>
+                          {applyGst 
+                            ? `+ ₹ ${gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            : '₹ 0.00'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-slate-200 pt-1.5 sm:pt-0 sm:pl-3">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total:</span>
+                        <span className="text-base font-extrabold text-blue-700">
+                          ₹ {outboundTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Amount:</span>
+                      <span className="text-base font-extrabold text-blue-700">
+                        {currencySymbol} {outboundTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Hidden form fields for request payload */}
