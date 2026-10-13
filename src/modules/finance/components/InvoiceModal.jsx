@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
-import { X, Loader2, Plus, Trash2 } from 'lucide-react';
+import { X, Loader2, Plus, Trash2, Tag, Percent } from 'lucide-react';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
@@ -26,6 +26,9 @@ const InvoiceModal = ({
   const [manualClientName, setManualClientName] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [applyGst, setApplyGst] = useState(true);
+  const [hasDiscount, setHasDiscount] = useState(false);
+  const [discountType, setDiscountType] = useState('amount'); // 'amount' or 'percentage'
+  const [discountValue, setDiscountValue] = useState('');
   const [lineItems, setLineItems] = useState([
     { description: '', amount: '' }
   ]);
@@ -40,6 +43,9 @@ const InvoiceModal = ({
       setManualClientName('');
       setSelectedCurrency(currencies[0]?.code || 'USD');
       setApplyGst(true);
+      setHasDiscount(false);
+      setDiscountType('amount');
+      setDiscountValue('');
       setLineItems([{ description: '', amount: '' }]);
       if (typeof onOpen === 'function') onOpen();
     }
@@ -150,21 +156,8 @@ const InvoiceModal = ({
     });
   };
 
-  if (!isOpen) return null;
-
   const isOutbound = invoiceType === 'Outbound';
   const isINR = selectedCurrency === 'INR';
-
-  // Calculate live subtotal for outbound line items
-  const outboundSubtotal = lineItems.reduce((sum, item) => {
-    const val = parseFloat(item.amount) || 0;
-    return sum + val;
-  }, 0);
-
-  // Calculate GST amount and final total
-  const gstRate = (isOutbound && isINR && applyGst) ? 0.18 : 0;
-  const gstAmount = outboundSubtotal * gstRate;
-  const outboundTotal = outboundSubtotal + gstAmount;
 
   // Active currency symbol
   const activeCurrencyObj = currencies.find(c => c.code === selectedCurrency);
@@ -176,11 +169,69 @@ const InvoiceModal = ({
     selectedCurrency
   );
 
+  // Calculate live subtotal for outbound line items
+  const outboundSubtotal = lineItems.reduce((sum, item) => {
+    const val = parseFloat(item.amount) || 0;
+    return sum + val;
+  }, 0);
+
+  // Discount validation & calculation logic
+  const discountValidation = React.useMemo(() => {
+    if (!hasDiscount) {
+      return { isValid: true, error: null, amount: 0 };
+    }
+
+    const trimmed = String(discountValue).trim();
+    if (trimmed === '') {
+      return { isValid: false, error: 'Please enter a discount value.', amount: 0 };
+    }
+
+    const num = Number(trimmed);
+    if (isNaN(num) || !isFinite(num)) {
+      return { isValid: false, error: 'Please enter a valid numeric discount.', amount: 0 };
+    }
+
+    if (num < 0) {
+      return { isValid: false, error: 'Discount cannot be negative.', amount: 0 };
+    }
+
+    if (discountType === 'percentage') {
+      if (num > 100) {
+        return { isValid: false, error: 'Percentage discount cannot exceed 100%.', amount: 0 };
+      }
+      const calculated = (outboundSubtotal * num) / 100;
+      return { isValid: true, error: null, amount: calculated };
+    } else {
+      // Fixed Amount
+      if (num > outboundSubtotal) {
+        return {
+          isValid: false,
+          error: `Discount cannot exceed the subtotal (${currencySymbol} ${outboundSubtotal.toLocaleString(isINR ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`,
+          amount: 0
+        };
+      }
+      return { isValid: true, error: null, amount: num };
+    }
+  }, [hasDiscount, discountValue, discountType, outboundSubtotal, currencySymbol, isINR]);
+
+  const calculatedDiscountAmount = (hasDiscount && discountValidation.isValid) ? discountValidation.amount : 0;
+  const netSubtotal = Math.max(0, outboundSubtotal - calculatedDiscountAmount);
+
+  // Calculate GST amount and final total
+  const gstRate = (isOutbound && isINR && applyGst) ? 0.18 : 0;
+  const gstAmount = netSubtotal * gstRate;
+  const outboundTotal = netSubtotal + gstAmount;
+
   // Prepare sanitized line items for PDF & backend
   const preparedLineItems = lineItems.map((item, idx) => ({
     description: (item.description || '').trim() || `Professional Services (Item ${idx + 1})`,
     amount: parseFloat(item.amount) || 0,
-    apply_gst: isINR ? applyGst : false
+    apply_gst: isINR ? applyGst : false,
+    ...(idx === 0 && hasDiscount && discountValidation.isValid ? {
+      discount_amount: calculatedDiscountAmount,
+      discount_type: discountType,
+      discount_value: parseFloat(discountValue) || 0
+    } : {})
   }));
 
   const handleFormSubmit = (e) => {
@@ -190,11 +241,20 @@ const InvoiceModal = ({
         toast.error('Please enter at least one valid amount greater than 0.');
         return;
       }
+      if (hasDiscount) {
+        if (!discountValidation.isValid) {
+          e.preventDefault();
+          toast.error(discountValidation.error || 'Please provide a valid discount value or remove the discount.');
+          return;
+        }
+      }
     }
     if (onSubmit) {
       onSubmit(e);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 text-slate-900 overflow-y-auto">
@@ -462,59 +522,190 @@ const InvoiceModal = ({
                   </div>
                 )}
 
-                {/* Add Row Button & Total Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-                  <div>
-                    {lineItems.length < MAX_LINE_ITEMS ? (
+                {/* Discount Configuration Panel */}
+                {hasDiscount && (
+                  <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl space-y-2.5 transition-all animate-in fade-in slide-in-from-top-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-800">Invoice Discount</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {discountType === 'percentage' ? 'Percentage (%)' : `Amount (${currencySymbol})`}
+                        </span>
+                      </div>
                       <button
                         type="button"
-                        onClick={handleAddLineItem}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-[1.01]"
+                        onClick={() => {
+                          setHasDiscount(false);
+                          setDiscountValue('');
+                          setDiscountType('amount');
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                        title="Remove Discount"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Another Amount ({lineItems.length}/{MAX_LINE_ITEMS})</span>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove Discount</span>
                       </button>
-                    ) : (
-                      <span className="text-xs font-semibold text-slate-400 italic">
-                        ✓ Reached maximum of {MAX_LINE_ITEMS} rows
-                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                      {/* Discount Numeric Input */}
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">
+                          {discountType === 'percentage' ? '%' : currencySymbol}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          max={discountType === 'percentage' ? "100" : undefined}
+                          step={discountType === 'percentage' ? "0.01" : "0.01"}
+                          value={discountValue}
+                          onChange={(e) => setDiscountValue(e.target.value)}
+                          placeholder={discountType === 'percentage' ? "e.g. 10 (for 10%)" : `e.g. 100 (in ${currencySymbol})`}
+                          className={cn(
+                            "w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border bg-white focus:outline-none focus:ring-2 font-medium transition-all",
+                            !discountValidation.isValid && discountValue !== ''
+                              ? "border-rose-400 focus:ring-rose-200 text-rose-900 bg-rose-50/20"
+                              : "border-slate-200 focus:ring-emerald-500/20 text-slate-900"
+                          )}
+                        />
+                      </div>
+
+                      {/* Discount Type Selector: Amount vs Percentage */}
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-emerald-200/80 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setDiscountType('amount')}
+                          className={cn(
+                            "px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1",
+                            discountType === 'amount'
+                              ? "bg-emerald-600 text-white shadow-2xs"
+                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                          )}
+                        >
+                          <span>Amount ({currencySymbol})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDiscountType('percentage')}
+                          className={cn(
+                            "px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1",
+                            discountType === 'percentage'
+                              ? "bg-emerald-600 text-white shadow-2xs"
+                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                          )}
+                        >
+                          <Percent className="w-3 h-3" />
+                          <span>Percentage (%)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Validation error message */}
+                    {!discountValidation.isValid && discountValue !== '' && (
+                      <p className="text-[11px] text-rose-600 font-semibold flex items-center gap-1">
+                        <span>⚠</span> {discountValidation.error}
+                      </p>
+                    )}
+
+                    {/* Valid preview text */}
+                    {discountValidation.isValid && discountValue !== '' && (
+                      <p className="text-[11px] text-emerald-700 font-medium">
+                        ✓ Discount deduction: {currencySymbol} {calculatedDiscountAmount.toLocaleString(isINR ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {discountType === 'percentage' ? ` (${discountValue}% off subtotal)` : ''}
+                      </p>
                     )}
                   </div>
+                )}
 
-                  {/* Computed Total with GST breakdown for INR */}
-                  {isINR ? (
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                {/* Action Buttons: Add Another Amount & Add Discount */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {lineItems.length < MAX_LINE_ITEMS ? (
+                    <button
+                      type="button"
+                      onClick={handleAddLineItem}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-[1.01]"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Another Amount ({lineItems.length}/{MAX_LINE_ITEMS})</span>
+                    </button>
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400 italic">
+                      ✓ Reached maximum of {MAX_LINE_ITEMS} rows
+                    </span>
+                  )}
+
+                  {!hasDiscount && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasDiscount(true);
+                        setDiscountType('amount');
+                        setDiscountValue('');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-[1.01]"
+                    >
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>Add Discount</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Computed Invoice Summary Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap justify-between gap-3 bg-white border border-slate-200 px-3.5 py-2.5 rounded-xl shadow-2xs">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                    {/* Subtotal */}
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-slate-400 font-semibold">Subtotal:</span>
+                      <span className="font-bold text-slate-700">
+                        {currencySymbol} {outboundSubtotal.toLocaleString(isINR ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Discount Summary (if active) */}
+                    {hasDiscount && (
                       <div className="flex items-center gap-1.5 text-xs">
-                        <span className="text-slate-400 font-semibold">Subtotal:</span>
-                        <span className="font-bold text-slate-700">₹ {outboundSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-slate-400 font-semibold">
+                          Discount {discountType === 'percentage' && discountValue ? `(${discountValue}%)` : '(Amount)'}:
+                        </span>
+                        <span className={cn("font-bold", discountValidation.isValid && calculatedDiscountAmount > 0 ? "text-emerald-600" : "text-slate-400")}>
+                          {discountValidation.isValid && calculatedDiscountAmount > 0
+                            ? `- ${currencySymbol} ${calculatedDiscountAmount.toLocaleString(isINR ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : `${currencySymbol} 0.00`}
+                        </span>
                       </div>
+                    )}
+
+                    {/* GST Summary (if INR) */}
+                    {isINR && (
                       <div className="flex items-center gap-1.5 text-xs">
                         <span className="text-slate-400 font-semibold">GST (18%):</span>
-                        <span className={cn("font-bold", applyGst ? "text-amber-600" : "text-slate-400")}>
+                        <span className={cn("font-bold", applyGst && gstAmount > 0 ? "text-amber-600" : "text-slate-400")}>
                           {applyGst 
                             ? `+ ₹ ${gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
                             : '₹ 0.00'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-slate-200 pt-1.5 sm:pt-0 sm:pl-3">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total:</span>
-                        <span className="text-base font-extrabold text-blue-700">
-                          ₹ {outboundTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Amount:</span>
-                      <span className="text-base font-extrabold text-blue-700">
-                        {currencySymbol} {outboundTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Final Total */}
+                  <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-slate-200 pt-1.5 sm:pt-0 sm:pl-3">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      {isINR ? 'Final Total:' : 'Total Amount:'}
+                    </span>
+                    <span className="text-base font-extrabold text-blue-700">
+                      {currencySymbol} {outboundTotal.toLocaleString(isINR ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Hidden form fields for request payload */}
-                <input type="hidden" name="amount" value={outboundTotal > 0 ? outboundTotal.toFixed(2) : ''} />
+                <input type="hidden" name="amount" value={outboundTotal >= 0 ? outboundTotal.toFixed(2) : ''} />
+                <input type="hidden" name="subtotal" value={outboundSubtotal.toFixed(2)} />
+                <input type="hidden" name="discount" value={hasDiscount && discountValidation.isValid ? calculatedDiscountAmount.toFixed(2) : '0'} />
+                <input type="hidden" name="discount_type" value={hasDiscount ? discountType : ''} />
+                <input type="hidden" name="discount_value" value={hasDiscount && discountValidation.isValid ? discountValue : ''} />
                 <input type="hidden" name="line_items" value={JSON.stringify(preparedLineItems)} />
               </div>
             ) : (
