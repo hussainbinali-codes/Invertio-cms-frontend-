@@ -820,7 +820,7 @@ const FinancePage = () => {
     if (activeView !== 'Invoices') return;
 
     const hasPendingPdf = invoices.some(
-      (inv) => inv.type === 'Outbound' && !inv.generated_pdf_url && inv.status !== 'Cancelled'
+      (inv) => inv.type === 'Outbound' && !inv.generated_pdf_url && !inv.document_url && inv.status !== 'Cancelled'
     );
 
     if (!hasPendingPdf) return;
@@ -1487,6 +1487,7 @@ const FinancePage = () => {
             reminderSendingId={reminderSendingId}
             isSuperAdmin={isSuperAdmin}
             fileBaseUrl={FILE_BASE_URL}
+            fetchInvoices={fetchInvoices}
           />
         )}
 
