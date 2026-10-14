@@ -611,7 +611,8 @@ import {
   Search,
   Calendar,
   Filter,
-  X
+  X,
+  RotateCw
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
@@ -713,6 +714,10 @@ const FinancePage = () => {
   // Helper to extract local date parts (year, month, day, YYYY-MM-DD) matching user's local timezone
   const getLocalDateParts = (dateVal) => {
     if (!dateVal) return null;
+    if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
+      const parts = dateVal.trim().split('-');
+      return { year: Number(parts[0]), month: Number(parts[1]), day: Number(parts[2]), dateStr: dateVal.trim() };
+    }
     const d = new Date(dateVal);
     if (isNaN(d.getTime())) return null;
     const year = d.getFullYear();
@@ -791,6 +796,87 @@ const FinancePage = () => {
     }
   }, [selectedCurrency, reportData]);
 
+  const fetchFinanceData = async (start = startDateFilter, end = endDateFilter, silent = false) => {
+    if (!isSuperAdmin) return;
+    if (!silent) setIsRefreshing(true);
+    try {
+      let startDate = start;
+      let endDate = end;
+      if (!startDate && !endDate) {
+        const currentYear = new Date().getFullYear();
+        startDate = `${currentYear}-01-01`;
+        endDate = `${currentYear}-12-31`;
+      } else if (startDate && !endDate) {
+        endDate = startDate;
+      } else if (!startDate && endDate) {
+        startDate = '2000-01-01';
+      }
+
+      const res = await axios.get(`/finance/report?startDate=${startDate}&endDate=${endDate}`);
+      const data = res.data.data || res.data;
+      setReportData(data);
+    } catch (err) {
+      console.error("Finance fetch error", err);
+    } finally {
+      setLoading(false);
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const fetchInvoices = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const res = await axios.get('/finance/invoices');
+      setInvoices(res.data.data || []);
+    } catch (err) {
+      if (!silent) toast.error('Failed to fetch invoices');
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const fetchExpenses = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const res = await axios.get('/finance/expenses');
+      setExpenses(res.data.data || []);
+    } catch (err) {
+      if (!silent) toast.error('Failed to fetch expenses');
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const fetchPayrollBatches = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const res = await axios.get('/finance/payroll/batches');
+      setPayrollBatches(res.data.data || []);
+    } catch (err) {
+      if (!silent) toast.error('Failed to fetch payroll runs');
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const loadActiveTabData = React.useCallback((view = activeView, silent = false) => {
+    if (view === 'Overview') {
+      fetchFinanceData(startDateFilter, endDateFilter, silent);
+    } else if (view === 'Invoices') {
+      fetchInvoices(silent);
+    } else if (view === 'Expenses') {
+      fetchExpenses(silent);
+    } else if (view === 'Payroll') {
+      fetchPayrollBatches(silent);
+    }
+  }, [activeView, startDateFilter, endDateFilter, isSuperAdmin]);
+
+  const handleTabSelect = (tabId) => {
+    setIsRefreshing(true);
+    setActiveView(tabId);
+    loadActiveTabData(tabId, false);
+  };
+
   useEffect(() => {
     if (!hasPermission('finance', 'view')) {
       toast.error("Access Denied: You do not have permissions to access the Finance module.");
@@ -805,15 +891,29 @@ const FinancePage = () => {
     fetchAuxData();
   }, [startDateFilter, endDateFilter]);
 
+  // Load the respective API immediately whenever the active tab changes
   useEffect(() => {
-    if (activeView === 'Invoices') {
-      fetchInvoices();
-    } else if (activeView === 'Expenses') {
-      fetchExpenses();
-    } else if (activeView === 'Payroll') {
-      fetchPayrollBatches();
-    }
-  }, [activeView]);
+    loadActiveTabData(activeView, false);
+  }, [activeView, loadActiveTabData]);
+
+  // Automatically refresh active tab data when returning to this browser tab / window focus
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadActiveTabData(activeView, true);
+      }
+    };
+    const handleWindowFocus = () => {
+      loadActiveTabData(activeView, true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [activeView, loadActiveTabData]);
 
   // Auto-poll invoices silently if any Outbound invoice is still generating its PDF
   useEffect(() => {
@@ -838,18 +938,6 @@ const FinancePage = () => {
 
     return () => clearInterval(interval);
   }, [invoices, activeView]);
-
-  const fetchPayrollBatches = async () => {
-    setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/payroll/batches');
-      setPayrollBatches(res.data.data || []);
-    } catch (err) {
-      toast.error('Failed to fetch payroll runs');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   const handleGenerateMonthlyBatch = async ({ month, year }) => {
     try {
@@ -923,67 +1011,6 @@ const FinancePage = () => {
       toast.error(err.response?.data?.message || 'Failed to send batch payslips');
     } finally {
       setIsSendingBatchPayslips(false);
-    }
-  };
-
-  const fetchFinanceData = async (start = startDateFilter, end = endDateFilter) => {
-    if (!isSuperAdmin) return;
-    try {
-      let startDate = start;
-      let endDate = end;
-      if (!startDate && !endDate) {
-        const currentYear = new Date().getFullYear();
-        startDate = `${currentYear}-01-01`;
-        endDate = `${currentYear}-12-31`;
-      } else if (startDate && !endDate) {
-        endDate = startDate;
-      } else if (!startDate && endDate) {
-        startDate = '2000-01-01';
-      }
-
-      const res = await axios.get(`/finance/report?startDate=${startDate}&endDate=${endDate}`);
-      const data = res.data.data || res.data;
-      setReportData(data);
-    } catch (err) {
-      console.error("Finance fetch error", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchInvoices = async (silent = false) => {
-    if (!silent) setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/invoices');
-      setInvoices(res.data.data || []);
-    } catch (err) {
-      if (!silent) toast.error('Failed to fetch invoices');
-    } finally {
-      if (!silent) setIsRefreshing(false);
-    }
-  };
-
-  const fetchExpenses = async () => {
-    setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/expenses');
-      setExpenses(res.data.data || []);
-    } catch (err) {
-      toast.error('Failed to fetch expenses');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const fetchPayrollRecords = async () => {
-    setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/payroll/all');
-      setPayrollData(res.data.data || []);
-    } catch (err) {
-      toast.error('Failed to fetch payroll history');
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -1270,7 +1297,7 @@ const FinancePage = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveView(tab.id)}
+                onClick={() => handleTabSelect(tab.id)}
                 className={cn(
                   "px-2 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 active:scale-[0.98] whitespace-nowrap shrink-0",
                   isActive
@@ -1287,6 +1314,20 @@ const FinancePage = () => {
 
         {/* Right: Tab-Specific Filters, Search Toggle & Date Controls */}
         <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end shrink-0">
+          {/* Quick Reload Button */}
+          <button
+            type="button"
+            onClick={() => loadActiveTabData(activeView, false)}
+            disabled={isRefreshing}
+            className={cn(
+              "py-1.5 px-2 rounded-md border transition-all duration-200 flex items-center justify-center gap-1 shadow-2xs bg-white border-slate-200/80 text-slate-500 hover:text-slate-800 hover:bg-slate-50 cursor-pointer disabled:opacity-60",
+              isRefreshing && "text-blue-600 border-blue-200 bg-blue-50/50"
+            )}
+            title="Refresh current tab data"
+          >
+            <RotateCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin text-blue-600")} />
+          </button>
+
           {/* Search Toggle Icon Button (for tabs with search) */}
           {activeView !== 'Overview' && (
             <button
@@ -1390,6 +1431,9 @@ const FinancePage = () => {
             onChange={({ startDate, endDate }) => {
               setStartDateFilter(startDate);
               setEndDateFilter(endDate);
+              if (activeView === 'Overview') {
+                fetchFinanceData(startDate, endDate);
+              }
             }}
           />
 
@@ -1397,7 +1441,13 @@ const FinancePage = () => {
           {(startDateFilter || endDateFilter) && (
             <button
               type="button"
-              onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }}
+              onClick={() => {
+                setStartDateFilter('');
+                setEndDateFilter('');
+                if (activeView === 'Overview') {
+                  fetchFinanceData('', '');
+                }
+              }}
               className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow-2xs border border-rose-200/50 shrink-0 cursor-pointer"
               title="Reset date filter"
             >
@@ -1494,6 +1544,7 @@ const FinancePage = () => {
         {activeView === 'Expenses' && (
           <ExpensesTab
             expenses={filteredExpenses}
+            isRefreshing={isRefreshing}
             expenseSearch={expenseSearch}
             setExpenseSearch={setExpenseSearch}
             expenseCategoryFilter={expenseCategoryFilter}
@@ -1502,6 +1553,7 @@ const FinancePage = () => {
             categories={expenseCategories}
             onCategoriesChange={setExpenseCategories}
             fileBaseUrl={FILE_BASE_URL}
+            fetchExpenses={fetchExpenses}
           />
         )}
 

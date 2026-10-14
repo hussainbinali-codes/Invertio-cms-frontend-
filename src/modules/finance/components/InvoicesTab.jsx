@@ -116,18 +116,26 @@ const InvoicesTab = ({
     }
   };
 
-  const filteredInvoices = invoices.filter(inv => {
+  const filteredInvoices = (invoices || []).filter(inv => {
     const rawDate = inv.invoice_date || inv.created_at;
     const invDateObj = rawDate ? new Date(rawDate) : null;
 
-    const matchesSearch = inv.invoice_number?.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
-      inv.client_name?.toLowerCase().includes(invoiceSearch.toLowerCase());
+    const searchLower = (invoiceSearch || '').toLowerCase().trim();
+    const invNumber = (inv.invoice_number || '').toLowerCase();
+    const clientName = (inv.client_name || '').toLowerCase();
+    const projectName = (inv.project_name || '').toLowerCase();
+
+    const matchesSearch = !searchLower ||
+      invNumber.includes(searchLower) ||
+      clientName.includes(searchLower) ||
+      projectName.includes(searchLower);
+
     const matchesStatus = invoiceStatusFilter === 'All' || inv.status === invoiceStatusFilter;
     const matchesType = invoiceTypeFilter === 'All' || inv.type === invoiceTypeFilter;
 
     const matchesYear = !invDateObj || yearFilter === 'All' || invDateObj.getFullYear() === Number(yearFilter);
     const matchesMonth = !invDateObj || monthFilter === 'All' || (invDateObj.getMonth() + 1) === Number(monthFilter);
-    const matchesDate = !dateFilter || (rawDate && rawDate.startsWith(dateFilter));
+    const matchesDate = !dateFilter || (rawDate && String(rawDate).startsWith(dateFilter));
 
     return matchesSearch && matchesStatus && matchesType && matchesYear && matchesMonth && matchesDate;
   });
@@ -195,7 +203,12 @@ const InvoicesTab = ({
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setInvoiceTypeFilter(tab.id)}
+                  onClick={() => {
+                    setInvoiceTypeFilter(tab.id);
+                    if (typeof fetchInvoices === 'function') {
+                      fetchInvoices(true);
+                    }
+                  }}
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-[0.98] border cursor-pointer shadow-2xs",
                     isActive 
