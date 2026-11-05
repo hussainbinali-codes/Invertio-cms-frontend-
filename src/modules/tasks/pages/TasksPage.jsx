@@ -108,6 +108,7 @@ const TasksPage = () => {
   const [allTasks, setAllTasks] = useState([]);
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [initialTaskDueDate, setInitialTaskDueDate] = useState('');
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [tasksModalStatusFilter, setTasksModalStatusFilter] = useState('all');
   const [tasksModalAssigneeFilter, setTasksModalAssigneeFilter] = useState('all');
@@ -311,23 +312,43 @@ const TasksPage = () => {
     }
   };
 
-  const handleCreateTask = async (project) => {
-    if (project.status?.includes('Blocked')) {
+  const handleCreateTask = async (project, defaultDueDate = null) => {
+    let targetProject = project;
+    if (!targetProject && projects.length > 0) {
+      targetProject = projects[0];
+    }
+    if (!targetProject) {
+      toast.error("No active projects found.");
+      return;
+    }
+    if (targetProject.status?.includes('Blocked')) {
       toast.error("Access Denied: Project is currently Blocked (Financial). Clear outstanding payments to resume operations.");
       return;
     }
 
-    setSelectedProject(project);
+    setSelectedProject(targetProject);
+    setInitialTaskDueDate(defaultDueDate || new Date().toISOString().split('T')[0]);
     setIsFetchingTeam(true);
 
     try {
-      const res = await axios.get(`/projects/${project.id}/team`);
+      const res = await axios.get(`/projects/${targetProject.id}/team`);
       setProjectTeam(res.data.data || []);
       setShowAddModal(true);
     } catch (error) {
       toast.error('Failed to fetch project team members');
     } finally {
       setIsFetchingTeam(false);
+    }
+  };
+
+  const handleProjectChangeInModal = async (project) => {
+    if (!project) return;
+    setSelectedProject(project);
+    try {
+      const res = await axios.get(`/projects/${project.id}/team`);
+      setProjectTeam(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch project team', error);
     }
   };
 
@@ -350,10 +371,13 @@ const TasksPage = () => {
     const definition_of_done = formData.getAll('definition_of_done');
     const deliverables = formData.getAll('deliverables');
 
+    const desc = formData.get('description') || formData.get('business_objective') || '';
+
     const payload = {
       title: formData.get('title'),
-      module: formData.get('module') || '',
-      task_type: formData.get('task_type'),
+      description: desc,
+      module: formData.get('module') || 'General',
+      task_type: formData.get('task_type') || 'Feature',
       priority: formData.get('priority') || 'Medium',
       story_points: parseInt(formData.get('story_points') || 0),
       assigned_to: formData.get('assigned_to') || undefined,
@@ -365,7 +389,7 @@ const TasksPage = () => {
       due_date: formData.get('due_date') || formData.get('estimated_end_date') || undefined,
 
       template_data: {
-        business_objective: formData.get('business_objective') || '',
+        business_objective: desc || formData.get('business_objective') || '',
         current_issue: formData.get('current_issue') || '',
         expected_improvement: formData.get('expected_improvement') || '',
         business_impact: formData.get('business_impact') || '',
@@ -402,7 +426,8 @@ const TasksPage = () => {
     };
 
     try {
-      const taskRes = await axios.post(`/projects/${selectedProject.id}/tasks`, payload);
+      const targetProjectId = formData.get('project_id') || selectedProject.id;
+      const taskRes = await axios.post(`/projects/${targetProjectId}/tasks`, payload);
       const newTask = taskRes.data.data;
 
       if (selectedFiles.length > 0) {
@@ -610,28 +635,30 @@ const TasksPage = () => {
         }
         icon={CheckSquare}
         headerRight={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative w-full sm:w-64 group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors pointer-events-none z-10" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={activeTab === 'boards' ? "Search boards, tech, status..." : "Search tasks..."}
-                className="w-full h-9 pl-9 pr-8 text-xs font-medium bg-slate-50/80 hover:bg-slate-100/60 focus:bg-white border border-slate-200/90 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all shadow-sm"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-md hover:bg-slate-100 transition-colors z-10"
-                  title="Clear search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+          activeTab === 'my' ? null : (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64 group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors pointer-events-none z-10" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={activeTab === 'boards' ? "Search boards, tech, status..." : "Search tasks..."}
+                  className="w-full h-9 pl-9 pr-8 text-xs font-medium bg-slate-50/80 hover:bg-slate-100/60 focus:bg-white border border-slate-200/90 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all shadow-sm"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-md hover:bg-slate-100 transition-colors z-10"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )
         }
       >
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -653,7 +680,10 @@ const TasksPage = () => {
             <Suspense fallback={<TabLoader />}>
               {activeTab === 'my' ? (
                 <MyPipelineTab
-                  tasks={filteredMyTasks}
+                  tasks={myTasks}
+                  allTasks={myTasks}
+                  projects={projects}
+                  handleCreateTask={handleCreateTask}
                   handleUpdateTask={handleUpdateTask}
                   updatingTaskId={updatingTaskId}
                   setSelectedTaskDetail={setSelectedTaskDetail}
@@ -696,6 +726,9 @@ const TasksPage = () => {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           selectedProject={selectedProject}
+          projects={projects}
+          initialDueDate={initialTaskDueDate}
+          onProjectChange={handleProjectChangeInModal}
           onSubmit={submitTask}
           isSubmitting={isSubmitting}
           projectTeam={projectTeam}

@@ -1233,63 +1233,45 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       </div>
                     )}
 
-                    {/* SECTION 01: Business Objective & Problem Statement */}
+                    {/* SECTION: Task Description & Notes */}
                     <div className="space-y-2 pb-3 border-b border-slate-100">
                       <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                        <span className="text-primary-600 font-extrabold">01.</span> Business Objective & Problem Statement
+                        <span>Task Description</span>
                       </h3>
 
                       {isEditing && isAdmin ? (
                         <div className="space-y-2 mt-2">
                           <Textarea
-                            label="Business Objective"
-                            value={editData.business_objective}
-                            onChange={(e) => setEditData({ ...editData, business_objective: e.target.value })}
-                            placeholder="Why are we implementing this task?"
+                            label="Description"
+                            value={editData.business_objective || editData.description || ''}
+                            onChange={(e) => setEditData({ ...editData, business_objective: e.target.value, description: e.target.value })}
+                            placeholder="Describe the task, meeting details, or action items..."
+                            className="min-h-[80px]"
                           />
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <Textarea
-                              label="Current Issue"
-                              value={editData.current_issue}
-                              onChange={(e) => setEditData({ ...editData, current_issue: e.target.value })}
-                            />
-                            <Textarea
-                              label="Expected Improvement"
-                              value={editData.expected_improvement}
-                              onChange={(e) => setEditData({ ...editData, expected_improvement: e.target.value })}
-                            />
-                            <Textarea
-                              label="Business Impact"
-                              value={editData.business_impact}
-                              onChange={(e) => setEditData({ ...editData, business_impact: e.target.value })}
-                            />
-                          </div>
                         </div>
                       ) : (
                         <div className="space-y-2 mt-1">
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Business Objective</span>
-                            <p className="text-xs text-slate-700 leading-relaxed font-normal">
-                              {taskData.business_objective || taskData.description || "No specific business objective detailed for this engineering task."}
-                            </p>
-                          </div>
+                          <p className="text-xs text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">
+                            {taskData.description || taskData.business_objective || "No specific description detailed for this task."}
+                          </p>
 
+                          {/* Legacy Context fields (Only shown if populated in older tasks) */}
                           {(taskData.current_issue || taskData.expected_improvement || taskData.business_impact) && (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 mt-2 border-t border-slate-50">
                               {taskData.current_issue && (
-                                <div>
+                                <div className="p-2.5 rounded-lg bg-slate-50/60 border border-slate-100">
                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Current Issue</span>
                                   <p className="text-xs text-slate-700 leading-relaxed font-normal">{taskData.current_issue}</p>
                                 </div>
                               )}
                               {taskData.expected_improvement && (
-                                <div>
+                                <div className="p-2.5 rounded-lg bg-slate-50/60 border border-slate-100">
                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Expected Improvement</span>
                                   <p className="text-xs text-slate-700 leading-relaxed font-normal">{taskData.expected_improvement}</p>
                                 </div>
                               )}
                               {taskData.business_impact && (
-                                <div>
+                                <div className="p-2.5 rounded-lg bg-slate-50/60 border border-slate-100">
                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Business Impact</span>
                                   <p className="text-xs text-slate-700 leading-relaxed font-normal">{taskData.business_impact}</p>
                                 </div>
@@ -1300,125 +1282,151 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       )}
                     </div>
 
-                    {/* SECTION 02: Functional Requirements */}
-                    <div className="space-y-2 pb-3 border-b border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                          <span className="text-primary-600 font-extrabold">02.</span> Functional Requirements
-                        </h3>
-                        {isEditing && isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => setEditData({ ...editData, functional_requirements: [...editData.functional_requirements, ''] })}
-                            className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                          >
-                            <Plus className="w-3.5 h-3.5" /> Add FR
-                          </button>
-                        )}
-                      </div>
-
-                      {isEditing && isAdmin ? (
-                        <div className="space-y-2 mt-1.5">
-                          {editData.functional_requirements.map((req, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-400 shrink-0">FR-{idx + 1}:</span>
-                              <input
-                                type="text"
-                                value={req}
-                                onChange={(e) => {
-                                  const updated = [...editData.functional_requirements];
-                                  updated[idx] = e.target.value;
-                                  setEditData({ ...editData, functional_requirements: updated });
-                                }}
-                                placeholder="Requirement description..."
-                                className="w-full rounded-md border border-slate-200 px-2.5 py-1 text-xs bg-white"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setEditData({ ...editData, functional_requirements: editData.functional_requirements.filter((_, i) => i !== idx) })}
-                                className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5 mt-1">
-                          {funcReqList.length > 0 ? (
-                            funcReqList.map((req, i) => (
-                              <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
-                                <span className="text-[10px] font-bold text-primary-600 font-mono shrink-0 mt-0.5">
-                                  FR-{i + 1}:
-                                </span>
-                                <span className="leading-relaxed font-normal">{req}</span>
+                    {/* SECTION: References & Links (if present) */}
+                    {taskData.task_references && taskData.task_references.length > 0 && (
+                      <div className="space-y-2 pb-3 border-b border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">References & Links</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {taskData.task_references.map((ref, i) => {
+                            const val = (ref.value || '').trim();
+                            const isLink = val.startsWith('http://') || val.startsWith('https://') || val.startsWith('www.');
+                            return (
+                              <div key={i} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                                <div className="min-w-0 flex-1 mr-2">
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{ref.title || 'Note'}</p>
+                                  <p className="text-xs font-normal text-slate-700 break-words mt-0.5">{ref.value}</p>
+                                </div>
+                                {isLink && (
+                                  <a
+                                    href={ref.value.startsWith('http') ? ref.value : `https://${ref.value}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 bg-white rounded border border-slate-200 text-blue-600 hover:bg-blue-50 shrink-0"
+                                    title="Open link"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
                               </div>
-                            ))
-                          ) : (
-                            <p className="text-xs text-slate-400 italic font-normal">No specific functional requirements listed.</p>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: Functional Requirements (Only shown if populated) */}
+                    {(funcReqList.length > 0 || (isEditing && isAdmin)) && (
+                      <div className="space-y-2 pb-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            Key Requirements
+                          </h3>
+                          {isEditing && isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setEditData({ ...editData, functional_requirements: [...editData.functional_requirements, ''] })}
+                              className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Add Requirement
+                            </button>
                           )}
                         </div>
-                      )}
-                    </div>
 
-                    {/* SECTION 03: Acceptance Criteria */}
-                    <div className="space-y-2 pb-3 border-b border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                          <span className="text-primary-600 font-extrabold">03.</span> Acceptance Criteria
-                        </h3>
-                        {isEditing && isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => setEditData({ ...editData, acceptance_criteria: [...editData.acceptance_criteria, ''] })}
-                            className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                          >
-                            <Plus className="w-3.5 h-3.5" /> Add Criteria
-                          </button>
+                        {isEditing && isAdmin ? (
+                          <div className="space-y-2 mt-1.5">
+                            {editData.functional_requirements.map((req, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-400 shrink-0">•</span>
+                                <input
+                                  type="text"
+                                  value={req}
+                                  onChange={(e) => {
+                                    const updated = [...editData.functional_requirements];
+                                    updated[idx] = e.target.value;
+                                    setEditData({ ...editData, functional_requirements: updated });
+                                  }}
+                                  placeholder="Requirement description..."
+                                  className="w-full rounded-md border border-slate-200 px-2.5 py-1 text-xs bg-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setEditData({ ...editData, functional_requirements: editData.functional_requirements.filter((_, i) => i !== idx) })}
+                                  className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 mt-1">
+                            {funcReqList.map((req, i) => (
+                              <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
+                                <span className="text-blue-600 font-bold shrink-0 mt-0.5">•</span>
+                                <span className="leading-relaxed font-normal">{req}</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
+                    )}
 
-                      {isEditing && isAdmin ? (
-                        <div className="space-y-2 mt-1.5">
-                          {editData.acceptance_criteria.map((ac, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-400 shrink-0">AC-{idx + 1}:</span>
-                              <input
-                                type="text"
-                                value={ac}
-                                onChange={(e) => {
-                                  const updated = [...editData.acceptance_criteria];
-                                  updated[idx] = e.target.value;
-                                  setEditData({ ...editData, acceptance_criteria: updated });
-                                }}
-                                placeholder="Acceptance criteria..."
-                                className="w-full rounded-md border border-slate-200 px-2.5 py-1 text-xs bg-white"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setEditData({ ...editData, acceptance_criteria: editData.acceptance_criteria.filter((_, i) => i !== idx) })}
-                                className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
+                    {/* SECTION: Acceptance Criteria (Only shown if populated) */}
+                    {(acceptCritList.length > 0 || (isEditing && isAdmin)) && (
+                      <div className="space-y-2 pb-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            Acceptance Criteria
+                          </h3>
+                          {isEditing && isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setEditData({ ...editData, acceptance_criteria: [...editData.acceptance_criteria, ''] })}
+                              className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Add Criteria
+                            </button>
+                          )}
                         </div>
-                      ) : (
-                        <div className="space-y-1.5 mt-1">
-                          {acceptCritList.length > 0 ? (
-                            acceptCritList.map((ac, i) => (
+
+                        {isEditing && isAdmin ? (
+                          <div className="space-y-2 mt-1.5">
+                            {editData.acceptance_criteria.map((ac, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <CheckSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <input
+                                  type="text"
+                                  value={ac}
+                                  onChange={(e) => {
+                                    const updated = [...editData.acceptance_criteria];
+                                    updated[idx] = e.target.value;
+                                    setEditData({ ...editData, acceptance_criteria: updated });
+                                  }}
+                                  placeholder="Acceptance criteria..."
+                                  className="w-full rounded-md border border-slate-200 px-2.5 py-1 text-xs bg-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setEditData({ ...editData, acceptance_criteria: editData.acceptance_criteria.filter((_, i) => i !== idx) })}
+                                  className="text-slate-400 hover:text-rose-600 p-1 shrink-0"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 mt-1">
+                            {acceptCritList.map((ac, i) => (
                               <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
                                 <CheckSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
                                 <span className="leading-relaxed font-normal">{ac}</span>
                               </div>
-                            ))
-                          ) : (
-                            <p className="text-xs text-slate-400 italic font-normal">No acceptance criteria defined.</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Developer Progress Update Drawer / Admin Progress Note */}
                     {isEditing && (

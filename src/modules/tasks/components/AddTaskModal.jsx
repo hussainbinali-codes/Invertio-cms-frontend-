@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
-import Input from '../../../components/ui/Input';
-import Textarea from '../../../components/ui/Textarea';
 import Button from '../../../components/ui/Button';
-import { X, Loader2, CheckSquare, UploadCloud, Plus, Trash2, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { X, Loader2, CheckSquare, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 const AddTaskModal = ({
   isOpen,
   onClose,
   selectedProject,
+  projects = [],
+  initialDueDate,
+  onProjectChange,
   onSubmit,
   isSubmitting,
   projectTeam = [],
   isAdmin,
   currentUser,
-  initialStoryId,
   taskReferences: propTaskReferences,
   setTaskReferences: propSetTaskReferences,
   selectedFiles: propSelectedFiles,
@@ -24,6 +23,7 @@ const AddTaskModal = ({
 }) => {
   useLockBodyScroll(isOpen);
 
+  const [activeProject, setActiveProject] = useState(selectedProject);
   const [internalTaskReferences, setInternalTaskReferences] = useState('');
   const [internalSelectedFiles, setInternalSelectedFiles] = useState([]);
 
@@ -33,385 +33,270 @@ const AddTaskModal = ({
   const selectedFiles = propSelectedFiles !== undefined ? propSelectedFiles : internalSelectedFiles;
   const setSelectedFiles = propSetSelectedFiles || setInternalSelectedFiles;
 
-  const [requirements, setRequirements] = useState(['']);
-  const [acceptanceCriteria, setAcceptanceCriteria] = useState(['']);
-  const [userStories, setUserStories] = useState([]);
-  const [selectedStoryId, setSelectedStoryId] = useState('');
-  const [loadingStories, setLoadingStories] = useState(false);
-
   useEffect(() => {
     if (isOpen) {
-      setRequirements(['']);
-      setAcceptanceCriteria(['']);
-      setSelectedStoryId(initialStoryId || '');
+      setActiveProject(selectedProject || projects[0] || null);
       setInternalSelectedFiles([]);
       setInternalTaskReferences('');
-
-      if (selectedProject?.id) {
-        setLoadingStories(true);
-        axios.get(`/projects/${selectedProject.id}/stories`)
-          .then(res => setUserStories(res.data.data || []))
-          .catch(() => setUserStories([]))
-          .finally(() => setLoadingStories(false));
-      }
     }
-  }, [isOpen, selectedProject]);
+  }, [isOpen, selectedProject, projects]);
 
-  if (!isOpen || !selectedProject) return null;
+  const currentProj = activeProject || selectedProject || projects[0];
 
-  const addRequirement = () => setRequirements([...requirements, '']);
-  const removeRequirement = (idx) => {
-    if (requirements.length > 1) {
-      setRequirements(requirements.filter((_, i) => i !== idx));
-    } else {
-      setRequirements(['']);
-    }
-  };
-  const handleRequirementChange = (idx, val) => {
-    const updated = [...requirements];
-    updated[idx] = val;
-    setRequirements(updated);
-  };
-
-  const addAcceptanceCriteria = () => setAcceptanceCriteria([...acceptanceCriteria, '']);
-  const removeAcceptanceCriteria = (idx) => {
-    if (acceptanceCriteria.length > 1) {
-      setAcceptanceCriteria(acceptanceCriteria.filter((_, i) => i !== idx));
-    } else {
-      setAcceptanceCriteria(['']);
-    }
-  };
-  const handleCriteriaChange = (idx, val) => {
-    const updated = [...acceptanceCriteria];
-    updated[idx] = val;
-    setAcceptanceCriteria(updated);
-  };
+  if (!isOpen || !currentProj) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-5 text-slate-900">
-      <Card className="w-[95%] max-w-[95vw] shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[92vh] border border-slate-100/80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 text-slate-900 animate-in fade-in duration-150 font-sans">
+      <Card className="w-full max-w-xl shadow-2xl rounded-3xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <CardHeader className="flex flex-row items-center justify-between py-2.5 px-4 sm:px-5 shrink-0 border-b border-slate-100 bg-white gap-4">
-          <div className="flex flex-1 items-center justify-between gap-4">
-            <CardTitle className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
-              <span className="w-2 h-5 bg-primary-600 rounded-full"></span>
-              Create New Engineering Task
-            </CardTitle>
-            <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
-              {selectedProject.client_name && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">Client:</span>
-                  <span className="text-indigo-600 font-bold">{selectedProject.client_name}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Project:</span>
-                <span className="text-primary-600 font-bold">{selectedProject.name}</span>
-              </div>
+        <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-slate-100 bg-white">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+              <CheckSquare className="w-4 h-4" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-bold text-slate-900 tracking-tight">
+                Create New Task
+              </CardTitle>
+              <p className="text-xs text-slate-400 font-medium">
+                Adding to project: <span className="text-blue-600 font-semibold">{currentProj.name}</span>
+              </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-200 rounded-lg hover:bg-slate-50 shrink-0"
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
             title="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </CardHeader>
 
-        {/* Scrollable Form Content */}
-        <CardContent className="p-3 sm:p-4 overflow-y-auto flex-1 bg-slate-50/40 custom-scrollbar">
-          <form onSubmit={onSubmit} id="add-task-form" className="space-y-3">
+        {/* Form Body */}
+        <CardContent className="p-6 overflow-y-auto flex-1 bg-white custom-scrollbar">
+          <form onSubmit={onSubmit} id="add-task-form" className="space-y-4">
 
-            {/* SECTION 1: Basic Information */}
-            <section className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-100 shadow-xs space-y-3">
-              <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
-                <span className="text-primary-600 font-bold">01.</span> Basic Information
-              </h2>
-              {/* Row 1: Title & User Story */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <Input
-                    label="Task Title"
-                    name="title"
-                    placeholder="e.g. Implement OAuth2 Login Integration"
-                    className="font-semibold text-slate-900 placeholder:font-normal"
-                    required
-                  />
-                </div>
+            {/* Hidden fields for backend compatibility */}
+            <input type="hidden" name="module" value="General" />
+            <input type="hidden" name="task_type" value="Feature" />
+            <input type="hidden" name="user_story_id" value="" />
+            <input type="hidden" name="project_id" value={currentProj.id} />
 
-                {/* User Story Selection */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-1.5 flex items-center justify-between">
-                    <span>Link to User Story (Feature)</span>
-                    {loadingStories && <span className="text-xs text-blue-600 animate-pulse font-normal">Loading stories...</span>}
-                  </label>
-                  <select
-                    name="user_story_id"
-                    value={selectedStoryId}
-                    onChange={(e) => setSelectedStoryId(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white shadow-sm transition-all"
-                  >
-                    <option value="">-- No User Story (Standalone Task) --</option>
-                    {userStories.map(story => (
-                      <option key={story.id} value={story.id}>
-                        {story.story_key ? `[${story.story_key}] ` : ''}{story.title} {story.sprint_name ? `(${story.sprint_name})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedStoryId && (
-                    <input
-                      type="hidden"
-                      name="sprint_id"
-                      value={userStories.find(s => s.id === selectedStoryId)?.sprint_id || ''}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Row 2: 5 Inputs in a single row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <div>
-                  <Input label="Module" name="module" placeholder="e.g. CMS Payroll" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-1.5">Task Type</label>
-                  <select name="task_type" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white shadow-sm transition-all" required>
-                    <option value="Feature">Feature</option>
-                    <option value="Enhancement">Enhancement</option>
-                    <option value="Bug">Bug</option>
-                    <option value="Research">Research</option>
-                    <option value="Refactor">Refactor</option>
-                    <option value="DevOps">DevOps</option>
-                    <option value="AI/ML">AI/ML</option>
-                    <option value="Data Engineering">Data Engineering</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-1.5">Priority Level</label>
-                  <select name="priority" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white shadow-sm transition-all" defaultValue="Medium" required>
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                  </select>
-                </div>
-                <div>
-                  <Input label="Due Date" name="due_date" type="date" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-1.5">Assign To</label>
-                  {(isAdmin || (currentUser?.role_name || '').toLowerCase().includes('admin') || (currentUser?.role_name || '').toLowerCase().includes('pm') || (currentUser?.role_name || '').toLowerCase().includes('project manager')) ? (
-                    <select name="assigned_to" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-white shadow-sm transition-all" required>
-                      <option value="">Select member...</option>
-                      {projectTeam.map(u => (
-                        <option key={u.id} value={u.id}>{u.name} ({u.role_name || u.email})</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <select name="assigned_to" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 bg-slate-50 font-medium text-slate-700 cursor-not-allowed shadow-sm transition-all" defaultValue={currentUser?.id || ''} required>
-                      <option value={currentUser?.id}>{currentUser?.name || 'You'} (Self-Assigned)</option>
-                    </select>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* SECTION 2: Business Objective & Problem Statement (2 Balanced Rows) */}
-            <section className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-100 shadow-xs space-y-3">
-              <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
-                <span className="text-primary-600 font-bold">02.</span> Business Objective & Problem Statement
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Textarea label="Business Objective (Why are we doing this?)" name="business_objective" placeholder="e.g. To create a structured and professional framework for scaling engineering practices." required />
-                <Textarea label="Current Issue" name="current_issue" placeholder="e.g. Engineering tasks lack a consistent structure..." required />
-                <Textarea label="Expected Improvement" name="expected_improvement" placeholder="e.g. Standardized template will provide visibility..." required />
-                <Textarea label="Business Impact" name="business_impact" placeholder="e.g. Improved project predictability and team alignment." required />
-              </div>
-            </section>
-
-            {/* SECTION 3 & 4: Functional Requirements & Acceptance Criteria (Single Row) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* SECTION 3: Functional Requirements */}
-              <section className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-100 shadow-xs space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="text-primary-600 font-bold">03.</span> Functional Requirements
-                  </h2>
-                  <button type="button" onClick={addRequirement} className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                    <Plus className="w-3.5 h-3.5" /> Add Requirement
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {requirements.map((req, idx) => (
-                    <div key={idx} className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                      <span className="text-xs font-bold text-slate-500 shrink-0">FR-{idx + 1}:</span>
-                      <input
-                        type="text"
-                        name="functional_requirements"
-                        value={req}
-                        onChange={(e) => handleRequirementChange(idx, e.target.value)}
-                        placeholder="Requirement description..."
-                        className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white font-medium"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeRequirement(idx)}
-                        className="text-slate-400 hover:text-rose-600 transition-colors p-1 hover:bg-rose-50 rounded-lg shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+            {/* Project Selection (if opened with multiple projects available) */}
+            {projects && projects.length > 1 && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Project <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={currentProj.id}
+                  onChange={(e) => {
+                    const p = projects.find(proj => String(proj.id) === String(e.target.value));
+                    if (p) {
+                      setActiveProject(p);
+                      if (onProjectChange) onProjectChange(p);
+                    }
+                  }}
+                  className="w-full h-10 px-3.5 text-xs font-semibold rounded-xl border border-slate-200 text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all cursor-pointer"
+                >
+                  {projects.map((proj) => (
+                    <option key={proj.id} value={proj.id}>
+                      {proj.name}
+                    </option>
                   ))}
-                </div>
-              </section>
+                </select>
+              </div>
+            )}
 
-              {/* SECTION 4: Acceptance Criteria */}
-              <section className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-100 shadow-xs space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="text-primary-600 font-bold">04.</span> Acceptance Criteria
-                  </h2>
-                  <button type="button" onClick={addAcceptanceCriteria} className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                    <Plus className="w-3.5 h-3.5" /> Add Criteria
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {acceptanceCriteria.map((ac, idx) => (
-                    <div key={idx} className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                      <span className="text-xs font-bold text-slate-500 shrink-0">AC-{idx + 1}:</span>
-                      <input
-                        type="text"
-                        name="acceptance_criteria"
-                        value={ac}
-                        onChange={(e) => handleCriteriaChange(idx, e.target.value)}
-                        placeholder="e.g. Successful login redirects to CRM dashboard"
-                        className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white font-medium"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeAcceptanceCriteria(idx)}
-                        className="text-slate-400 hover:text-rose-600 transition-colors p-1 hover:bg-rose-50 rounded-lg shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
+            {/* 1. Task Title */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                Task Title <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="title"
+                placeholder="e.g. Meeting with rajesh @ 7 pm or Implement OAuth login"
+                className="w-full h-11 px-4 text-sm font-medium rounded-xl border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                required
+                autoFocus
+              />
             </div>
 
-            {/* SECTION 5: Resources & Task Media (Single Dual-Feature Input) */}
-            <section className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-100 shadow-xs space-y-2.5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <span className="text-primary-600 font-bold">05.</span> Resources & Media
-                </h2>
-                <span className="text-[11px] font-medium text-slate-400">Optional: links, instructions & file attachments</span>
+            {/* 2. Priority, Due Date, and Assignee in a clean row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Priority */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Priority
+                </label>
+                <select
+                  name="priority"
+                  defaultValue="Medium"
+                  className="w-full h-10 px-3 text-xs font-semibold rounded-xl border border-slate-200 text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all cursor-pointer"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Urgent / Critical</option>
+                </select>
               </div>
 
-              {/* Unified Dual-Feature Input Container */}
-              <div className="rounded-xl border border-slate-200 bg-white hover:border-slate-300 focus-within:border-primary-500 focus-within:ring-4 focus-within:ring-primary-500/10 transition-all shadow-2xs overflow-hidden flex flex-col">
-                {/* Textarea for Notes, Figma, Links */}
-                <textarea
-                  placeholder="Add links (e.g. Figma), reference docs, or specific instructions for this task..."
-                  className="w-full px-3.5 pt-2.5 pb-1.5 text-sm text-slate-800 placeholder:text-slate-400 bg-transparent border-none resize-none focus:outline-none focus:ring-0 leading-relaxed min-h-[44px] max-h-[180px] overflow-y-auto"
-                  value={taskReferences}
-                  onChange={(e) => setTaskReferences(e.target.value)}
-                  onInput={(e) => {
-                    e.target.style.height = 'auto';
-                    e.target.style.height = `${Math.min(e.target.scrollHeight, 180)}px`;
-                  }}
-                  rows={1}
+              {/* Due Date */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Due Date <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="due_date"
+                  defaultValue={initialDueDate || new Date().toISOString().split('T')[0]}
+                  key={initialDueDate || 'default-date'}
+                  className="w-full h-10 px-3 text-xs font-medium rounded-xl border border-slate-200 text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all"
+                  required
                 />
-
-                {/* Attached Files/Images Preview Chips inside the component */}
-                {selectedFiles.length > 0 && (
-                  <div className="px-3 pb-2 pt-1 flex flex-wrap gap-1.5 border-t border-slate-100 bg-slate-50/50">
-                    {selectedFiles.map((file, i) => {
-                      const isImg = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
-                      return (
-                        <div
-                          key={i}
-                          className="flex items-center gap-1.5 bg-white border border-slate-200 pl-2 pr-1 py-0.5 rounded-lg text-xs font-medium text-slate-700 shadow-2xs hover:border-slate-300 transition-all"
-                        >
-                          <span className="w-4 h-4 rounded text-primary-600 flex items-center justify-center shrink-0">
-                            {isImg ? <ImageIcon className="w-3.5 h-3.5" /> : <Paperclip className="w-3.5 h-3.5" />}
-                          </span>
-                          <span className="truncate max-w-[140px] sm:max-w-[200px]" title={file.name}>
-                            {file.name}
-                          </span>
-                          {file.size ? (
-                            <span className="text-[10px] text-slate-400">
-                              ({(file.size / 1024).toFixed(0)}KB)
-                            </span>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() => setSelectedFiles(selectedFiles.filter((_, idx) => idx !== i))}
-                            className="p-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors ml-0.5"
-                            title="Remove file"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Bottom Integrated Toolbar */}
-                <div className="flex items-center justify-between px-3 py-2 bg-slate-50/70 border-t border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      multiple
-                      id="task-file-input"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files?.length) {
-                          setSelectedFiles([...selectedFiles, ...Array.from(e.target.files)]);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById('task-file-input').click()}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:text-primary-600 hover:border-primary-300 hover:bg-primary-50/50 shadow-2xs transition-all active:scale-95"
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Attach Images / Media</span>
-                    </button>
-                    {selectedFiles.length > 0 && (
-                      <span className="text-xs text-slate-500 font-medium">
-                        {selectedFiles.length} {selectedFiles.length === 1 ? 'file' : 'files'} attached
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-slate-400 hidden sm:inline italic">
-                    Supports Figma URLs, text notes & file uploads
-                  </span>
-                </div>
               </div>
-            </section>
+
+              {/* Assignee */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Assign To
+                </label>
+                {(isAdmin || (currentUser?.role_name || '').toLowerCase().includes('admin') || (currentUser?.role_name || '').toLowerCase().includes('pm')) ? (
+                  <select
+                    name="assigned_to"
+                    defaultValue={currentUser?.id || ''}
+                    className="w-full h-10 px-3 text-xs font-semibold rounded-xl border border-slate-200 text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all cursor-pointer"
+                  >
+                    <option value={currentUser?.id || ''}>
+                      {currentUser?.name || 'Self-Assigned'}
+                    </option>
+                    {projectTeam
+                      .filter(u => u.id !== currentUser?.id)
+                      .map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}
+                        </option>
+                      ))}
+                  </select>
+                ) : (
+                  <select
+                    name="assigned_to"
+                    defaultValue={currentUser?.id || ''}
+                    className="w-full h-10 px-3 text-xs font-semibold rounded-xl border border-slate-200 text-slate-700 bg-slate-50 cursor-not-allowed"
+                  >
+                    <option value={currentUser?.id}>
+                      {currentUser?.name || 'You'} (Self-Assigned)
+                    </option>
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Description / Notes */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                Description & Notes <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <textarea
+                name="description"
+                rows={3}
+                placeholder="Briefly describe the task, action items, or meeting details..."
+                className="w-full p-3.5 text-xs font-normal rounded-xl border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all resize-none leading-relaxed"
+              />
+            </div>
+
+            {/* 4. Meeting Links & Task References */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                Meeting Link / References <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Paste Zoom, Google Meet, Figma, or document URL..."
+                value={taskReferences}
+                onChange={(e) => setTaskReferences(e.target.value)}
+                className="w-full h-10 px-3.5 text-xs font-medium rounded-xl border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+              />
+            </div>
+
+            {/* 5. Attachments Preview & File Input */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-800">
+                  Attachments <span className="text-slate-400 font-normal">({selectedFiles.length})</span>
+                </label>
+                <label
+                  htmlFor="task-modal-file-upload"
+                  className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100/70 px-2.5 py-1 rounded-lg transition-colors"
+                >
+                  <Paperclip className="w-3.5 h-3.5" />
+                  <span>Attach File</span>
+                </label>
+                <input
+                  id="task-modal-file-upload"
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.length) {
+                      setSelectedFiles([...selectedFiles, ...Array.from(e.target.files)]);
+                    }
+                  }}
+                />
+              </div>
+
+              {selectedFiles.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200/60 max-h-24 overflow-y-auto">
+                  {selectedFiles.map((file, i) => {
+                    const isImg = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+                    return (
+                      <div
+                        key={i}
+                        className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-lg text-[11px] font-medium text-slate-700 shadow-2xs"
+                      >
+                        {isImg ? <ImageIcon className="w-3 h-3 text-blue-500" /> : <Paperclip className="w-3 h-3 text-slate-400" />}
+                        <span className="truncate max-w-[120px]">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFiles(selectedFiles.filter((_, idx) => idx !== i))}
+                          className="text-slate-400 hover:text-rose-500 p-0.5 rounded cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
           </form>
         </CardContent>
 
-        {/* Clean Pinned Footer (Never overlaps content or dropdowns) */}
-        <div className="flex gap-2.5 justify-end px-4 sm:px-5 py-2.5 bg-white border-t border-slate-100 shrink-0">
-          <Button type="button" variant="secondary" onClick={onClose} className="h-9 px-4 text-xs font-semibold">
+        {/* Footer */}
+        <div className="py-3 px-6 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
             Cancel
           </Button>
-          <Button type="submit" form="add-task-form" disabled={isSubmitting} className="h-9 px-5 text-xs font-semibold bg-primary-600 hover:bg-primary-700 shadow-sm">
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-              <><CheckSquare className="w-4 h-4 mr-1.5" /> {isAdmin ? 'Create & Assign' : 'Create Task'}</>
-            )}
+          <Button
+            type="submit"
+            form="add-task-form"
+            disabled={isSubmitting}
+            className="rounded-xl px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <span>{isSubmitting ? 'Creating...' : 'Create Task'}</span>
           </Button>
         </div>
+
       </Card>
     </div>
   );
