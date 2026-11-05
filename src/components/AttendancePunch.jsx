@@ -4,7 +4,7 @@ import { Clock, LogIn, LogOut, Loader2, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "../utils/cn";
 import Button from "./ui/Button";
-import { LocationAccessDialog, WorkModeDialog } from "./AttendancePunchDialogs";
+import { LocationAccessDialog, WorkModeDialog, PunchOutConfirmDialog } from "./AttendancePunchDialogs";
 
 const LOCATION_REQUIRED_MESSAGE =
     "Location access is required to punch in. Please enable your device location and try again.";
@@ -92,6 +92,9 @@ const AttendancePunch = ({
     const [isWorkModeDialogOpen, setIsWorkModeDialogOpen] = useState(false);
     const [selectedWorkMode, setSelectedWorkMode] = useState("work_from_office");
     const [workModeError, setWorkModeError] = useState("");
+
+    // Punch Out Confirmation Dialog State
+    const [isPunchOutDialogOpen, setIsPunchOutDialogOpen] = useState(false);
 
     const status = propStatus !== undefined ? propStatus : internalStatus;
     const setStatus = propSetStatus || setInternalStatus;
@@ -247,6 +250,7 @@ const AttendancePunch = ({
                 check_out: now,
             });
             setStatus("out");
+            setIsPunchOutDialogOpen(false);
             toast.success("Punched out successfully");
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to process punch out");
@@ -260,7 +264,7 @@ const AttendancePunch = ({
             if (typeof setShowPunchOutModal === "function") {
                 setShowPunchOutModal(true);
             } else {
-                handleDirectPunchOut();
+                setIsPunchOutDialogOpen(true);
             }
             return;
         }
@@ -314,7 +318,7 @@ const AttendancePunch = ({
                     </p>
                     <p className="text-xs font-medium text-slate-500 mt-1">
                         {currentTime.toLocaleDateString("en-IN", {
-                            weekday: "short",
+                            weekday: "long",
                             month: "short",
                             day: "numeric",
                             timeZone: "Asia/Kolkata",
@@ -371,7 +375,7 @@ const AttendancePunch = ({
                                 ? "detecting location"
                                 : location
                                     ? "verified"
-                                    : "gps required"}
+                                    : "GPS REQUIRED"}
                         </span>
                     </div>
                 </div>
@@ -401,6 +405,13 @@ const AttendancePunch = ({
                 onConfirm={handleConfirmPunchIn}
                 isLoading={actionLoading}
                 errorMessage={workModeError}
+            />
+
+            <PunchOutConfirmDialog
+                isOpen={isPunchOutDialogOpen}
+                onClose={() => !actionLoading && setIsPunchOutDialogOpen(false)}
+                onConfirm={handleDirectPunchOut}
+                isLoading={actionLoading}
             />
         </div>
     );

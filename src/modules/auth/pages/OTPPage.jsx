@@ -27,20 +27,20 @@ const OTPPage = () => {
         code,
         type: 'Login'
       });
-      
+
       const { token, user } = response.data.data;
-      
+
       localStorage.setItem('token', token);
       if (user) {
         localStorage.setItem('user', JSON.stringify(user));
       }
       toast.success('Login Successful!');
-      
+
       // Dynamic Redirect based on permissions
       if (user.permissions?.all || user.permissions?.dashboard) {
         navigate('/dashboard');
       } else {
-        navigate('/leaves');
+        navigate('/tasks');
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Invalid OTP code.';

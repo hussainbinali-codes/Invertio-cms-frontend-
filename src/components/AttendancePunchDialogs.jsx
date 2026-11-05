@@ -9,6 +9,7 @@ import {
   Check,
   X,
   ArrowRight,
+  LogOut,
 } from "lucide-react";
 import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
 import { cn } from "../utils/cn";
@@ -261,6 +262,73 @@ export const WorkModeDialog = ({
               <>
                 Confirm Punch In
                 <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </ModalShell>
+);
+
+export const PunchOutConfirmDialog = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isLoading = false,
+}) => (
+  <ModalShell isOpen={isOpen} onClose={isLoading ? () => {} : onClose}>
+    <Card className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl">
+      <CloseButton onClick={onClose} disabled={isLoading} />
+
+      {/* Centered Modal Header */}
+      <div className="px-6 pt-7 pb-4 text-center">
+        <div className="mx-auto mb-3 flex h-13 w-13 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-8 ring-rose-50/50">
+          <LogOut className="h-6 w-6 text-rose-600" />
+        </div>
+        <h3 className="text-xl font-bold tracking-tight text-slate-900">
+          Confirm Punch Out
+        </h3>
+        <p className="mt-1.5 text-sm text-slate-500 max-w-xs mx-auto">
+          Are you sure you want to punch out? This will end your attendance session for today.
+        </p>
+      </div>
+
+      <CardContent className="space-y-4 px-6 pb-6 pt-2">
+        {/* Warning Callout */}
+        <div className="rounded-xl border border-amber-200/70 bg-amber-50/80 p-3.5 text-left">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Once you punch out, your status will be marked as <strong className="font-semibold text-amber-900">Day Ended</strong> and you won't be able to punch in again today.
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-2">
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={isLoading}
+            className="flex-1 justify-center rounded-xl py-2.5 font-medium border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="flex-1 justify-center rounded-xl py-2.5 bg-rose-600 hover:bg-rose-700 font-semibold text-white shadow-lg shadow-rose-600/20 transition-all active:scale-[0.98]"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Punching Out...
+              </>
+            ) : (
+              <>
+                <LogOut className="mr-2 h-4 w-4" />
+                Yes, Punch Out
               </>
             )}
           </Button>
