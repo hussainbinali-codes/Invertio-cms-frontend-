@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import { Clock, LogIn, LogOut, Loader2, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "../utils/cn";
 import Button from "./ui/Button";
+import { hasPermission } from "../utils/permissionUtils";
 import { LocationAccessDialog, WorkModeDialog, PunchOutConfirmDialog } from "./AttendancePunchDialogs";
 
 const LOCATION_REQUIRED_MESSAGE =
@@ -74,7 +76,9 @@ const AttendancePunch = ({
     handlePunchInRequest,
     location: propLocation,
     setCheckInTime,
+    onPunchInSuccess,
 } = {}) => {
+    const navigate = useNavigate();
     const [internalStatus, setInternalStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [internalActionLoading, setInternalActionLoading] = useState(false);
@@ -230,6 +234,14 @@ const AttendancePunch = ({
             }
             setIsWorkModeDialogOpen(false);
             toast.success("Punched in successfully");
+
+            if (typeof onPunchInSuccess === "function") {
+                onPunchInSuccess();
+            } else if (hasPermission("tasks")) {
+                navigate("/tasks?tab=my");
+            } else {
+                navigate("/tasks");
+            }
         } catch (err) {
             const msg = err.response?.data?.message || "Failed to process punch in";
             setWorkModeError(msg);

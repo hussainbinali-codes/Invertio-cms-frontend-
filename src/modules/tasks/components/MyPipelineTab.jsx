@@ -12,7 +12,9 @@ import {
   Layers,
   Eye,
   Loader2,
-  Plus
+  Plus,
+  UserCheck,
+  Users
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { deduplicateTasks } from '../utils/taskDeduplication';
@@ -160,46 +162,86 @@ const MyPipelineTab = ({
   updatingTaskId,
   setSelectedTaskDetail,
   searchTerm = '',
-  setSearchTerm
+  setSearchTerm,
+  isAdmin = false,
+  usersList = [],
+  selectedUserId: propSelectedUserId,
+  onSelectUser,
 }) => {
+  const [internalSelectedUser, setInternalSelectedUser] = useState('');
+  const selectedUserId = propSelectedUserId !== undefined ? propSelectedUserId : internalSelectedUser;
+  const setSelectedUserId = (val) => {
+    if (onSelectUser) onSelectUser(val);
+    setInternalSelectedUser(val);
+  };
+
   const [internalSearch, setInternalSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('my_order');
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [dateFilterMode, setDateFilterMode] = useState('date'); // 'date' (default: today) | 'all'
   const [currentPage, setCurrentPage] = useState(1);
-  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const pageSize = 8;
 
-  // Deduplicate dataset: remove exact ID duplicates and duplicate clones (same title + project)
+  // Build deduplicated list of available users from selection and task assignees
+  const availableUsers = useMemo(() => {
+    const map = new Map();
+    (usersList || []).forEach((u) => {
+      if (u && (u.id || u.name)) {
+        map.set(String(u.id), {
+          id: u.id,
+          name: u.name,
+          role: u.role_name || u.role || u.designation || ''
+        });
+      }
+    });
+
+    (allTasks || []).forEach((t) => {
+      if (t.assigned_to && !map.has(String(t.assigned_to))) {
+        map.set(String(t.assigned_to), {
+          id: t.assigned_to,
+          name: t.assigned_to_name || `User #${t.assigned_to}`,
+          role: t.assigned_to_role || ''
+        });
+      } else if (t.assigned_to_name && !t.assigned_to) {
+        if (!map.has(t.assigned_to_name)) {
+          map.set(t.assigned_to_name, {
+            id: t.assigned_to_name,
+            name: t.assigned_to_name,
+            role: ''
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [usersList, allTasks]);
+
+  const selectedUserObj = useMemo(() => {
+    if (!selectedUserId) return null;
+    return availableUsers.find((u) => String(u.id) === String(selectedUserId));
+  }, [availableUsers, selectedUserId]);
+
+  // Deduplicate dataset: if admin selected a user, filter allTasks by that user; otherwise show tasks
   const rawDataset = useMemo(() => {
-    const source = (allTasks && allTasks.length > 0) ? allTasks : (tasks || []);
+    let source = [];
+    if (selectedUserId) {
+      const targetName = selectedUserObj?.name?.trim().toLowerCase();
+      source = (allTasks || []).filter((task) => {
+        const matchesId = String(task.assigned_to) === String(selectedUserId);
+        const matchesName = targetName && String(task.assigned_to_name || '').trim().toLowerCase() === targetName;
+        return matchesId || matchesName;
+      });
+    } else {
+      source = (tasks && tasks.length > 0) ? tasks : (allTasks || []);
+    }
     return deduplicateTasks(source);
-  }, [allTasks, tasks]);
+  }, [allTasks, tasks, selectedUserId, selectedUserObj]);
 
   // Search query (from parent or internal)
   const query = (searchTerm || internalSearch).trim().toLowerCase();
 
-  // 1. Schedule items (Today's tasks & meetings)
-  const scheduleItems = useMemo(() => {
-    const today = new Date();
-    const todayYMD = today.toISOString().split('T')[0];
-
-    return rawDataset
-      .filter((task) => {
-        if (isTaskCancelled(task) || isTaskCompleted(task)) return false;
-
-        const isDueToday = task.due_date && task.due_date.startsWith(todayYMD);
-        const isMeeting =
-          /meeting|zoom|call|sync|standup|demo|client call/i.test(task.title || '') ||
-          extractTimeFromTitle(task.title || '') !== null;
-
-        return isDueToday || isMeeting;
-      })
-      .slice(0, 6);
-  }, [rawDataset]);
-
-  // 2. At a Glance (Overdue & Coming up)
+  // 1. At a Glance (Overdue & Coming up)
   const { overdueTasks, upcomingTasks } = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -403,6 +445,32 @@ const MyPipelineTab = ({
                   title="Pick a date"
                 />
               </div>
+
+              {/* ADMIN ONLY: Team Member Pipeline Selector Dropdown */}
+              {isAdmin && (
+                <div className="relative shrink-0">
+                  <div className="h-10 pl-3 pr-8 flex items-center gap-2 bg-white border border-blue-200/90 rounded-2xl shadow-2xs hover:border-blue-300 transition-all cursor-pointer relative group">
+                    <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <select
+                      value={selectedUserId || ''}
+                      onChange={(e) => {
+                        setSelectedUserId(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="text-[12px] font-semibold text-slate-800 bg-transparent border-none outline-none focus:ring-0 cursor-pointer appearance-none pr-1 max-w-[160px] truncate"
+                      title="Select a team member to view what they are working on"
+                    >
+                      <option value="">My Pipeline (You)</option>
+                      {availableUsers.map((u) => (
+                        <option key={u.id} value={String(u.id)}>
+                          {u.name} {u.role ? `(${u.role})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors" />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right: Search, Status, Sort, + New Task (Strict Single-Row on Desktop) */}
@@ -474,9 +542,32 @@ const MyPipelineTab = ({
             </div>
           </div>
 
+          {/* ADMIN ACTIVE USER INSPECTION BANNER */}
+          {isAdmin && selectedUserObj && (
+            <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl shadow-2xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
+                <span className="text-xs font-semibold text-blue-900 truncate">
+                  Admin View: Currently inspecting <strong>{selectedUserObj.name}</strong>'s pipeline ({rawDataset.length} total tasks assigned)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedUserId('');
+                  setCurrentPage(1);
+                }}
+                className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-white/90 hover:bg-white px-3 py-1 rounded-xl border border-blue-200 shadow-2xs transition-all shrink-0 cursor-pointer"
+              >
+                Reset to My Tasks
+              </button>
+            </div>
+          )}
+
           {/* Current Date Filter Indicator Banner */}
           <div className="flex items-center justify-between text-xs text-slate-500 px-1">
             <span className="font-medium text-slate-600">
+              {selectedUserObj ? `${selectedUserObj.name}'s Tasks — ` : ''}
               {dateFilterMode === 'all'
                 ? `Showing all tasks (${sortedTasks.length})`
                 : `Showing tasks for ${getDateLabel(selectedDate, dateFilterMode)} (${sortedTasks.length})`}
@@ -608,14 +699,20 @@ const MyPipelineTab = ({
                     {/* Task Content */}
                     <div className="flex-1 min-w-0 pr-1">
                       <div className="flex items-start justify-between gap-3">
-                        {/* Title & Description: Static display without modal trigger */}
-                        <div className="min-w-0">
+                        {/* Title & Description: Click opens the full task modal */}
+                        <div
+                          onClick={() => {
+                            if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                          }}
+                          className="min-w-0 cursor-pointer group/title flex-1"
+                          title="Click to view task details"
+                        >
                           <h4
                             className={cn(
-                              "text-[13px] font-semibold tracking-tight truncate select-text",
+                              "text-[13px] font-semibold tracking-tight truncate transition-colors",
                               isCompleted
-                                ? "text-slate-400 line-through font-normal"
-                                : "text-slate-900"
+                                ? "text-slate-400 line-through font-normal group-hover/title:text-slate-600"
+                                : "text-slate-900 group-hover/title:text-blue-600"
                             )}
                             title={task.title}
                           >
@@ -623,7 +720,7 @@ const MyPipelineTab = ({
                           </h4>
 
                           {task.description && (
-                            <p className="text-[12px] text-slate-400 font-normal line-clamp-1 mt-1 leading-relaxed">
+                            <p className="text-[12px] text-slate-400 font-normal line-clamp-1 mt-1 leading-relaxed group-hover/title:text-slate-600 transition-colors">
                               {task.description}
                             </p>
                           )}
@@ -763,144 +860,11 @@ const MyPipelineTab = ({
         </div>
 
         {/* ========================================================================= */}
-        {/* RIGHT SECTION: SCHEDULE, OVERDUE, COMING UP (Col-span 4) */}
+        {/* RIGHT SECTION: OVERDUE, COMING UP (Col-span 4) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-4 space-y-4">
 
-          {/* 1. SCHEDULE WIDGET WITH EXPANDABLE DIV */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden transition-all">
-            {/* Clickable Header Button */}
-            <button
-              type="button"
-              onClick={() => setIsScheduleOpen((prev) => !prev)}
-              className="w-full p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors group cursor-pointer text-left select-none"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
-                  <Calendar className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-colors" />
-                </div>
-                <div>
-                  <h3 className="text-[13px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <span>Schedule</span>
-                    <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100/60">
-                      Today
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-normal mt-0.5">
-                    {isScheduleOpen ? 'Click to hide agenda' : 'Click to view agenda & calls'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                  {scheduleItems.length}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform duration-200",
-                    isScheduleOpen && "rotate-180 text-blue-600"
-                  )}
-                />
-              </div>
-            </button>
-
-            {/* Hidden Div: Shown Below Schedule When Clicked */}
-            {isScheduleOpen && (
-              <div className="p-4 pt-1 border-t border-slate-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 bg-slate-50/30">
-                {scheduleItems.length === 0 ? (
-                  <div className="py-4 text-center space-y-1">
-                    <p className="text-[12px] font-semibold text-slate-700">No scheduled meetings</p>
-                    <p className="text-[11px] text-slate-400 font-normal">You have open focus time today.</p>
-                  </div>
-                ) : (
-                  scheduleItems.map((item, index) => {
-                    const meetingUrl = extractMeetingLink(item);
-                    const timeLabel = extractTimeFromTitle(item.title) || 'TODAY';
-                    const isFirst = index === 0;
-
-                    return (
-                      <div
-                        key={item.id || index}
-                        className="bg-white rounded-xl p-3.5 border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all group/item relative overflow-hidden flex flex-col justify-between gap-2.5"
-                      >
-                        {/* Accent Bar */}
-                        <div
-                          className={cn(
-                            "absolute left-0 top-0 bottom-0 w-1",
-                            isFirst ? "bg-amber-500" : "bg-emerald-500"
-                          )}
-                        />
-
-                        <div>
-                          {/* Time Slot & Status Pill */}
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <span className="text-[11px] font-semibold tracking-tight text-slate-600 flex items-center gap-1.5">
-                              <Clock className="w-3 h-3 text-slate-400" />
-                              {timeLabel}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={cn(
-                                  "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider",
-                                  isFirst
-                                    ? "bg-amber-100/80 text-amber-800"
-                                    : "bg-emerald-100/80 text-emerald-800"
-                                )}
-                              >
-                                {isFirst ? 'Live' : 'Next'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (setSelectedTaskDetail) setSelectedTaskDetail(item);
-                                }}
-                                className="p-0.5 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors"
-                                title="View Details"
-                              >
-                                <Eye className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Title */}
-                          <h4
-                            className="text-[13px] font-semibold text-slate-900 line-clamp-2 leading-snug"
-                            title={item.title}
-                          >
-                            {item.title}
-                          </h4>
-
-                          {/* Project Subtitle */}
-                          <p className="text-[11px] text-slate-400 font-normal mt-1 truncate">
-                            {item.project_name || 'General Project'}
-                          </p>
-                        </div>
-
-                        {/* Join Meeting Action Button */}
-                        {meetingUrl && (
-                          <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
-                            <a
-                              href={meetingUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-xl transition-all shadow-2xs"
-                            >
-                              <Video className="w-3.5 h-3.5 text-teal-600" />
-                              <span>Join Zoom</span>
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 2. OVERDUE SECTION */}
+          {/* 1. OVERDUE SECTION */}
           <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
             <div className="flex items-center justify-between px-0.5">
               <div className="flex items-center gap-2">
@@ -923,9 +887,15 @@ const MyPipelineTab = ({
                     key={task.id}
                     className="p-3 rounded-xl bg-[#f8fafc] hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 transition-all flex items-center justify-between group"
                   >
-                    <div className="min-w-0 pr-2">
+                    <div
+                      onClick={() => {
+                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                      }}
+                      className="min-w-0 pr-2 cursor-pointer group/item flex-1"
+                      title="Click to view task details"
+                    >
                       <h5
-                        className="text-[12px] font-semibold text-slate-800 truncate"
+                        className="text-[12px] font-semibold text-slate-800 truncate group-hover/item:text-blue-600 transition-colors"
                         title={task.title}
                       >
                         {task.title}
@@ -951,7 +921,7 @@ const MyPipelineTab = ({
             </div>
           </div>
 
-          {/* 3. COMING UP SECTION */}
+          {/* 2. COMING UP SECTION */}
           <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
             <div className="flex items-center justify-between px-0.5">
               <div className="flex items-center gap-2">
@@ -976,9 +946,15 @@ const MyPipelineTab = ({
                     key={task.id}
                     className="p-3 rounded-xl bg-[#f8fafc] hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 transition-all flex items-center justify-between group"
                   >
-                    <div className="min-w-0 pr-2">
+                    <div
+                      onClick={() => {
+                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                      }}
+                      className="min-w-0 pr-2 cursor-pointer group/item flex-1"
+                      title="Click to view task details"
+                    >
                       <h5
-                        className="text-[12px] font-semibold text-slate-800 truncate"
+                        className="text-[12px] font-semibold text-slate-800 truncate group-hover/item:text-blue-600 transition-colors"
                         title={task.title}
                       >
                         {task.title}

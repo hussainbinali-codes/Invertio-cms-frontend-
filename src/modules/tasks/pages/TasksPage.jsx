@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
-import { Search, CheckSquare, CheckCircle2, AlertTriangle, TrendingUp, Target, Loader2, BarChart3, ChevronDown, LayoutGrid, Users, X } from 'lucide-react';
+import { Search, CheckSquare, CheckCircle2, AlertTriangle, TrendingUp, Target, Loader2, BarChart3, ChevronDown, LayoutGrid, Users, UserCheck, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import StatCard from '../../../components/ui/StatCard';
 import { cn } from '../../../utils/cn';
 import Skeleton from '../../../components/ui/Skeleton';
 import { deduplicateTasks } from '../utils/taskDeduplication';
+import TaskCelebration from '../../../components/TaskCelebration';
 
 // Lazy Load Modular Components
 const MyPipelineTab = lazy(() => import('../components/MyPipelineTab'));
@@ -101,12 +103,16 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
 
 const TasksPage = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const [activeTab, setActiveTab] = useState('my'); // 'my' or 'boards'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(() => tabParam || 'my'); // 'my' or 'boards'
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
   const [myTasks, setMyTasks] = useState([]);
   const [allTasks, setAllTasks] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+  const [selectedPipelineUserId, setSelectedPipelineUserId] = useState('');
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [initialTaskDueDate, setInitialTaskDueDate] = useState('');
@@ -120,6 +126,7 @@ const TasksPage = () => {
   const [selectedTaskDetail, setSelectedTaskDetail] = useState(null);
   const [taskReferences, setTaskReferences] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [celebration, setCelebration] = useState({ isOpen: false, isFirstTask: false });
 
   // Proof of Completion states
   const [showProofModal, setShowProofModal] = useState(false);
@@ -145,8 +152,13 @@ const TasksPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const role = (user.role_name || '').toLowerCase();
-  const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
+  const role = (user.role_name || user.role || '').toLowerCase();
+  const email = (user.email || '').toLowerCase();
+  const isAdmin =
+    role === 'admin' ||
+    role === 'super admin' ||
+    role === 'administrator' ||
+    email === 'cloud4invertio@gmail.com';
 
   const canViewAll = isAdmin || !!user.modules?.tasks?.view_all;
   const canCreate = isAdmin || !!user.modules?.tasks?.create;
@@ -163,6 +175,44 @@ const TasksPage = () => {
     { id: 'my', label: 'My Pipeline', count: myTasks.length, icon: CheckSquare },
     ...(isAdmin ? [{ id: 'assignees', label: 'Assignees', count: allTasks.length, icon: Users }] : [])
   ];
+
+  const availableUsers = React.useMemo(() => {
+    const map = new Map();
+    (usersList || []).forEach((u) => {
+      if (u && (u.id || u.name)) {
+        map.set(String(u.id), {
+          id: u.id,
+          name: u.name,
+          role: u.role_name || u.role || u.designation || ''
+        });
+      }
+    });
+
+    (allTasks || []).forEach((t) => {
+      if (t.assigned_to && !map.has(String(t.assigned_to))) {
+        map.set(String(t.assigned_to), {
+          id: t.assigned_to,
+          name: t.assigned_to_name || `User #${t.assigned_to}`,
+          role: t.assigned_to_role || ''
+        });
+      } else if (t.assigned_to_name && !t.assigned_to) {
+        if (!map.has(t.assigned_to_name)) {
+          map.set(t.assigned_to_name, {
+            id: t.assigned_to_name,
+            name: t.assigned_to_name,
+            role: ''
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [usersList, allTasks]);
+
+  const selectedPipelineUserObj = React.useMemo(() => {
+    if (!selectedPipelineUserId) return null;
+    return availableUsers.find((u) => String(u.id) === String(selectedPipelineUserId));
+  }, [availableUsers, selectedPipelineUserId]);
 
   const tabRefs = useRef({});
   const [sliderStyle, setSliderStyle] = useState({ left: 4, width: 0, height: 0, top: 4, ready: false });
@@ -182,9 +232,13 @@ const TasksPage = () => {
 
   useEffect(() => {
     fetchData();
-    if (showBoardsTab) setActiveTab('boards');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    } else if (showBoardsTab) {
+      setActiveTab('boards');
+    }
     if (isDeveloper) fetchAssignedProjects();
-  }, []);
+  }, [tabParam]);
 
   const fetchAssignedProjects = async () => {
     setLoadingAssigned(true);
@@ -229,6 +283,7 @@ const TasksPage = () => {
 
       setStats(results[0].data?.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
       setMyTasks(deduplicateTasks(results[1].data?.data || []));
+      setUsersList(Array.isArray(results[2]?.data?.data) ? results[2].data.data : []);
       setProjects(Array.isArray(results[3].data?.data) ? results[3].data.data : []);
 
       if (allTasksResIndex > -1) {
@@ -260,7 +315,7 @@ const TasksPage = () => {
   const handleUpdateTask = async (taskId, updates) => {
     // If the task is already completed, status cannot be changed
     const existing = (myTasks || []).find(t => String(t.id) === String(taskId)) ||
-                     (allTasks || []).find(t => String(t.id) === String(taskId));
+      (allTasks || []).find(t => String(t.id) === String(taskId));
     const isAlreadyCompleted = existing && (
       String(existing.status || '').toLowerCase() === 'completed' ||
       String(existing.status || '').toLowerCase() === 'done'
@@ -455,11 +510,18 @@ const TasksPage = () => {
         });
       }
 
+      const userId = user?.id || user?.email || 'guest';
+      const storageKey = `invertio_has_created_task_${userId}`;
+      const hasCreatedBefore = localStorage.getItem(storageKey) === 'true' || (myTasks && myTasks.length > 0);
+      const isFirst = !hasCreatedBefore;
+      localStorage.setItem(storageKey, 'true');
+
       toast.success('Task successfully created and assigned');
       setShowAddModal(false);
       setTaskReferences('');
       setSelectedFiles([]);
       fetchData();
+      setCelebration({ isOpen: true, isFirstTask: isFirst });
     } catch (err) {
       // Handled by central axios interceptor
     } finally {
@@ -575,7 +637,10 @@ const TasksPage = () => {
               <button
                 key={tab.id}
                 ref={(el) => (tabRefs.current[tab.id] = el)}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setSearchParams({ tab: tab.id });
+                }}
                 className={cn(
                   "relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold tracking-normal transition-colors duration-200 cursor-pointer",
                   isActive ? "text-slate-900" : "text-slate-500 hover:text-slate-800"
@@ -646,11 +711,32 @@ const TasksPage = () => {
             ? `Managing tasks across ${projects.length} project pipelines.`
             : (activeTab === 'assignees' && isAdmin)
               ? `Viewing all ${allTasks.length} task assignments across the company.`
-              : `Tracking ${myTasks.length} items assigned to you.`
+              : selectedPipelineUserObj
+                ? `Viewing tasks assigned to ${selectedPipelineUserObj.name}.`
+                : `Tracking ${myTasks.length} items assigned to you.`
         }
         icon={CheckSquare}
         headerRight={
-          activeTab === 'my' ? null : (
+          activeTab === 'my' && isAdmin ? (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200/90 rounded-xl shadow-2xs">
+                <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Viewing User:</span>
+                <select
+                  value={selectedPipelineUserId}
+                  onChange={(e) => setSelectedPipelineUserId(e.target.value)}
+                  className="text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:ring-0 cursor-pointer pr-1"
+                >
+                  <option value="">My Pipeline (You)</option>
+                  {availableUsers.map((u) => (
+                    <option key={u.id} value={String(u.id)}>
+                      {u.name} {u.role ? `(${u.role})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : activeTab === 'my' ? null : (
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative w-full sm:w-64 group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors pointer-events-none z-10" />
@@ -696,12 +782,16 @@ const TasksPage = () => {
               {activeTab === 'my' ? (
                 <MyPipelineTab
                   tasks={myTasks}
-                  allTasks={myTasks}
+                  allTasks={allTasks}
                   projects={projects}
                   handleCreateTask={handleCreateTask}
                   handleUpdateTask={handleUpdateTask}
                   updatingTaskId={updatingTaskId}
                   setSelectedTaskDetail={setSelectedTaskDetail}
+                  isAdmin={isAdmin}
+                  usersList={availableUsers}
+                  selectedUserId={selectedPipelineUserId}
+                  onSelectUser={setSelectedPipelineUserId}
                 />
               ) : (activeTab === 'assignees' && isAdmin) ? (
                 <TaskAssigneesTab
@@ -787,6 +877,12 @@ const TasksPage = () => {
           />
         )}
       </Suspense>
+
+      <TaskCelebration
+        isOpen={celebration.isOpen}
+        isFirstTask={celebration.isFirstTask}
+        onClose={() => setCelebration({ isOpen: false, isFirstTask: false })}
+      />
     </div>
   );
 };

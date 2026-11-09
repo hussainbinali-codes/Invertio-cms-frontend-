@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { cn } from '../../../utils/cn';
 import TaskDetailModal from '../../tasks/components/TaskDetailModal';
 import AddTaskModal from '../../tasks/components/AddTaskModal';
+import TaskCelebration from '../../../components/TaskCelebration';
 
 const StoryDetailsPage = () => {
   const { projectId, sprintId, storyId } = useParams();
@@ -24,6 +25,7 @@ const StoryDetailsPage = () => {
 
   // Tabs: Overview (Functional), Tasks, Activity, Attachments
   const [activeTab, setActiveTab] = useState('Overview');
+  const [celebration, setCelebration] = useState({ isOpen: false, isFirstTask: false });
 
   useEffect(() => {
     fetchStoryDetails();
@@ -386,6 +388,14 @@ const StoryTasksTab = ({ story, storyId, projectId, sprintId }) => {
       toast.success('Task created under User Story!');
       setShowCreateModal(false);
       fetchTasks();
+
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user?.id || user?.email || 'guest';
+      const storageKey = `invertio_has_created_task_${userId}`;
+      const hasCreatedBefore = localStorage.getItem(storageKey) === 'true';
+      const isFirst = !hasCreatedBefore;
+      localStorage.setItem(storageKey, 'true');
+      setCelebration({ isOpen: true, isFirstTask: isFirst });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create task');
     } finally {
@@ -486,6 +496,12 @@ const StoryTasksTab = ({ story, storyId, projectId, sprintId }) => {
           onUpdate={fetchTasks}
         />
       )}
+
+      <TaskCelebration
+        isOpen={celebration.isOpen}
+        isFirstTask={celebration.isFirstTask}
+        onClose={() => setCelebration({ isOpen: false, isFirstTask: false })}
+      />
     </div>
   );
 };

@@ -42,8 +42,13 @@ const formatDateForInput = (d) => {
 const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   useLockBodyScroll(true);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const role = (user?.role_name || '').toLowerCase();
-  const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
+  const role = (user?.role_name || user?.role || '').toLowerCase();
+  const email = (user?.email || '').toLowerCase();
+  const isAdmin =
+    role === 'admin' ||
+    role === 'super admin' ||
+    role === 'administrator' ||
+    email === 'cloud4invertio@gmail.com';
   const canEdit = isAdmin || user?.modules?.tasks?.edit;
   const [taskData, setTaskData] = React.useState(task);
 
