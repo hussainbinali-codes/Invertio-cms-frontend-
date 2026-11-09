@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import StatCard from '../../../components/ui/StatCard';
 import { cn } from '../../../utils/cn';
 import Skeleton from '../../../components/ui/Skeleton';
+import { deduplicateTasks } from '../utils/taskDeduplication';
 
 // Lazy Load Modular Components
 const MyPipelineTab = lazy(() => import('../components/MyPipelineTab'));
@@ -227,7 +228,7 @@ const TasksPage = () => {
       const results = await Promise.all(requests);
 
       setStats(results[0].data?.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
-      setMyTasks(results[1].data?.data || []);
+      setMyTasks(deduplicateTasks(results[1].data?.data || []));
       setProjects(Array.isArray(results[3].data?.data) ? results[3].data.data : []);
 
       if (allTasksResIndex > -1) {
@@ -248,9 +249,9 @@ const TasksPage = () => {
   const handleTaskDetailUpdate = (updatedTask) => {
     if (!updatedTask?.id) return;
 
-    setMyTasks((prevTasks) => prevTasks.map((task) => (
+    setMyTasks((prevTasks) => deduplicateTasks(prevTasks.map((task) => (
       task.id === updatedTask.id ? { ...task, ...updatedTask } : task
-    )));
+    ))));
     setSelectedTaskDetail((prevTask) => (
       prevTask?.id === updatedTask.id ? { ...prevTask, ...updatedTask } : prevTask
     ));
@@ -361,6 +362,7 @@ const TasksPage = () => {
 
   const submitTask = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setIsSubmitting(true);
     const formData = new FormData(e.target);
 

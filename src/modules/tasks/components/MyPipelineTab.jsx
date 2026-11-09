@@ -15,6 +15,7 @@ import {
   Plus
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { deduplicateTasks } from '../utils/taskDeduplication';
 
 // Helper to extract time string from task title (e.g., "@ 7 pm", "at 12:30 PM", "7:00 PM - 7:45 PM")
 const extractTimeFromTitle = (title = '') => {
@@ -158,8 +159,11 @@ const MyPipelineTab = ({
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const pageSize = 8;
 
-  // Use allTasks if provided, fallback to tasks
-  const rawDataset = allTasks.length > 0 ? allTasks : tasks;
+  // Deduplicate dataset: remove exact ID duplicates and duplicate clones (same title + project)
+  const rawDataset = useMemo(() => {
+    const source = (allTasks && allTasks.length > 0) ? allTasks : (tasks || []);
+    return deduplicateTasks(source);
+  }, [allTasks, tasks]);
 
   // Search query (from parent or internal)
   const query = (searchTerm || internalSearch).trim().toLowerCase();
@@ -654,20 +658,69 @@ const MyPipelineTab = ({
                         </div>
                       </div>
 
-                      {/* Footer Info: Project & Due Date */}
-                      <div className="mt-2.5 flex items-center gap-4 text-[11px] text-slate-400 font-normal">
-                        {task.project_name && (
-                          <span className="flex items-center gap-1.5 truncate max-w-[240px]">
-                            <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>{task.project_name}</span>
-                          </span>
-                        )}
-                        {task.due_date && (
-                          <span className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            <span>Due {formatShortDate(task.due_date)}</span>
-                          </span>
-                        )}
+                      {/* Footer Info: Project & Due Date (Left) and Complete Task Action (Right) */}
+                      <div className="mt-3 flex items-center justify-between gap-3 pt-1 border-t border-slate-100/80">
+                        <div className="flex items-center gap-3 sm:gap-4 text-[11px] text-slate-400 font-normal">
+                          {task.project_name && (
+                            <span className="flex items-center gap-1.5 truncate max-w-[200px] sm:max-w-[240px]">
+                              <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>{task.project_name}</span>
+                            </span>
+                          )}
+                          {task.due_date && (
+                            <span className="flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Due {formatShortDate(task.due_date)}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Completed Task Button at Right Bottom */}
+                        <div className="shrink-0">
+                          {isCompleted ? (
+                            <button
+                              type="button"
+                              disabled={isUpdating}
+                              onClick={() => {
+                                if (handleUpdateTask) {
+                                  handleUpdateTask(task.id, {
+                                    status: 'In Progress'
+                                  });
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-xl text-emerald-700 bg-emerald-50/70 border border-emerald-200/80 hover:bg-emerald-100/70 transition-all cursor-pointer shadow-2xs"
+                              title="Click to reopen / mark as in progress"
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                              ) : (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
+                              )}
+                              <span>Completed</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isUpdating}
+                              onClick={() => {
+                                if (handleUpdateTask) {
+                                  handleUpdateTask(task.id, {
+                                    status: 'Completed'
+                                  });
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200/90 hover:border-emerald-300 shadow-2xs hover:shadow-xs active:scale-95 transition-all cursor-pointer"
+                              title="Mark task as completed"
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                              ) : (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              )}
+                              <span>Complete Task</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
