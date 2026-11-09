@@ -83,12 +83,20 @@ const OTPPage = () => {
               id="code"
               name="code"
               type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
               required
               maxLength={6}
-              className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 text-center tracking-[0.5em] text-lg font-mono font-bold"
+              className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10
+    border border-primary-500 bg-transparent
+    placeholder-slate-400 text-slate-900
+    focus:outline-none focus:ring-2 focus:ring-primary-500
+    focus:border-primary-500 text-center tracking-[0.5em]
+    text-lg font-mono font-bold"
               placeholder="000000"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             />
           </div>
         </div>

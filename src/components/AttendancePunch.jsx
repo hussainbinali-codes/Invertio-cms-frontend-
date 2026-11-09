@@ -60,7 +60,7 @@ const getLocationErrorCopy = (error, permissionState) => {
 
     return {
         detailMessage:
-            "We could not access your current location. Please verify that location services are enabled and try again.",
+            "We could not access your current location. Please  that location services are enabled and try again.",
         toastMessage: "Unable to fetch your current location.",
     };
 };

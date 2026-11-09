@@ -96,7 +96,7 @@ const ProfilePage = () => {
         <div className="h-36 sm:h-44 relative bg-gradient-to-r from-slate-100 via-blue-50/70 to-indigo-50/40 border-b border-slate-200/80 overflow-hidden flex items-center justify-between px-6 sm:px-10">
           {/* Subtle Dot Grid Pattern */}
           <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12] pointer-events-none" />
-          
+
           {/* Ambient Glows */}
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-16 left-1/3 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
@@ -118,39 +118,62 @@ const ProfilePage = () => {
             />
           </div>
         </div>
+
+
         <div className="px-4 sm:px-8 pb-8">
-          <div className="relative flex flex-col md:flex-row md:items-end gap-6 -mt-12">
-            <div className="w-32 h-32 rounded-2xl bg-primary-600 flex items-center justify-center text-white text-4xl font-bold shadow-lg ring-4 ring-white">
+
+          <div className="relative flex flex-col sm:flex-row sm:items-end gap-5 -mt-12">
+
+            {/* Profile Avatar */}
+            <div className="w-28 h-28 sm:w-32 sm:h-32 shrink-0 rounded-2xl
+      bg-gradient-to-br from-primary-500 to-primary-700
+      flex items-center justify-center text-white text-4xl font-bold
+      shadow-xl ring-4 ring-white">
               {profile.name.charAt(0).toUpperCase()}
             </div>
-            <div className="flex-1 pb-2">
-              <h1 className="text-3xl font-bold text-slate-900">{profile.name}</h1>
-              <div className="flex flex-wrap items-center gap-4 mt-2 text-slate-500 text-sm font-medium">
-                <div className="flex items-center gap-1.5">
-                  <Shield className="w-4 h-4 text-slate-400" />
-                  {profile.role_name}
+
+            {/* Profile Information */}
+            <div className="flex-1 min-w-0 pb-1">
+
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight truncate">
+                {profile.name}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mt-3 text-slate-500 text-sm font-medium">
+
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary-500 shrink-0" />
+                  <span>{profile.role_name}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Briefcase className="w-4 h-4 text-slate-400" />
-                  {profile.designation || 'Staff'}
+
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-primary-500 shrink-0" />
+                  <span>{profile.designation || 'Staff'}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Building className="w-4 h-4 text-slate-400" />
-                  {profile.department || 'General'}
+
+                <div className="flex items-center gap-2">
+                  <Building className="w-4 h-4 text-primary-500 shrink-0" />
+                  <span>{profile.department || 'General'}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-slate-400" />
-                  {profile.employee_id || 'No Employee ID'}
+
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-primary-500 shrink-0" />
+                  <span>{profile.employee_id || 'No Employee ID'}</span>
                 </div>
+
               </div>
             </div>
-            <div className="pb-2">
+
+            {/* Account Status */}
+            <div className="sm:pb-1 sm:ml-auto self-start sm:self-auto">
               <Badge variant={profile.status === 'Active' ? 'success' : 'default'}>
                 {profile.status}
               </Badge>
             </div>
+
           </div>
         </div>
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -164,32 +187,71 @@ const ProfilePage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
+
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-                <div className="p-6 space-y-6">
-                  <div className="space-y-1">
-                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Full Name</p>
-                    <p className="text-sm font-medium text-slate-800">{profile.name}</p>
+
+                {/* Left Column */}
+                <div className="p-6 sm:p-8 space-y-7">
+
+                  {/* Full Name */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                      Full Name
+                    </p>
+                    <p className="text-sm font-semibold text-slate-800 break-words">
+                      {profile.name}
+                    </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Email Address</p>
-                    <p className="text-sm font-medium text-slate-800">{profile.email}</p>
+
+                  {/* Email */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                      Email Address
+                    </p>
+                    <p className="text-sm font-semibold text-slate-800 break-all">
+                      {profile.email}
+                    </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Employee ID</p>
-                    <p className="text-sm font-medium text-slate-800">{profile.employee_id || 'N/A'}</p>
+
+                  {/* Employee ID */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                      Employee ID
+                    </p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {profile.employee_id || 'N/A'}
+                    </p>
                   </div>
+
                 </div>
-                <div className="p-6 space-y-6 bg-slate-50/30">
-                  <div className="space-y-1">
-                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Department</p>
-                    <p className="text-sm font-medium text-slate-800">{profile.department || 'Operations'}</p>
+
+                {/* Right Column */}
+                <div className="p-6 sm:p-8 space-y-7 bg-slate-50/40">
+
+                  {/* Department */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                      Department
+                    </p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {profile.department || 'Operations'}
+                    </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-normal text-slate-400 uppercase tracking-wider">Designation</p>
-                    <p className="text-sm font-medium text-slate-800">{profile.designation || profile.role_name}</p>
+
+                  {/* Designation */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                      Designation
+                    </p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {profile.designation || profile.role_name}
+                    </p>
                   </div>
+
                 </div>
+
               </div>
+
             </CardContent>
           </Card>
 
@@ -236,8 +298,8 @@ const ProfilePage = () => {
                 </div>
               ) : (
                 /* Box opens below Change Password */
-                <div className="p-5 sm:p-6 bg-slate-50/80 border border-slate-200/90 rounded-2xl animate-in slide-in-from-top-2 duration-200 space-y-5">
-                  <div className="flex items-start gap-3 p-3.5 bg-blue-50/80 border border-blue-100 rounded-xl">
+                <div className="p-5 sm:p-6  animate-in slide-in-from-top-2 duration-200 space-y-5">
+                  <div className="flex items-start gap-3 p-3.5 bg-blue-50/80 ">
                     <ShieldCheck className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
                     <p className="text-xs text-blue-950 leading-relaxed font-medium">
                       Enter your current password followed by your new password. Passwords must be at least 8 characters long.
@@ -316,30 +378,30 @@ const ProfilePage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                        <Calendar className="w-5 h-5" />
-                     </div>
-                     <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account Created</p>
-                        <p className="text-sm font-medium text-slate-800">
-                          {new Date(profile.created_at).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
-                        </p>
-                     </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Calendar className="w-5 h-5" />
                   </div>
-                  <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-                        <Briefcase className="w-5 h-5" />
-                     </div>
-                     <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Joining Date</p>
-                        <p className="text-sm font-medium text-slate-800">
-                          {profile.joining_date ? new Date(profile.joining_date).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}
-                        </p>
-                     </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account Created</p>
+                    <p className="text-sm font-medium text-slate-800">
+                      {new Date(profile.created_at).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
                   </div>
-               </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <Briefcase className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Joining Date</p>
+                    <p className="text-sm font-medium text-slate-800">
+                      {profile.joining_date ? new Date(profile.joining_date).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -349,18 +411,18 @@ const ProfilePage = () => {
           <Card className="border-slate-200 shadow-sm rounded-2xl p-6">
             <h3 className="text-sm font-semibold text-slate-900 mb-4">Account Status</h3>
             <div className="space-y-4">
-               <div className="flex justify-between items-center pb-3 border-b border-slate-50">
-                  <span className="text-xs text-slate-500 font-medium">Role</span>
-                  <span className="text-xs font-bold text-slate-700">{profile.role_name}</span>
-               </div>
-               <div className="flex justify-between items-center pb-3 border-b border-slate-50">
-                  <span className="text-xs text-slate-500 font-medium">System ID</span>
-                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">{profile.id.split('-')[0]}...</span>
-               </div>
-               <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-500 font-medium">Clearance</span>
-                  <Badge variant="success">Active</Badge>
-               </div>
+              <div className="flex justify-between items-center pb-3 border-b border-slate-50">
+                <span className="text-xs text-slate-500 font-medium">Role</span>
+                <span className="text-xs font-bold text-slate-700">{profile.role_name}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-slate-50">
+                <span className="text-xs text-slate-500 font-medium">System ID</span>
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">{profile.id.split('-')[0]}...</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-500 font-medium">Clearance</span>
+                <Badge variant="success">Active</Badge>
+              </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-slate-100">
@@ -379,13 +441,13 @@ const ProfilePage = () => {
           </Card>
 
           <div className="bg-primary-600 rounded-2xl p-6 text-white">
-             <div className="flex items-center gap-2 mb-2">
-                <Shield className="w-4 h-4 text-primary-200" />
-                <h4 className="text-sm font-bold">Privacy Notice</h4>
-             </div>
-             <p className="text-[11px] text-primary-100 leading-relaxed font-medium">
-                Confidential data such as detailed permissions and financial records are restricted from this personal view for security purposes.
-             </p>
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-4 h-4 text-primary-200" />
+              <h4 className="text-sm font-bold">Privacy Notice</h4>
+            </div>
+            <p className="text-[11px] text-primary-100 leading-relaxed font-medium">
+              Confidential data such as detailed permissions and financial records are restricted from this personal view for security purposes.
+            </p>
           </div>
         </div>
       </div>
