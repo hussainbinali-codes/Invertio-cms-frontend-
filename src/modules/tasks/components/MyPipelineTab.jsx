@@ -132,6 +132,18 @@ const matchesTaskDate = (task, targetDate) => {
   }
 };
 
+const isTaskCompleted = (task) => {
+  if (!task) return false;
+  const s = String(task.status || '').trim().toLowerCase();
+  return s === 'completed' || s === 'done';
+};
+
+const isTaskCancelled = (task) => {
+  if (!task) return false;
+  const s = String(task.status || '').trim().toLowerCase();
+  return s === 'cancelled' || s === 'canceled';
+};
+
 const priorityWeight = {
   Urgent: 4,
   High: 3,
@@ -175,7 +187,7 @@ const MyPipelineTab = ({
 
     return rawDataset
       .filter((task) => {
-        if (task.status === 'Cancelled') return false;
+        if (isTaskCancelled(task) || isTaskCompleted(task)) return false;
 
         const isDueToday = task.due_date && task.due_date.startsWith(todayYMD);
         const isMeeting =
@@ -201,7 +213,7 @@ const MyPipelineTab = ({
 
     rawDataset.forEach((task) => {
       if (!task.due_date) return;
-      if (task.status === 'Completed' || task.status === 'Cancelled') return false;
+      if (isTaskCompleted(task) || isTaskCancelled(task)) return;
 
       const dueDate = new Date(task.due_date);
       dueDate.setHours(0, 0, 0, 0);
@@ -251,6 +263,8 @@ const MyPipelineTab = ({
             task.status === 'Yet to Start' ||
             task.status === 'To Do';
           if (!isPending) return false;
+        } else if (statusFilter === 'Completed') {
+          if (!isTaskCompleted(task)) return false;
         } else if (task.status !== statusFilter) {
           return false;
         }
@@ -286,8 +300,8 @@ const MyPipelineTab = ({
 
     // Default 'my_order': In Progress first, then Pending, then Completed
     return list.sort((a, b) => {
-      const isACompleted = a.status === 'Completed';
-      const isBCompleted = b.status === 'Completed';
+      const isACompleted = isTaskCompleted(a);
+      const isBCompleted = isTaskCompleted(b);
       if (isACompleted && !isBCompleted) return 1;
       if (!isACompleted && isBCompleted) return -1;
       return 0;
@@ -537,7 +551,7 @@ const MyPipelineTab = ({
               </div>
             ) : (
               paginatedTasks.map((task) => {
-                const isCompleted = task.status === 'Completed';
+                const isCompleted = isTaskCompleted(task);
                 const isUpdating = updatingTaskId === task.id;
                 const priority = task.priority || 'Medium';
 
@@ -566,22 +580,23 @@ const MyPipelineTab = ({
                     {/* Circular Quick Completion Button */}
                     <button
                       type="button"
-                      disabled={isUpdating}
+                      disabled={isUpdating || isCompleted}
                       onClick={() => {
-                        if (handleUpdateTask) {
+                        if (!isCompleted && handleUpdateTask) {
                           handleUpdateTask(task.id, {
-                            status: isCompleted ? 'In Progress' : 'Completed'
+                            status: 'Completed'
                           });
                         }
                       }}
                       className={cn(
                         "mt-0.5 ml-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all",
-                        isUpdating && "opacity-50 cursor-not-allowed",
                         isCompleted
-                          ? "bg-emerald-500 text-white border border-emerald-500"
-                          : "border-2 border-slate-300 hover:border-teal-600 hover:bg-teal-50/50"
+                          ? "bg-emerald-500 text-white border border-emerald-500 cursor-default"
+                          : isUpdating
+                            ? "opacity-50 cursor-not-allowed"
+                            : "border-2 border-slate-300 hover:border-teal-600 hover:bg-teal-50/50 cursor-pointer"
                       )}
-                      title={isCompleted ? "Mark as In Progress" : "Complete Task"}
+                      title={isCompleted ? "Task is completed (status locked)" : "Complete Task"}
                     >
                       {isUpdating ? (
                         <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
@@ -678,26 +693,13 @@ const MyPipelineTab = ({
                         {/* Completed Task Button at Right Bottom */}
                         <div className="shrink-0">
                           {isCompleted ? (
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => {
-                                if (handleUpdateTask) {
-                                  handleUpdateTask(task.id, {
-                                    status: 'In Progress'
-                                  });
-                                }
-                              }}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-xl text-emerald-700 bg-emerald-50/70 border border-emerald-200/80 hover:bg-emerald-100/70 transition-all cursor-pointer shadow-2xs"
-                              title="Click to reopen / mark as in progress"
+                            <div
+                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-xl text-emerald-700 bg-emerald-50 border border-emerald-200/90 shadow-2xs select-none cursor-default"
+                              title="This task is completed. Status is locked."
                             >
-                              {isUpdating ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-                              ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
-                              )}
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
                               <span>Completed</span>
-                            </button>
+                            </div>
                           ) : (
                             <button
                               type="button"

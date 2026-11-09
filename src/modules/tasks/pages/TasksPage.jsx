@@ -258,7 +258,20 @@ const TasksPage = () => {
   };
 
   const handleUpdateTask = async (taskId, updates) => {
+    // If the task is already completed, status cannot be changed
+    const existing = (myTasks || []).find(t => String(t.id) === String(taskId)) ||
+                     (allTasks || []).find(t => String(t.id) === String(taskId));
+    const isAlreadyCompleted = existing && (
+      String(existing.status || '').toLowerCase() === 'completed' ||
+      String(existing.status || '').toLowerCase() === 'done'
+    );
+    if (isAlreadyCompleted && updates.status && String(updates.status).toLowerCase() !== 'completed') {
+      toast.error('Completed tasks are locked and cannot be changed.');
+      return;
+    }
+
     if (updates.status === 'Completed') {
+      if (isAlreadyCompleted) return;
       setTaskToComplete({ id: taskId, ...updates });
       setShowProofModal(true);
       return;

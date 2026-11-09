@@ -362,6 +362,15 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   };
 
   const handleQuickStatusUpdate = async (newStatus) => {
+    const isAlreadyCompleted = currentStatus === 'Completed' ||
+      currentStatus === 'Done' ||
+      String(currentStatus || '').toLowerCase() === 'completed' ||
+      String(taskData?.status || '').toLowerCase() === 'completed';
+
+    if (isAlreadyCompleted) {
+      toast.error('Completed tasks are locked and cannot be changed.');
+      return;
+    }
     if (newStatus === currentStatus) return;
 
     if (newStatus === 'Completed') {
@@ -905,67 +914,75 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 </div>
               )}
             </div>
-            {/* Status Dropdown in Navbar (Available to both Admin & Team Member) */}
+            {/* Status in Navbar (Locked if Completed, Dropdown if Active) */}
             {!isEditing && (
-              <div className="relative" ref={statusDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                  disabled={isUpdating}
-                  className={cn(
-                    "h-9 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-xs cursor-pointer select-none",
-                    currentStatus === 'Completed' ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100/80" :
+              (currentStatus === 'Completed' || currentStatus === 'Done' || String(currentStatus || '').toLowerCase() === 'completed' || String(taskData?.status || '').toLowerCase() === 'completed') ? (
+                <div
+                  className="h-9 px-3.5 rounded-xl text-xs font-bold border border-emerald-300 bg-emerald-50 text-emerald-700 flex items-center gap-2 shadow-xs select-none cursor-default"
+                  title="Completed task (status locked)"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Done</span>
+                </div>
+              ) : (
+                <div className="relative" ref={statusDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                    disabled={isUpdating}
+                    className={cn(
+                      "h-9 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-xs cursor-pointer select-none",
                       currentStatus === 'In Progress' ? "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100/80" :
                         currentStatus === 'Cancelled' ? "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100/80" :
                           "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100/80"
-                  )}
-                >
-                  <span className={cn(
-                    "w-2 h-2 rounded-full shrink-0",
-                    currentStatus === 'Completed' ? "bg-emerald-500" :
+                    )}
+                  >
+                    <span className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
                       currentStatus === 'In Progress' ? "bg-blue-500" :
                         currentStatus === 'Cancelled' ? "bg-rose-500" :
                           "bg-amber-500"
-                  )} />
-                  <span>{currentStatus === 'Completed' ? 'Done' : currentStatus}</span>
-                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 opacity-70", statusDropdownOpen && "rotate-180")} />
-                </button>
+                    )} />
+                    <span>{currentStatus}</span>
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 opacity-70", statusDropdownOpen && "rotate-180")} />
+                  </button>
 
-                {statusDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150 space-y-1">
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                      Update Work Status
+                  {statusDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                        Update Work Status
+                      </div>
+                      {[
+                        { label: 'Pending', value: 'Pending', desc: 'Not Started', dot: 'bg-amber-500' },
+                        { label: 'In Progress', value: 'In Progress', desc: 'Working', dot: 'bg-blue-500' },
+                        { label: 'Done', value: 'Completed', desc: 'Mark Completed', dot: 'bg-emerald-500' },
+                        { label: 'Cancelled', value: 'Cancelled', desc: 'Cancelled', dot: 'bg-rose-500' },
+                      ].map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => {
+                            handleQuickStatusUpdate(item.value);
+                            setStatusDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left cursor-pointer",
+                            currentStatus === item.value
+                              ? "bg-slate-100 text-slate-900 font-bold"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={cn("w-2 h-2 rounded-full", item.dot)} />
+                            <span>{item.label}</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-slate-400">{item.desc}</span>
+                        </button>
+                      ))}
                     </div>
-                    {[
-                      { label: 'Pending', value: 'Pending', desc: 'Not Started', dot: 'bg-amber-500' },
-                      { label: 'In Progress', value: 'In Progress', desc: 'Working', dot: 'bg-blue-500' },
-                      { label: 'Done', value: 'Completed', desc: 'Mark Completed', dot: 'bg-emerald-500' },
-                      { label: 'Cancelled', value: 'Cancelled', desc: 'Cancelled', dot: 'bg-rose-500' },
-                    ].map((item) => (
-                      <button
-                        key={item.value}
-                        type="button"
-                        onClick={() => {
-                          handleQuickStatusUpdate(item.value);
-                          setStatusDropdownOpen(false);
-                        }}
-                        className={cn(
-                          "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left cursor-pointer",
-                          currentStatus === item.value
-                            ? "bg-slate-100 text-slate-900 font-bold"
-                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={cn("w-2 h-2 rounded-full", item.dot)} />
-                          <span>{item.label}</span>
-                        </div>
-                        <span className="text-[10px] font-medium text-slate-400">{item.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )
             )}
 
             {/* Admin Edit Details button */}
