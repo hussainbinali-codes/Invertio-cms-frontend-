@@ -60,6 +60,7 @@ function App() {
           {/* Base Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<DashboardLayout />}>
+              <Route index element={<Navigate to="/tasks" replace />} />
               {/* Individual Module Guards */}
               <Route element={<ProtectedRoute permission="dashboard" />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
@@ -117,7 +118,7 @@ function App() {
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/leaves" replace />} />
+          <Route path="*" element={<Navigate to="/tasks" replace />} />
         </Routes>
       </Suspense>
     </Router>

@@ -13,6 +13,7 @@ import {
   Eye,
   Loader2,
   Plus,
+  User,
   UserCheck,
   Users
 } from 'lucide-react';
@@ -111,27 +112,102 @@ const getDateLabel = (d, mode) => {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
 
-const matchesTaskDate = (task, targetDate) => {
-  if (!task) return false;
-  const dateVal = task.due_date || task.created_at;
-  if (!dateVal) return false;
+const parseDateOnly = (val) => {
+  if (!val) return null;
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return null;
+    const d = new Date(val);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  if (typeof val === 'string') {
+    const match = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10), 0, 0, 0, 0);
+    }
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
-  const ymd = formatYMD(targetDate);
-  if (typeof dateVal === 'string' && dateVal.startsWith(ymd)) {
-    return true;
+const matchesTaskDate = (task, targetDate) => {
+  if (!task || !targetDate) return false;
+
+  const target = parseDateOnly(targetDate);
+  if (!target) return false;
+
+  const isCompleted = isTaskCompleted(task);
+
+  if (isCompleted) {
+    // A completed task reflects on the day it was completed!
+    const completedDate =
+      parseDateOnly(task.completion_date) ||
+      parseDateOnly(task.completed_at) ||
+      parseDateOnly(task.completion_time) ||
+      (String(task.status || '').toLowerCase() === 'completed' ? parseDateOnly(task.updated_at) : null) ||
+      parseDateOnly(task.due_date);
+
+    if (!completedDate) return false;
+
+    // Matches the exact day it was completed
+    if (target.getTime() === completedDate.getTime()) {
+      return true;
+    }
+
+    // It was also an active task prior to completion (between start/created and completion)
+    const startDate =
+      parseDateOnly(task.start_date) ||
+      parseDateOnly(task.estimated_start_date) ||
+      parseDateOnly(task.created_at) ||
+      completedDate;
+
+    const effectiveStart = startDate <= completedDate ? startDate : completedDate;
+
+    // Active between start date and completion date (never shown on dates after completionDate)
+    return target >= effectiveStart && target <= completedDate;
   }
 
-  try {
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return false;
-    return (
-      d.getFullYear() === targetDate.getFullYear() &&
-      d.getMonth() === targetDate.getMonth() &&
-      d.getDate() === targetDate.getDate()
-    );
-  } catch {
+  // Active / Ongoing / Pending task
+  const dueDate =
+    parseDateOnly(task.due_date) ||
+    parseDateOnly(task.estimated_end_date);
+
+  const startDate =
+    parseDateOnly(task.start_date) ||
+    parseDateOnly(task.estimated_start_date) ||
+    parseDateOnly(task.created_at) ||
+    dueDate;
+
+  if (dueDate && startDate) {
+    const effectiveStart = startDate <= dueDate ? startDate : dueDate;
+
+    // Task is active from start date through due date!
+    // E.g. start date Nov 10, due date Nov 13 -> visible on Nov 10, 11, 12, 13
+    if (target >= effectiveStart && target <= dueDate) {
+      return true;
+    }
+
+    // If viewing Today and the task is overdue (past due date but still not completed):
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    if (target.getTime() === now.getTime() && dueDate < now) {
+      return true;
+    }
+
     return false;
   }
+
+  if (dueDate) {
+    return target.getTime() === dueDate.getTime();
+  }
+
+  if (startDate) {
+    return target.getTime() === startDate.getTime();
+  }
+
+  return false;
 };
 
 const isTaskCompleted = (task) => {
@@ -144,6 +220,22 @@ const isTaskCancelled = (task) => {
   if (!task) return false;
   const s = String(task.status || '').trim().toLowerCase();
   return s === 'cancelled' || s === 'canceled';
+};
+
+const isOverdue = (dueDate, status) => {
+  if (!dueDate) return false;
+  const s = String(status || '').trim().toLowerCase();
+  if (s === 'completed' || s === 'done' || s === 'cancelled' || s === 'canceled') return false;
+  try {
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    return due < now;
+  } catch {
+    return false;
+  }
 };
 
 const priorityWeight = {
@@ -174,6 +266,17 @@ const MyPipelineTab = ({
     if (onSelectUser) onSelectUser(val);
     setInternalSelectedUser(val);
   };
+
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+  const storedRole = (storedUser.role_name || storedUser.role || '').toLowerCase();
+  const storedEmail = (storedUser.email || '').toLowerCase();
+  const effectiveIsAdmin = isAdmin || storedRole === 'admin' || storedRole === 'super admin' || storedRole === 'administrator' || storedEmail === 'cloud4invertio@gmail.com';
 
   const [internalSearch, setInternalSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -645,34 +748,52 @@ const MyPipelineTab = ({
                 const isCompleted = isTaskCompleted(task);
                 const isUpdating = updatingTaskId === task.id;
                 const priority = task.priority || 'Medium';
+                const isSelf = String(task.assigned_to) === String(storedUser?.id) ||
+                  (storedUser?.name && (task.assigned_to_name === storedUser.name || task.user_name === storedUser.name));
+                const rawAssignee =
+                  task.assigned_to_name ||
+                  task.user_name ||
+                  task.author_name ||
+                  task.assignee_name ||
+                  availableUsers.find((u) => String(u.id) === String(task.assigned_to))?.name ||
+                  (task.assigned_to ? `User #${task.assigned_to}` : (isSelf ? (storedUser?.name || 'You') : 'Unassigned'));
+                const assigneeName = isSelf ? (rawAssignee.includes('(You)') ? rawAssignee : `${rawAssignee} (You)`) : rawAssignee;
+
+                const taskDueDateObj = parseDateOnly(task.due_date);
+                const selectedDateObj = dateFilterMode === 'date' ? parseDateOnly(selectedDate) : null;
+                const todayObj = parseDateOnly(new Date());
+
+                const isDueOnSelectedDate = !isCompleted && Boolean(
+                  taskDueDateObj &&
+                  selectedDateObj &&
+                  taskDueDateObj.getTime() === selectedDateObj.getTime()
+                );
+
+                const isDueToday = !isCompleted && Boolean(
+                  taskDueDateObj &&
+                  todayObj &&
+                  taskDueDateObj.getTime() === todayObj.getTime()
+                );
+
+                const isTaskOverdue = !isCompleted && isOverdue(task.due_date, task.status);
+                const isDeadline = isDueOnSelectedDate || isDueToday || isTaskOverdue;
 
                 return (
                   <div
                     key={task.id}
                     className={cn(
-                      "bg-white rounded-2xl p-4 border transition-all flex items-start gap-4 group shadow-2xs hover:shadow-xs relative overflow-hidden",
+                      "bg-white rounded-2xl p-4 border transition-all flex items-start gap-3.5 group shadow-2xs hover:shadow-xs relative overflow-hidden",
                       isCompleted
                         ? "border-slate-200/60 bg-slate-50/40 opacity-75"
                         : "border-slate-200/90 hover:border-slate-300"
                     )}
                   >
-                    {/* Left subtle vertical green accent bar */}
-                    <div
-                      className={cn(
-                        "absolute left-0 top-0 bottom-0 w-1 rounded-l transition-colors",
-                        isCompleted
-                          ? "bg-emerald-400"
-                          : task.status === 'In Progress'
-                            ? "bg-teal-500"
-                            : "bg-slate-200 group-hover:bg-teal-400"
-                      )}
-                    />
-
                     {/* Circular Quick Completion Button */}
                     <button
                       type="button"
                       disabled={isUpdating || isCompleted}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (!isCompleted && handleUpdateTask) {
                           handleUpdateTask(task.id, {
                             status: 'Completed'
@@ -696,23 +817,23 @@ const MyPipelineTab = ({
                       ) : null}
                     </button>
 
-                    {/* Task Content */}
-                    <div className="flex-1 min-w-0 pr-1">
+                    {/* Task Content: Entire container (pink box) is clickable to open details */}
+                    <div
+                      onClick={() => {
+                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                      }}
+                      className="flex-1 min-w-0 pr-1 cursor-pointer group/card"
+                      title="Click anywhere to view task details"
+                    >
                       <div className="flex items-start justify-between gap-3">
-                        {/* Title & Description: Click opens the full task modal */}
-                        <div
-                          onClick={() => {
-                            if (setSelectedTaskDetail) setSelectedTaskDetail(task);
-                          }}
-                          className="min-w-0 cursor-pointer group/title flex-1"
-                          title="Click to view task details"
-                        >
+                        {/* Title & Description */}
+                        <div className="min-w-0 flex-1">
                           <h4
                             className={cn(
                               "text-[13px] font-semibold tracking-tight truncate transition-colors",
                               isCompleted
-                                ? "text-slate-400 line-through font-normal group-hover/title:text-slate-600"
-                                : "text-slate-900 group-hover/title:text-blue-600"
+                                ? "text-slate-400 line-through font-normal group-hover/card:text-slate-600"
+                                : "text-slate-900 group-hover/card:text-blue-600"
                             )}
                             title={task.title}
                           >
@@ -720,7 +841,7 @@ const MyPipelineTab = ({
                           </h4>
 
                           {task.description && (
-                            <p className="text-[12px] text-slate-400 font-normal line-clamp-1 mt-1 leading-relaxed group-hover/title:text-slate-600 transition-colors">
+                            <p className="text-[12px] text-slate-400 font-normal line-clamp-1 mt-1 leading-relaxed group-hover/card:text-slate-600 transition-colors">
                               {task.description}
                             </p>
                           )}
@@ -728,19 +849,6 @@ const MyPipelineTab = ({
 
                         {/* Badges & Eye Details Button Container */}
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Priority Pill */}
-                          <span
-                            className={cn(
-                              "text-[11px] font-medium px-3 py-0.5 rounded-full border transition-all",
-                              priority === 'Urgent' && "bg-rose-50 text-rose-700 border-rose-200/80",
-                              priority === 'High' && "bg-amber-50 text-amber-800 border-amber-200/80",
-                              priority === 'Medium' && "bg-teal-50 text-teal-700 border-teal-200/80",
-                              priority === 'Low' && "bg-slate-100 text-slate-600 border-slate-200/80"
-                            )}
-                          >
-                            {priority}
-                          </span>
-
                           {/* Status Pill */}
                           <span
                             className={cn(
@@ -770,55 +878,67 @@ const MyPipelineTab = ({
                         </div>
                       </div>
 
-                      {/* Footer Info: Project & Due Date (Left) and Complete Task Action (Right) */}
-                      <div className="mt-3 flex items-center justify-between gap-3 pt-1 border-t border-slate-100/80">
-                        <div className="flex items-center gap-3 sm:gap-4 text-[11px] text-slate-400 font-normal">
-                          {task.project_name && (
-                            <span className="flex items-center gap-1.5 truncate max-w-[200px] sm:max-w-[240px]">
-                              <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span>{task.project_name}</span>
-                            </span>
-                          )}
-                          {task.due_date && (
-                            <span className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                              <span>Due {formatShortDate(task.due_date)}</span>
-                            </span>
+                      {/* Footer Info: Project & Due Date & Author (Left) and Priority Pill (Right in place of Complete Task) */}
+                      <div className="mt-3 flex items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-100/80">
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[11px] text-slate-400 font-normal">
+                            {task.project_name && (
+                              <div
+                                className="flex items-center gap-1.5 font-medium text-slate-600 group-hover/card:text-blue-600 transition-colors"
+                              >
+                                <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate max-w-[180px] sm:max-w-[240px]">{task.project_name}</span>
+                              </div>
+                            )}
+                            {task.due_date && (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1.5 transition-all",
+                                  isDeadline
+                                    ? "bg-rose-500 text-white font-bold px-2 py-0.5 rounded-lg shadow-2xs"
+                                    : "text-slate-500"
+                                )}
+                              >
+                                <Calendar className={cn("w-3.5 h-3.5 shrink-0", isDeadline ? "text-white" : "text-slate-400")} />
+                                <span>Due {formatShortDate(task.due_date)}</span>
+                              </span>
+                            )}
+                            {isCompleted && (task.completion_date || task.completed_at) && (
+                              <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>Completed on {formatShortDate(task.completion_date || task.completed_at)}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Author working on task (for Admin only, below the due date / project info) */}
+                          {effectiveIsAdmin && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                              <User className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span className="text-slate-400 font-normal">Author:</span>
+                              <span className="font-semibold text-slate-700 truncate max-w-[200px]" title={assigneeName}>
+                                {assigneeName}
+                              </span>
+                            </div>
                           )}
                         </div>
 
-                        {/* Completed Task Button at Right Bottom */}
-                        <div className="shrink-0">
-                          {isCompleted ? (
-                            <div
-                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-xl text-emerald-700 bg-emerald-50 border border-emerald-200/90 shadow-2xs select-none cursor-default"
-                              title="This task is completed. Status is locked."
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
-                              <span>Completed</span>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => {
-                                if (handleUpdateTask) {
-                                  handleUpdateTask(task.id, {
-                                    status: 'Completed'
-                                  });
-                                }
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200/90 hover:border-emerald-300 shadow-2xs hover:shadow-xs active:scale-95 transition-all cursor-pointer"
-                              title="Mark task as completed"
-                            >
-                              {isUpdating ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-                              ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              )}
-                              <span>Complete Task</span>
-                            </button>
-                          )}
+                        {/* Priority Pill placed at Bottom Right in place of Complete Task */}
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="shrink-0 self-end sm:self-center"
+                        >
+                          <span
+                            className={cn(
+                              "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center",
+                              priority === 'Urgent' && "bg-rose-50 text-rose-700 border-rose-200/80",
+                              priority === 'High' && "bg-amber-50 text-amber-800 border-amber-200/80",
+                              priority === 'Medium' && "bg-teal-50 text-teal-700 border-teal-200/80",
+                              priority === 'Low' && "bg-slate-100 text-slate-600 border-slate-200/80"
+                            )}
+                          >
+                            {priority}
+                          </span>
                         </div>
                       </div>
                     </div>

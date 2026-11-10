@@ -237,11 +237,8 @@ const AttendancePunch = ({
 
             if (typeof onPunchInSuccess === "function") {
                 onPunchInSuccess();
-            } else if (hasPermission("tasks")) {
-                navigate("/tasks?tab=my");
-            } else {
-                navigate("/tasks");
             }
+            navigate("/tasks?tab=my");
         } catch (err) {
             const msg = err.response?.data?.message || "Failed to process punch in";
             setWorkModeError(msg);

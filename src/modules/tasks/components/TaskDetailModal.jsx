@@ -1797,7 +1797,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
           </div>
         </CardContent>
 
-        <div className="bg-white border-t border-slate-100 p-4 sm:p-5 flex items-center justify-start px-5 sm:px-8 gap-3 shrink-0">
+        <div className="bg-white border-t border-slate-100 p-4 sm:p-5 flex items-center justify-between px-5 sm:px-8 gap-3 shrink-0">
           <Button
             variant="ghost"
             className="text-primary-600 font-bold text-xs"
@@ -1806,6 +1806,28 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             <FolderOpen className="w-4 h-4 mr-2" />
             PROJECT RESOURCES
           </Button>
+
+          {/* Complete Task button placed on the right side of Project Resources */}
+          {String(currentStatus || '').toLowerCase() === 'completed' || String(taskData?.status || '').toLowerCase() === 'completed' ? (
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold select-none">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Task Completed</span>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              disabled={isUpdating}
+              onClick={() => handleQuickStatusUpdate('Completed')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all"
+            >
+              {isUpdating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>Complete Task</span>
+            </Button>
+          )}
         </div>
 
       </Card>

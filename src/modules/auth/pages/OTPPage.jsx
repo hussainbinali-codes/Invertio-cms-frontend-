@@ -36,12 +36,8 @@ const OTPPage = () => {
       }
       toast.success('Login Successful!');
 
-      // Dynamic Redirect based on permissions
-      if (user.permissions?.all || user.permissions?.dashboard) {
-        navigate('/dashboard');
-      } else {
-        navigate('/tasks');
-      }
+      // Redirect directly to Tasks page after login
+      navigate('/tasks');
     } catch (err) {
       const msg = err.response?.data?.message || 'Invalid OTP code.';
       setError(msg);
