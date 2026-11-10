@@ -519,47 +519,47 @@ const HRPage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 pb-10">
-        <div className="flex justify-between items-center">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-96" />
+      <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full min-w-0">
+          <div className="space-y-2 w-full max-w-md">
+            <Skeleton className="h-8 w-48 sm:w-64" />
+            <Skeleton className="h-4 w-full max-w-sm sm:w-96" />
           </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-24 rounded-lg" />
-            <Skeleton className="h-10 w-24 rounded-lg" />
-            <Skeleton className="h-10 w-24 rounded-lg" />
-            <Skeleton className="h-10 w-24 rounded-lg" />
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg" />
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg" />
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg" />
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full min-w-0">
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="lg:col-span-1 h-[400px] rounded-2xl" />
-          <Skeleton className="lg:col-span-2 h-[400px] rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
+          <Skeleton className="lg:col-span-1 h-[400px] rounded-2xl w-full" />
+          <Skeleton className="lg:col-span-2 h-[400px] rounded-2xl w-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
       {/* Header section with Asymmetric Layout */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full min-w-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight mt-1">
             Institutional HR
           </h1>
-          <p className="text-sm text-slate-500 mt-1 font-normal">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
             Recruitment governance and employee management hub.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto min-w-0">
           {/* Sub-Tabs Toggle */}
-          <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 whitespace-nowrap">
+          <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap w-full sm:w-auto">
             {['recruitment', 'directory', 'leaves', 'performance', 'holidays'].map((tab) => {
               const isActive = activeTab === tab;
               return (

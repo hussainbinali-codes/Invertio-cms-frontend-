@@ -109,22 +109,6 @@ const FinanceOverview = ({
 
   return (
     <>
-      <div className="flex justify-end mb-4">
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">View Currency:</span>
-          <select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="text-sm font-semibold text-slate-900 border-none bg-transparent focus:ring-0 cursor-pointer"
-          >
-            <option value="All">All (Consolidated INR)</option>
-            {Object.keys(reportData.byCurrency || {}).map(curr => (
-              <option key={curr} value={curr}>{curr}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <KpiCard

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -19,82 +19,10 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import axios from "../api/axios";
-import NotificationDropdown from "../components/NotificationDropdown";
-import UserDropdown from "../components/UserDropdown";
+import SidebarNotification from "../components/SidebarNotification";
+import SidebarProfile from "../components/SidebarProfile";
 import AttendancePunch from "../components/AttendancePunch";
-import {
-  LocationAccessDialog,
-  WorkModeDialog,
-} from "../components/AttendancePunchDialogs";
 import { hasPermission } from "../utils/permissionUtils";
-import ConfirmationModal from "../components/ui/ConfirmationModal";
-import toast from "react-hot-toast";
-
-const LOCATION_REQUIRED_MESSAGE =
-  "Location access is required to punch in. Please enable your device location and try again.";
-const OFFICE_RADIUS_METERS = 1;
-
-const formatAttendanceTimestamp = (date) => {
-  const pad = (value) => String(value).padStart(2, "0");
-  const istDate = new Date(
-    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
-  );
-
-  return `${istDate.getFullYear()}-${pad(istDate.getMonth() + 1)}-${pad(istDate.getDate())}T${pad(istDate.getHours())}:${pad(istDate.getMinutes())}:${pad(istDate.getSeconds())}+05:30`;
-};
-
-const formatAttendanceDate = (date) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-  }).format(date);
-
-const toLocationString = (latitude, longitude) => `${latitude},${longitude}`;
-
-const getGeolocationPermissionState = async () => {
-  if (!navigator.permissions?.query) {
-    return "unknown";
-  }
-
-  try {
-    const result = await navigator.permissions.query({ name: "geolocation" });
-    return result.state;
-  } catch (error) {
-    console.debug("Unable to read geolocation permission state", error);
-    return "unknown";
-  }
-};
-
-const getLocationErrorCopy = (error, permissionState) => {
-  if (permissionState === "denied" || error?.code === 1) {
-    return {
-      detailMessage:
-        "Location permission was denied. Allow location access in your browser or device settings to continue.",
-      toastMessage: "Location permission denied. Please enable it to punch in.",
-    };
-  }
-
-  if (error?.code === 2) {
-    return {
-      detailMessage:
-        "Your device location is turned off or GPS is currently unavailable. Turn on location services and try again.",
-      toastMessage: "GPS is unavailable. Please enable location and try again.",
-    };
-  }
-
-  if (error?.code === 3) {
-    return {
-      detailMessage:
-        "We could not detect your location in time. Move to an open area, keep GPS enabled, and try again.",
-      toastMessage: "Location detection timed out. Please try again.",
-    };
-  }
-
-  return {
-    detailMessage:
-      "We could not access your current location. Please verify that location services are enabled and try again.",
-    toastMessage: "Unable to fetch your current location.",
-  };
-};
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -103,178 +31,6 @@ const DashboardLayout = () => {
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem("user") || "{}"),
   );
-  const [showPunchOutModal, setShowPunchOutModal] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const [status, setStatus] = useState(null);
-  const [attendanceLocation, setAttendanceLocation] = useState("");
-  const [isWorkModeDialogOpen, setIsWorkModeDialogOpen] = useState(false);
-  const [selectedWorkMode, setSelectedWorkMode] = useState("");
-  const [workModeError, setWorkModeError] = useState("");
-  const [locationDialog, setLocationDialog] = useState({
-    isOpen: false,
-    detailMessage: "",
-  });
-
-  const closeWorkModeDialog = useCallback(() => {
-    setIsWorkModeDialogOpen(false);
-    setSelectedWorkMode("");
-    setWorkModeError("");
-  }, []);
-
-  const requestCurrentLocation = useCallback(async () => {
-    if (!("geolocation" in navigator)) {
-      setLocationDialog({
-        isOpen: true,
-        detailMessage:
-          "This device or browser does not support location access for attendance.",
-      });
-      toast.error("Location access is not supported on this device.");
-      return null;
-    }
-
-    const permissionState = await getGeolocationPermissionState();
-    if (permissionState === "denied") {
-      setLocationDialog({
-        isOpen: true,
-        detailMessage:
-          "Location permission was denied. Allow location access in your browser or device settings to continue.",
-      });
-      toast.error("Location permission denied. Please enable it to punch in.");
-      return null;
-    }
-
-    setIsDetectingLocation(true);
-
-    try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        });
-      });
-
-      const locationString = toLocationString(
-        position.coords.latitude,
-        position.coords.longitude,
-      );
-
-      setAttendanceLocation(locationString);
-      setLocationDialog({ isOpen: false, detailMessage: "" });
-      return locationString;
-    } catch (error) {
-      const locationError = getLocationErrorCopy(error, permissionState);
-      console.warn("Geolocation failed during punch flow", error);
-      setLocationDialog({
-        isOpen: true,
-        detailMessage: locationError.detailMessage,
-      });
-      toast.error(locationError.toastMessage);
-      return null;
-    } finally {
-      setIsDetectingLocation(false);
-    }
-  }, []);
-
-  const handlePunchInRequest = useCallback(async () => {
-    setSelectedWorkMode("");
-    setWorkModeError("");
-
-    const locationString = await requestCurrentLocation();
-    if (!locationString) {
-      return;
-    }
-
-    setIsWorkModeDialogOpen(true);
-  }, [requestCurrentLocation]);
-
-  const handleRetryLocationAccess = useCallback(async () => {
-    const locationString = await requestCurrentLocation();
-    if (!locationString) {
-      return;
-    }
-
-    setSelectedWorkMode("");
-    setWorkModeError("");
-    setIsWorkModeDialogOpen(true);
-  }, [requestCurrentLocation]);
-
-  const handleWorkModeConfirm = useCallback(async () => {
-    if (!selectedWorkMode) {
-      setWorkModeError(
-        "Please select where you are working today to continue.",
-      );
-      return;
-    }
-
-    if (!attendanceLocation) {
-      closeWorkModeDialog();
-      await handlePunchInRequest();
-      return;
-    }
-
-    setActionLoading(true);
-    setWorkModeError("");
-
-    try {
-      const response = await axios.post("/hr/attendance/check-in", {
-        date: formatAttendanceDate(new Date()),
-        check_in: formatAttendanceTimestamp(new Date()),
-        status: "Present",
-        location: attendanceLocation,
-        mode: selectedWorkMode,
-      });
-
-      const responseMessage = response.data?.message;
-      const isFailureResponse = response.data?.success === false;
-
-      if (isFailureResponse) {
-        const message = responseMessage || "Failed to process punch";
-        setWorkModeError(message);
-        toast.error(message);
-        return;
-      }
-
-      setStatus("in");
-      closeWorkModeDialog();
-      toast.success("Punched in successfully");
-    } catch (error) {
-      const serverMessage = error.response?.data?.message;
-      const message = serverMessage || "Failed to process punch";
-      setWorkModeError(message);
-      toast.error(message);
-    } finally {
-      setActionLoading(false);
-    }
-  }, [
-    attendanceLocation,
-    closeWorkModeDialog,
-    handlePunchInRequest,
-    selectedWorkMode,
-  ]);
-
-  const handlePunch = async (mode = "auto") => {
-    if (status !== "in" || mode !== "checkout") {
-      return;
-    }
-
-    setActionLoading(true);
-
-    try {
-      await axios.post("/hr/attendance/check-out", {
-        date: formatAttendanceDate(new Date()),
-        check_out: formatAttendanceTimestamp(new Date()),
-      });
-      setStatus("out");
-      setShowPunchOutModal(false);
-      toast.success("Punched out successfully");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to process punch");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   useEffect(() => {
     const syncPermissions = async () => {
@@ -355,7 +111,7 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="flex bg-slate-50 min-h-screen font-sans selection:bg-primary-100 selection:text-primary-900">
+    <div className="flex bg-slate-50 h-screen h-[100dvh] overflow-hidden font-sans selection:bg-primary-100 selection:text-primary-900">
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
@@ -365,7 +121,7 @@ const DashboardLayout = () => {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200/60 shadow-xl shadow-slate-200/50 sidebar-transition flex flex-col h-screen h-[100dvh] lg:shadow-none lg:sticky lg:top-0 lg:h-screen",
+          "fixed inset-y-0 left-0 z-50 bg-white border-r border-slate-200/80 shadow-[1px_0_10px_-3px_rgba(0,0,0,0.03)] sidebar-transition flex flex-col h-screen h-[100dvh] lg:sticky lg:top-0 lg:h-screen shrink-0",
           isSidebarOpen
             ? "translate-x-0 w-[280px]"
             : "-translate-x-full lg:translate-x-0",
@@ -407,20 +163,25 @@ const DashboardLayout = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col justify-between no-scrollbar">
-          <nav className="px-3 py-2.5 space-y-1 no-scrollbar">
+        {/* Scrollable Navigation Area with Sleek Scrollbar Effect */}
+        <div
+          className={cn(
+            "flex-1 min-h-0 py-2.5 overflow-y-auto sidebar-scrollbar scroll-smooth",
+            isSidebarCollapsed ? "lg:overflow-visible" : "overscroll-contain"
+          )}
+        >
+          <nav className="px-3 space-y-1">
             {filteredNavItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 onClick={() => setIsSidebarOpen(false)}
-                title={isSidebarCollapsed ? item.label : ""}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 group relative",
+                    "flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative",
                     isActive
-                      ? "bg-primary-50 text-primary-700 shadow-sm"
-                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                      ? "bg-slate-900 text-white shadow-xs font-semibold"
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-950",
                     isSidebarCollapsed
                       ? "lg:justify-center lg:px-2 px-3"
                       : "px-3",
@@ -431,7 +192,8 @@ const DashboardLayout = () => {
                   <>
                     <item.icon
                       className={cn(
-                        "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
+                        "w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-105",
+                        isActive ? "text-white" : "text-slate-500 group-hover:text-slate-800",
                         isSidebarCollapsed ? "lg:mr-0 mr-3" : "mr-3",
                       )}
                     />
@@ -443,37 +205,46 @@ const DashboardLayout = () => {
                     >
                       {item.label}
                     </span>
-                    {isActive && (
-                      <div
-                        className={cn(
-                          "absolute left-0 w-1 bg-primary-600 rounded-r-full transition-all",
-                          isSidebarCollapsed ? "lg:h-4 lg:left-0 h-6" : "h-6",
-                        )}
-                      />
+
+                    {/* Styled Floating Tooltip on Hover when Collapsed */}
+                    {isSidebarCollapsed && (
+                      <div className="hidden lg:block absolute left-full top-1/2 -translate-y-1/2 ml-3.5 pointer-events-none z-50 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150 ease-out">
+                        <div className="relative flex items-center">
+                          <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mr-1 shadow-xs" />
+                          <div className="bg-slate-900/95 text-white text-xs font-semibold px-2.5 py-1 rounded-lg shadow-xl border border-slate-800 whitespace-nowrap tracking-wide">
+                            {item.label}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </>
                 )}
               </NavLink>
             ))}
-          </nav>
 
-          <div
-            className={cn(
-              isSidebarCollapsed ? "lg:items-center lg:px-2 px-3 pb-3 pt-1" : "px-3 pb-3 pt-1",
-            )}
-          >
-            {!isSidebarCollapsed && (
-              <AttendancePunch
-                setShowPunchOutModal={setShowPunchOutModal}
-                actionLoading={actionLoading}
-                isDetectingLocation={isDetectingLocation}
-                status={status}
-                setStatus={setStatus}
-                handlePunchInRequest={handlePunchInRequest}
-                location={attendanceLocation}
-              />
-            )}
-          </div>
+            {/* Notification in Navigation Space */}
+            <SidebarNotification isCollapsed={isSidebarCollapsed} />
+          </nav>
+        </div>
+
+        {/* Fixed Pinned Bottom: Punchout & Profile */}
+        <div
+          className={cn(
+            "shrink-0 border-t border-slate-100 bg-white/95 backdrop-blur-sm z-30 transition-all duration-300",
+            isSidebarCollapsed ? "lg:items-center lg:px-2 px-3 pb-3 pt-2 space-y-1.5" : "px-3 pb-3 pt-2 space-y-2",
+          )}
+        >
+          {!isSidebarCollapsed && (
+            <AttendancePunch />
+          )}
+
+          {/* Profile below Attendance Punch */}
+          <SidebarProfile
+            user={user}
+            onLogout={handleLogout}
+            isCollapsed={isSidebarCollapsed}
+            onMobileClose={() => setIsSidebarOpen(false)}
+          />
         </div>
       </aside>
 
@@ -493,73 +264,25 @@ const DashboardLayout = () => {
         )}
       </button>
 
-      <ConfirmationModal
-        isOpen={showPunchOutModal}
-        onClose={() => !actionLoading && setShowPunchOutModal(false)}
-        title="Confirm punch out"
-        message="You're about to end your workday attendance. Do you want to punch out now?"
-        confirmText="Punch Out"
-        cancelText="Stay Checked In"
-        variant="danger"
-        isLoading={actionLoading}
-        closeOnConfirm={false}
-        onConfirm={() => handlePunch("checkout")}
-      />
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Mobile Header (Only visible on mobile screens where sidebar is hidden) */}
+        <div className="lg:hidden fixed top-0 inset-x-0 z-40 flex h-14 items-center justify-between bg-white px-3 shadow-[0_2px_10px_rgba(15,23,42,0.12)]">
+          <img
+            src="/invertio_logo.png"
+            alt="Invertio"
+            className="h-8 w-32 object-contain object-left"
+          />
+          <button
+            className="p-2 text-slate-600 rounded-xl transition-all active:scale-95 hover:bg-slate-100"
+            onClick={() => setIsSidebarOpen(true)}
+            title="Open Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
 
-      <LocationAccessDialog
-        isOpen={locationDialog.isOpen}
-        onClose={() =>
-          !isDetectingLocation &&
-          setLocationDialog({ isOpen: false, detailMessage: "" })
-        }
-        onRetry={handleRetryLocationAccess}
-        isLoading={isDetectingLocation}
-        detailMessage={
-          locationDialog.detailMessage || LOCATION_REQUIRED_MESSAGE
-        }
-      />
-
-      <WorkModeDialog
-        isOpen={isWorkModeDialogOpen}
-        onClose={() => !actionLoading && closeWorkModeDialog()}
-        selectedMode={selectedWorkMode}
-        onSelect={(mode) => {
-          setSelectedWorkMode(mode);
-          setWorkModeError("");
-        }}
-        onConfirm={handleWorkModeConfirm}
-        isLoading={actionLoading}
-        errorMessage={workModeError}
-      />
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 glass-effect sticky top-0 flex items-center justify-between px-4 sm:px-8 z-30 shadow-sm shadow-slate-200/20">
-          <div className="flex items-center gap-4">
-            <button
-              className="lg:hidden p-2.5 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl shadow-sm border border-slate-100 transition-all active:scale-95"
-              onClick={() => setIsSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden xs:flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold text-slate-500 rounded-full border border-emerald-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse" />
-              Online
-            </div>
-
-            <div className="h-8 w-px bg-slate-200 mx-1 hidden sm:block" />
-
-            <div className="flex items-center gap-1.5 sm:gap-3">
-              <NotificationDropdown />
-              <UserDropdown user={user} onLogout={handleLogout} />
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50">
-          <div className="p-4 sm:p-6 lg:p-6 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <main className="w-full flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50 flex flex-col min-h-0 min-w-0">
+          <div className="pt-16 sm:pt-16 lg:pt-6 px-2 sm:px-3 lg:px-4 pb-2 sm:pb-3 lg:pb-4 w-full min-w-0 flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />
           </div>
         </main>

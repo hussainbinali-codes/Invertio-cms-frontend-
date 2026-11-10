@@ -3,7 +3,7 @@ import { cn } from '../../utils/cn';
 
 export const Table = ({ className, children, ...props }) => {
   return (
-    <div className="overflow-x-auto w-full custom-scrollbar">
+    <div className="overflow-x-auto w-full max-w-full min-w-0 custom-scrollbar">
       <table className={cn('w-full text-sm text-left text-slate-600 border-collapse', className)} {...props}>
         {children}
       </table>
@@ -24,13 +24,13 @@ export const TableRow = ({ className, children, ...props }) => (
 );
 
 export const TableHead = ({ className, children, ...props }) => (
-  <th scope="col" className={cn('px-6 py-3.5 text-sm font-normal uppercase text-slate-500 tracking-wider', className)} {...props}>
+  <th scope="col" className={cn('px-3 sm:px-6 py-2.5 sm:py-3.5 text-xs sm:text-sm font-semibold uppercase text-slate-500 tracking-wider', className)} {...props}>
     {children}
   </th>
 );
 
 export const TableCell = ({ className, children, ...props }) => (
-  <td className={cn('px-6 py-4 whitespace-nowrap text-sm font-normal text-slate-600', className)} {...props}>
+  <td className={cn('px-3 sm:px-6 py-2.5 sm:py-3.5 whitespace-nowrap text-xs sm:text-sm font-normal text-slate-600', className)} {...props}>
     {children}
   </td>
 );

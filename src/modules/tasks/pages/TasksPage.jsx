@@ -1,8 +1,9 @@
-import React, { useEffect, useState, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
-import { Search, CheckSquare, CheckCircle2, AlertTriangle, TrendingUp, Target, Loader2 } from 'lucide-react';
+import Button from '../../../components/ui/Button';
+import { Search, CheckSquare, CheckCircle2, AlertTriangle, TrendingUp, Target, Loader2, BarChart3, ChevronDown, LayoutGrid, Users, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import StatCard from '../../../components/ui/StatCard';
 import { cn } from '../../../utils/cn';
@@ -26,48 +27,44 @@ const TabLoader = () => (
   </div>
 );
 
-// Premium Double-Bezel KPI Card component
+// Normal dimension KPI Card component
 const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
   return (
-    <div className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 hover:bg-slate-200/60 active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group hover:-translate-y-0.5 flex-1">
-      <div className="bg-white p-5 rounded-[calc(1.75rem-0.375rem)] border border-slate-200/25 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_8px_-4px_rgba(0,0,0,0.03)] h-full flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
-              {title}
-            </span>
-            {Icon && (
-              <div className="p-2 bg-slate-50 border border-slate-100/60 rounded-xl group-hover:scale-105 transition-transform duration-300">
-                <Icon className="w-3.5 h-3.5 text-slate-500" />
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-3">
-            <span className="text-3xl font-bold text-slate-800 tracking-tight font-mono">
-              {value}
-            </span>
-          </div>
-        </div>
-
-        {(trend || subtext) && (
-          <div className="mt-4 flex items-center gap-2">
-            {trend && (
-              <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono",
-                trend.startsWith('+') ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50"
-              )}>
-                {trend}
-              </span>
-            )}
-            {subtext && (
-              <span className="text-xs text-slate-500 font-medium font-mono">
-                {subtext}
-              </span>
-            )}
+    <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+          {title}
+        </span>
+        {Icon && (
+          <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg">
+            <Icon className="w-3.5 h-3.5 text-slate-500" />
           </div>
         )}
       </div>
+
+      <div className="mt-1.5">
+        <span className="text-2xl font-bold text-slate-800 tracking-tight">
+          {value}
+        </span>
+      </div>
+
+      {(trend || subtext) && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          {trend && (
+            <span className={cn(
+              "text-[10px] font-bold px-1.5 py-0.5 rounded",
+              trend.startsWith('+') ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50"
+            )}>
+              {trend}
+            </span>
+          )}
+          {subtext && (
+            <span className="text-[11px] text-slate-400 font-medium">
+              {subtext}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -75,17 +72,17 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
-      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 w-full min-w-0", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col w-full min-w-0">
         {(title || subtitle) && (
-          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               {Icon && (
-                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 shrink-0">
                   <Icon className="w-4 h-4 text-slate-500" />
                 </div>
               )}
-              <div>
+              <div className="min-w-0">
                 {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
                 {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
               </div>
@@ -93,7 +90,7 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
             {headerRight}
           </div>
         )}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col w-full min-w-0 overflow-x-auto">
           {children}
         </div>
       </div>
@@ -112,6 +109,8 @@ const TasksPage = () => {
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
+  const [tasksModalStatusFilter, setTasksModalStatusFilter] = useState('all');
+  const [tasksModalAssigneeFilter, setTasksModalAssigneeFilter] = useState('all');
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectTeam, setProjectTeam] = useState([]);
   const [isFetchingTeam, setIsFetchingTeam] = useState(false);
@@ -127,6 +126,22 @@ const TasksPage = () => {
   const [completionFiles, setCompletionFiles] = useState([]);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [boardsSortField, setBoardsSortField] = useState('name');
+  const [boardsSortDirection, setBoardsSortDirection] = useState('asc'); // 'asc' | 'desc'
+  const [showKpiStats, setShowKpiStats] = useState(false);
+  const [progressFilter, setProgressFilter] = useState('all'); // 'all', 'in_progress', 'completed', 'not_started'
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target)) {
+        setShowFilterDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const role = (user.role_name || '').toLowerCase();
   const isAdmin = role === 'admin' || role === 'super admin' || role === 'administrator';
@@ -140,6 +155,28 @@ const TasksPage = () => {
   // Developer-specific: assigned projects list
   const [assignedProjects, setAssignedProjects] = useState([]);
   const [loadingAssigned, setLoadingAssigned] = useState(false);
+
+  const tabsList = [
+    { id: 'boards', label: 'Global Boards', count: projects.length, icon: LayoutGrid },
+    { id: 'my', label: 'My Pipeline', count: myTasks.length, icon: CheckSquare },
+    ...(isAdmin ? [{ id: 'assignees', label: 'Assignees', count: allTasks.length, icon: Users }] : [])
+  ];
+
+  const tabRefs = useRef({});
+  const [sliderStyle, setSliderStyle] = useState({ left: 4, width: 0, height: 0, top: 4, ready: false });
+
+  useEffect(() => {
+    const currentEl = tabRefs.current[activeTab];
+    if (currentEl) {
+      setSliderStyle({
+        left: currentEl.offsetLeft,
+        width: currentEl.offsetWidth,
+        height: currentEl.offsetHeight,
+        top: currentEl.offsetTop,
+        ready: true
+      });
+    }
+  }, [activeTab, projects.length, myTasks.length, allTasks.length]);
 
   useEffect(() => {
     fetchData();
@@ -176,33 +213,27 @@ const TasksPage = () => {
       const requests = [
         axios.get('/projects/stats/tasks'),
         axios.get('/projects/tasks/my'),
-        axios.get('/users/selection').catch(() => ({ data: { data: [] } }))
+        axios.get('/users/selection').catch(() => ({ data: { data: [] } })),
+        axios.get('/projects').catch(() => ({ data: { data: [] } }))
       ];
-
-      let projectsResIndex = -1;
-      if (showBoardsTab) {
-        projectsResIndex = requests.length;
-        requests.push(axios.get('/projects').catch(() => ({ data: { data: [] } })));
-      }
 
       let allTasksResIndex = -1;
       if (canViewAll) {
         allTasksResIndex = requests.length;
-        requests.push(axios.get('/projects/tasks/all').catch(() => ({ data: { data: [] } })));
+        requests.push(axios.get('/projects/tasks/all?limit=1000').catch(() => ({ data: { data: [] } })));
       }
 
       const results = await Promise.all(requests);
 
-      setStats(results[0].data.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
-      setMyTasks(results[1].data.data || []);
-
-      if (projectsResIndex > -1) {
-        setProjects(Array.isArray(results[projectsResIndex].data.data) ? results[projectsResIndex].data.data : []);
-      }
+      setStats(results[0].data?.data || { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 });
+      setMyTasks(results[1].data?.data || []);
+      setProjects(Array.isArray(results[3].data?.data) ? results[3].data.data : []);
 
       if (allTasksResIndex > -1) {
-        const rawTasks = results[allTasksResIndex].data.data || [];
+        const rawTasks = results[allTasksResIndex].data?.data || [];
         setAllTasks(Array.isArray(rawTasks) ? rawTasks : (rawTasks.items || []));
+      } else {
+        setAllTasks([]);
       }
 
       setLoading(false);
@@ -300,8 +331,10 @@ const TasksPage = () => {
     }
   };
 
-  const handleViewTasks = (project) => {
+  const handleViewTasks = (project, statusFilter = 'all', assigneeFilter = 'all') => {
     setSelectedProject(project);
+    setTasksModalStatusFilter(statusFilter || 'all');
+    setTasksModalAssigneeFilter(assigneeFilter || 'all');
     setShowTasksModal(true);
   };
 
@@ -325,7 +358,7 @@ const TasksPage = () => {
       story_points: parseInt(formData.get('story_points') || 0),
       assigned_to: formData.get('assigned_to') || undefined,
       reporter_id: formData.get('reporter_id') || undefined,
-      
+
       estimated_start_date: formData.get('estimated_start_date') || undefined,
       estimated_end_date: formData.get('estimated_end_date') || undefined,
       estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : undefined,
@@ -394,98 +427,214 @@ const TasksPage = () => {
     }
   };
 
-  const filteredMyTasks = myTasks.filter(task =>
-    task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const term = searchTerm.trim();
 
-  const filteredProjects = projects.filter(project =>
-    project.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const matchesWordToWord = (text, query) => {
+    if (!text || !query) return false;
+    const words = query.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return true;
+
+    const target = String(text);
+    return words.every((w) => {
+      const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const startBoundary = /^\w/.test(w) ? '\\b' : '';
+      const endBoundary = /\w$/.test(w) ? '\\b' : '';
+      const regex = new RegExp(`${startBoundary}${escaped}${endBoundary}`, 'i');
+      return regex.test(target);
+    });
+  };
+
+  const filteredMyTasks = myTasks.filter((task) => {
+    if (!term) return true;
+    return (
+      matchesWordToWord(task.title, term) ||
+      matchesWordToWord(task.description, term) ||
+      matchesWordToWord(task.project_name, term) ||
+      matchesWordToWord(task.priority, term) ||
+      matchesWordToWord(task.status, term) ||
+      matchesWordToWord(task.client_name, term)
+    );
+  });
+
+  const effectiveTasks = allTasks.length > 0 ? allTasks : myTasks;
+
+  const filteredProjects = projects.filter((project) => {
+    // 1. Filter by progress state (All / In Progress / Completed / Not Started)
+    const projectTasks = (effectiveTasks || []).filter(
+      (t) => t.project_id === project.id || t.project_name === project.name
+    );
+    const inProgressCount = projectTasks.filter((t) => t.status === 'In Progress').length;
+    const completedCount = projectTasks.filter((t) => t.status === 'Completed').length;
+    const totalTasks = projectTasks.length;
+    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+
+    if (progressFilter === 'in_progress' && inProgressCount === 0) return false;
+    if (progressFilter === 'completed' && (totalTasks === 0 || progressPercent < 100)) return false;
+    if (progressFilter === 'not_started' && totalTasks > 0) return false;
+
+    // 2. Search Term Filter
+    if (!term) return true;
+
+    // Project Name
+    if (matchesWordToWord(project.name, term)) return true;
+
+    // Tech Stack / Pipeline
+    if (matchesWordToWord(project.tech_stack, term)) return true;
+
+    // Client Name & Category
+    if (matchesWordToWord(project.client_name, term)) return true;
+    if (matchesWordToWord(project.category, term)) return true;
+
+    // Status Column (Active / Blocked / etc.)
+    const isBlocked = project.status?.includes('Blocked');
+    if (isBlocked && matchesWordToWord('blocked', term)) return true;
+    if (!isBlocked && matchesWordToWord('active', term)) return true;
+    if (matchesWordToWord(project.status, term)) return true;
+
+    // In Progress / Completed Task matches
+    if (matchesWordToWord('progress', term) && inProgressCount > 0) return true;
+    if ((matchesWordToWord('completed', term) || matchesWordToWord('done', term)) && completedCount > 0) return true;
+    if (projectTasks.some((t) => matchesWordToWord(t.title, term))) return true;
+
+    return false;
+  });
 
   return (
-    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
-      {/* Header section with Asymmetric Layout */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
-            Tasks Center
+    <div className="flex-1 min-h-0 flex flex-col w-full min-h-full gap-2.5">
+      {/* Header section with Project Boards and Pipeline tabs aligned at the end */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 m-0 p-0 shrink-0">
+        <div className="m-0 p-0">
+          <h1 className="text-xl font-bold text-slate-950 tracking-tight m-0 p-0">
+            Tasks & Workspaces
           </h1>
-          <p className="text-sm text-slate-500 mt-1 font-normal">
-            Institutional labor allocation and personal task pipelines.
+          <p className="text-xs text-slate-500 mt-0.5 font-normal">
+            Manage project boards, sprint backlogs, and team deliverables.
           </p>
         </div>
-      </div>
 
-      {/* KPI Stats Grid in Double-Bezel nested wrapper */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        <KpiCard title="Total Backlog" value={stats.pending} icon={CheckSquare} subtext="Pending items" />
-        <KpiCard title="In Progress" value={stats.in_progress} icon={TrendingUp} subtext="Active items" />
-        <KpiCard title="Completed" value={stats.completed} icon={CheckCircle2} subtext="Resolved tasks" />
-        <KpiCard title="Overdue" value={stats.overdue} icon={AlertTriangle} subtext="Critical attention" />
-        {/* <KpiCard title="Backlog Velocity" value={stats.total_points || 0} icon={Target} subtext="Total story points" /> */}
-        <KpiCard title="Completed Pts" value={stats.completed_points || 0} icon={TrendingUp} subtext="Delivered value" />
-      </div>
+        {/* Smooth Toggle Slider Tabs on right top side of header */}
+        <div className="relative bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 flex items-center overflow-x-auto no-scrollbar shadow-inner shrink-0">
+          {/* Smooth Sliding Background Pill */}
+          <div
+            className={cn(
+              "absolute bg-white rounded-lg shadow-sm border border-slate-200/90 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none",
+              !sliderStyle.ready && "opacity-0"
+            )}
+            style={{
+              left: `${sliderStyle.left}px`,
+              top: `${sliderStyle.top}px`,
+              width: `${sliderStyle.width}px`,
+              height: `${sliderStyle.height}px`
+            }}
+          />
 
-      {/* Tabs capsules */}
-      {showBoardsTab && (
-        <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar w-fit">
-          <button
-            onClick={() => setActiveTab('boards')}
-            className={cn(
-              "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 active:scale-[0.98]",
-              activeTab === 'boards' ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
-            )}
-          >
-            GLOBAL BOARDS
-          </button>
-          <button
-            onClick={() => setActiveTab('my')}
-            className={cn(
-              "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 active:scale-[0.98]",
-              activeTab === 'my' ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
-            )}
-          >
-            MY PIPELINE
-          </button>
-          {isAdmin && (
-            <button 
-              onClick={() => setActiveTab('assignees')}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 active:scale-[0.98]",
-                activeTab === 'assignees' ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
-              )}
-            >
-              MANAGE ASSIGNEES
-            </button>
-          )}
+          {tabsList.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                ref={(el) => (tabRefs.current[tab.id] = el)}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold tracking-normal transition-colors duration-200 cursor-pointer",
+                  isActive ? "text-slate-900" : "text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <Icon className={cn("w-3.5 h-3.5 transition-colors", isActive ? "text-blue-600" : "text-slate-400")} />
+                <span>{tab.label}</span>
+                <span
+                  className={cn(
+                    "px-1.5 py-0.5 rounded-md text-[10px] font-bold transition-colors",
+                    isActive ? "bg-blue-50 text-blue-700" : "bg-slate-200/70 text-slate-500"
+                  )}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
+
+      {/* Manage Board Toggle Button (Commented out) */}
+      {/*
+      <button
+        type="button"
+        onClick={() => setShowKpiStats(prev => !prev)}
+        className={cn(
+          "flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-all duration-200 shadow-sm shrink-0",
+          showKpiStats
+            ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800"
+            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+        )}
+      >
+        <BarChart3 className="w-3.5 h-3.5" />
+        <span>Manage Board</span>
+        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showKpiStats && "rotate-180")} />
+      </button>
+      */}
+
+      {/* KPI Stats Grid with Smooth Collapse Transition (Commented out) */}
+      {/*
+      <div
+        className={cn(
+          "grid transition-all duration-300 ease-in-out overflow-hidden",
+          showKpiStats
+            ? "grid-rows-[1fr] opacity-100 my-1"
+            : "grid-rows-[0fr] opacity-0 -mt-4 pointer-events-none"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-1 pb-1">
+            <KpiCard title="Total Backlog" value={stats.pending} icon={CheckSquare} subtext="Pending items" />
+            <KpiCard title="In Progress" value={stats.in_progress} icon={TrendingUp} subtext="Active items" />
+            <KpiCard title="Completed" value={stats.completed} icon={CheckCircle2} subtext="Resolved tasks" />
+            <KpiCard title="Overdue" value={stats.overdue} icon={AlertTriangle} subtext="Critical attention" />
+            <KpiCard title="Completed Pts" value={stats.completed_points || 0} icon={TrendingUp} subtext="Delivered value" />
+          </div>
+        </div>
+      </div>
+      */}
 
       {/* Main Container Card in Double-Bezel layout */}
-      <PremiumCard 
-        title={activeTab === 'boards' ? 'Institutional Boards' : (activeTab === 'assignees' && isAdmin) ? 'Manage Task Assignees' : 'Personal Pipeline'} 
+      <PremiumCard
+        className="flex-1 min-h-0 flex flex-col overflow-hidden"
+        title={activeTab === 'boards' ? 'Global Boards' : (activeTab === 'assignees' && isAdmin) ? 'Manage Task Assignees' : 'Personal Pipeline'}
         subtitle={
           activeTab === 'boards'
             ? `Managing tasks across ${projects.length} project pipelines.`
             : (activeTab === 'assignees' && isAdmin)
-            ? `Viewing all ${allTasks.length} task assignments across the company.`
-            : `Tracking ${myTasks.length} items assigned to you.`
-        } 
+              ? `Viewing all ${allTasks.length} task assignments across the company.`
+              : `Tracking ${myTasks.length} items assigned to you.`
+        }
         icon={CheckSquare}
         headerRight={
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              className="pl-10 h-10 text-xs rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors pointer-events-none z-10" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={activeTab === 'boards' ? "Search boards, tech, status..." : "Search tasks..."}
+                className="w-full h-9 pl-9 pr-8 text-xs font-medium bg-slate-50/80 hover:bg-slate-100/60 focus:bg-white border border-slate-200/90 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all shadow-sm"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-md hover:bg-slate-100 transition-colors z-10"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         }
       >
-        <div className="flex-1">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {loading ? (
             <div className="divide-y divide-slate-100">
               {[...Array(5)].map((_, i) => (
@@ -511,18 +660,30 @@ const TasksPage = () => {
                 />
               ) : (activeTab === 'assignees' && isAdmin) ? (
                 <TaskAssigneesTab
-                  tasks={allTasks.filter(task =>
-                    task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-                  )}
+                  tasks={allTasks.filter(task => {
+                    if (!term) return true;
+                    return (
+                      matchesWordToWord(task.title, term) ||
+                      matchesWordToWord(task.description, term) ||
+                      matchesWordToWord(task.project_name, term) ||
+                      matchesWordToWord(task.priority, term) ||
+                      matchesWordToWord(task.status, term)
+                    );
+                  })}
                   setSelectedTaskDetail={setSelectedTaskDetail}
                 />
               ) : (
                 <GlobalBoardsTab
                   projects={filteredProjects}
+                  allTasks={allTasks.length > 0 ? allTasks : myTasks}
                   canCreate={canCreate}
                   handleViewTasks={handleViewTasks}
                   handleCreateTask={handleCreateTask}
+                  setSelectedTaskDetail={setSelectedTaskDetail}
+                  sortField={boardsSortField}
+                  setSortField={setBoardsSortField}
+                  sortDirection={boardsSortDirection}
+                  setSortDirection={setBoardsSortDirection}
                 />
               )}
             </Suspense>
@@ -560,7 +721,13 @@ const TasksPage = () => {
         {showTasksModal && selectedProject && (
           <TaskViewModal
             project={selectedProject}
-            onClose={() => setShowTasksModal(false)}
+            initialStatusFilter={tasksModalStatusFilter}
+            initialAssigneeFilter={tasksModalAssigneeFilter}
+            onClose={() => {
+              setShowTasksModal(false);
+              setTasksModalStatusFilter('all');
+              setTasksModalAssigneeFilter('all');
+            }}
           />
         )}
 

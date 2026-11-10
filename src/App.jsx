@@ -27,6 +27,7 @@ const CampaignsPage = lazy(() => import('./modules/campaigns/pages/CampaignsPage
 const ResourcesPage = lazy(() => import('./modules/resources/pages/ResourcesPage'));
 const SettingsPage = lazy(() => import('./modules/auth/pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./modules/auth/pages/ProfilePage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const AccessDenied = lazy(() => import('./pages/AccessDenied'));
 
 import { Toaster } from 'react-hot-toast';
@@ -108,8 +109,9 @@ function App() {
 
               {/* Universal Routes */}
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/leaves" element={<LeavesPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings" element={<Navigate to="/profile" replace />} />
               <Route path="/access-denied" element={<AccessDenied />} />
             </Route>
           </Route>

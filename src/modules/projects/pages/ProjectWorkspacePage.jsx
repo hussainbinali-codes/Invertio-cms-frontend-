@@ -343,7 +343,7 @@ const ProjectWorkspacePage = () => {
   };
 
   return (
-    <div className="space-y-6 pb-12 max-w-[1400px] mx-auto py-2">
+    <div className="w-full min-w-0 space-y-6 pb-12 py-1">
       {/* Top Back Nav & Header */}
       <div>
         <Link
@@ -355,9 +355,9 @@ const ProjectWorkspacePage = () => {
         </Link>
 
         {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64 rounded-xl" />
-            <Skeleton className="h-4 w-96 rounded-lg" />
+          <div className="space-y-2 w-full max-w-md">
+            <Skeleton className="h-8 w-48 sm:w-64 rounded-xl" />
+            <Skeleton className="h-4 w-full max-w-sm sm:w-96 rounded-lg" />
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">

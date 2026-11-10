@@ -122,6 +122,11 @@ const TaskRow = ({ task }) => {
         <CheckSquare className="w-3.5 h-3.5 text-slate-400 shrink-0" />
         {priorityDot(task.priority)}
         <span className="text-xs font-medium flex-1 truncate">{task.title}</span>
+        {task.client_name && (
+          <span className="text-[9px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded hidden md:inline-block truncate max-w-[100px]" title={task.client_name}>
+            {task.client_name}
+          </span>
+        )}
         {task.assigned_to_name && (
           <span className="text-[9px] text-slate-400 hidden sm:block">{task.assigned_to_name}</span>
         )}

@@ -68,7 +68,7 @@
 //   const [isSubmitting, setIsSubmitting] = useState(false);
 //   const [selectedCurrency, setSelectedCurrency] = useState('All');
 //   const [reminderSendingId, setReminderSendingId] = useState(null);
-  
+
 //   // Payroll Status Modal State
 //   const [payrollStatusModal, setPayrollStatusModal] = useState({
 //     isOpen: false,
@@ -78,7 +78,7 @@
 //     employeeName: '',
 //     period: ''
 //   });
-  
+
 //   // Invoice Filters
 //   const [invoiceSearch, setInvoiceSearch] = useState('');
 //   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('All');
@@ -253,7 +253,7 @@
 //     e.preventDefault();
 //     setIsSubmitting(true);
 //     const formData = new FormData(e.target);
-    
+
 //     try {
 //       await axios.post('/finance/invoices', formData, {
 //         headers: { 'Content-Type': 'multipart/form-data' }
@@ -310,7 +310,7 @@
 //       await axios.post('/finance/payroll/generate', payload);
 //       toast.success('Payroll generation initiated successfully in background.');
 //       setShowPayrollModal(false);
-      
+
 //       // Refresh historical list after a short delay (so the worker can finish & save the record)
 //       setTimeout(() => {
 //         if (activeView === 'Payroll') fetchPayrollRecords();
@@ -358,7 +358,7 @@
 //       await axios.patch(`/finance/payroll/${payrollStatusModal.payrollId}`, formData, {
 //         headers: { 'Content-Type': 'multipart/form-data' }
 //       });
-      
+
 //       toast.success('Payroll status updated with proof');
 //       setPayrollStatusModal(prev => ({ ...prev, isOpen: false }));
 //       if (activeView === 'Payroll') fetchPayrollRecords();
@@ -600,13 +600,19 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui
 import Button from '../../../components/ui/Button';
 import KpiCard from '../../../components/ui/KpiCard';
 import PremiumCard from '../../../components/ui/PremiumCard';
+import DateRangePicker from '../../../components/ui/DateRangePicker';
 import {
   Wallet,
   TrendingDown,
   Plus,
   LayoutDashboard,
   FileText,
-  Loader2
+  Loader2,
+  Search,
+  Calendar,
+  Filter,
+  X,
+  RotateCw
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
@@ -633,6 +639,21 @@ const CURRENCIES = [
   { code: 'GBP', symbol: '£', name: 'British Pound' },
   { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham' },
   { code: 'SAR', symbol: '﷼', name: 'Saudi Riyal' }
+];
+
+const MONTH_NAMES_LIST = [
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
 ];
 
 const FILE_BASE_URL = "http://localhost:5000";
@@ -670,11 +691,80 @@ const FinancePage = () => {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reminderSendingId, setReminderSendingId] = useState(null);
+  const [dateYearFilter, setDateYearFilter] = useState('All');
+  const [dateMonthFilter, setDateMonthFilter] = useState('All');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('All');
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState('All');
   const [expenseSearch, setExpenseSearch] = useState('');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('All');
+  const [payrollSearch, setPayrollSearch] = useState('');
+  const [payrollStatusFilter, setPayrollStatusFilter] = useState('All');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const categoryOptions = React.useMemo(() => {
+    const list = new Set();
+    expenseCategories.forEach(c => { if (c.name) list.add(c.name); });
+    expenses.forEach(e => { if (e.category) list.add(e.category); });
+    return Array.from(list).sort();
+  }, [expenseCategories, expenses]);
+
+  // Helper to extract local date parts (year, month, day, YYYY-MM-DD) matching user's local timezone
+  const getLocalDateParts = (dateVal) => {
+    if (!dateVal) return null;
+    if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
+      const parts = dateVal.trim().split('-');
+      return { year: Number(parts[0]), month: Number(parts[1]), day: Number(parts[2]), dateStr: dateVal.trim() };
+    }
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return null;
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return { year, month, day, dateStr };
+  };
+
+  // Local-time aligned filtering for Invoices by Date Range
+  const filteredInvoices = React.useMemo(() => {
+    return invoices.filter(inv => {
+      const rawDate = inv.invoice_date || inv.created_at;
+      const parts = getLocalDateParts(rawDate);
+      if (!parts) return true;
+      const d = parts.dateStr;
+      if (startDateFilter && d < startDateFilter) return false;
+      if (endDateFilter && d > endDateFilter) return false;
+      return true;
+    });
+  }, [invoices, startDateFilter, endDateFilter]);
+
+  // Local-time aligned filtering for Expenses by Date Range
+  const filteredExpenses = React.useMemo(() => {
+    return expenses.filter(exp => {
+      const rawDate = exp.date || exp.created_at;
+      const parts = getLocalDateParts(rawDate);
+      if (!parts) return true;
+      const d = parts.dateStr;
+      if (startDateFilter && d < startDateFilter) return false;
+      if (endDateFilter && d > endDateFilter) return false;
+      return true;
+    });
+  }, [expenses, startDateFilter, endDateFilter]);
+
+  // Local-time aligned filtering for Payroll Batches by Date Range
+  const filteredPayrollBatches = React.useMemo(() => {
+    return payrollBatches.filter(b => {
+      const parts = getLocalDateParts(b.generated_at);
+      if (!parts) return true;
+      const d = parts.dateStr;
+      if (startDateFilter && d < startDateFilter) return false;
+      if (endDateFilter && d > endDateFilter) return false;
+      return true;
+    });
+  }, [payrollBatches, startDateFilter, endDateFilter]);
+
   const [chartData, setChartData] = useState([
     { name: 'Revenue', value: 0, color: '#3b82f6' },
     { name: 'Expense', value: 0, color: '#f59e0b' },
@@ -706,6 +796,87 @@ const FinancePage = () => {
     }
   }, [selectedCurrency, reportData]);
 
+  const fetchFinanceData = async (start = startDateFilter, end = endDateFilter, silent = false) => {
+    if (!isSuperAdmin) return;
+    if (!silent) setIsRefreshing(true);
+    try {
+      let startDate = start;
+      let endDate = end;
+      if (!startDate && !endDate) {
+        const currentYear = new Date().getFullYear();
+        startDate = `${currentYear}-01-01`;
+        endDate = `${currentYear}-12-31`;
+      } else if (startDate && !endDate) {
+        endDate = startDate;
+      } else if (!startDate && endDate) {
+        startDate = '2000-01-01';
+      }
+
+      const res = await axios.get(`/finance/report?startDate=${startDate}&endDate=${endDate}`);
+      const data = res.data.data || res.data;
+      setReportData(data);
+    } catch (err) {
+      console.error("Finance fetch error", err);
+    } finally {
+      setLoading(false);
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const fetchInvoices = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const res = await axios.get('/finance/invoices');
+      setInvoices(res.data.data || []);
+    } catch (err) {
+      if (!silent) toast.error('Failed to fetch invoices');
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const fetchExpenses = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const res = await axios.get('/finance/expenses');
+      setExpenses(res.data.data || []);
+    } catch (err) {
+      if (!silent) toast.error('Failed to fetch expenses');
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const fetchPayrollBatches = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    try {
+      const res = await axios.get('/finance/payroll/batches');
+      setPayrollBatches(res.data.data || []);
+    } catch (err) {
+      if (!silent) toast.error('Failed to fetch payroll runs');
+    } finally {
+      if (!silent) setIsRefreshing(false);
+    }
+  };
+
+  const loadActiveTabData = React.useCallback((view = activeView, silent = false) => {
+    if (view === 'Overview') {
+      fetchFinanceData(startDateFilter, endDateFilter, silent);
+    } else if (view === 'Invoices') {
+      fetchInvoices(silent);
+    } else if (view === 'Expenses') {
+      fetchExpenses(silent);
+    } else if (view === 'Payroll') {
+      fetchPayrollBatches(silent);
+    }
+  }, [activeView, startDateFilter, endDateFilter, isSuperAdmin]);
+
+  const handleTabSelect = (tabId) => {
+    setIsRefreshing(true);
+    setActiveView(tabId);
+    loadActiveTabData(tabId, false);
+  };
+
   useEffect(() => {
     if (!hasPermission('finance', 'view')) {
       toast.error("Access Denied: You do not have permissions to access the Finance module.");
@@ -713,29 +884,43 @@ const FinancePage = () => {
       return;
     }
     if (isSuperAdmin) {
-      fetchFinanceData();
+      fetchFinanceData(startDateFilter, endDateFilter);
     } else {
       setLoading(false);
     }
     fetchAuxData();
-  }, []);
+  }, [startDateFilter, endDateFilter]);
 
+  // Load the respective API immediately whenever the active tab changes
   useEffect(() => {
-    if (activeView === 'Invoices') {
-      fetchInvoices();
-    } else if (activeView === 'Expenses') {
-      fetchExpenses();
-    } else if (activeView === 'Payroll') {
-      fetchPayrollBatches();
-    }
-  }, [activeView]);
+    loadActiveTabData(activeView, false);
+  }, [activeView, loadActiveTabData]);
+
+  // Automatically refresh active tab data when returning to this browser tab / window focus
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadActiveTabData(activeView, true);
+      }
+    };
+    const handleWindowFocus = () => {
+      loadActiveTabData(activeView, true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [activeView, loadActiveTabData]);
 
   // Auto-poll invoices silently if any Outbound invoice is still generating its PDF
   useEffect(() => {
     if (activeView !== 'Invoices') return;
 
     const hasPendingPdf = invoices.some(
-      (inv) => inv.type === 'Outbound' && !inv.generated_pdf_url && inv.status !== 'Cancelled'
+      (inv) => inv.type === 'Outbound' && !inv.generated_pdf_url && !inv.document_url && inv.status !== 'Cancelled'
     );
 
     if (!hasPendingPdf) return;
@@ -753,18 +938,6 @@ const FinancePage = () => {
 
     return () => clearInterval(interval);
   }, [invoices, activeView]);
-
-  const fetchPayrollBatches = async () => {
-    setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/payroll/batches');
-      setPayrollBatches(res.data.data || []);
-    } catch (err) {
-      toast.error('Failed to fetch payroll runs');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   const handleGenerateMonthlyBatch = async ({ month, year }) => {
     try {
@@ -838,56 +1011,6 @@ const FinancePage = () => {
       toast.error(err.response?.data?.message || 'Failed to send batch payslips');
     } finally {
       setIsSendingBatchPayslips(false);
-    }
-  };
-
-  const fetchFinanceData = async () => {
-    if (!isSuperAdmin) return;
-    try {
-      const year = new Date().getFullYear();
-      const res = await axios.get(`/finance/report?startDate=${year}-01-01&endDate=${year}-12-31`);
-      const data = res.data.data || res.data;
-      setReportData(data);
-    } catch (err) {
-      console.error("Finance fetch error", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchInvoices = async (silent = false) => {
-    if (!silent) setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/invoices');
-      setInvoices(res.data.data || []);
-    } catch (err) {
-      if (!silent) toast.error('Failed to fetch invoices');
-    } finally {
-      if (!silent) setIsRefreshing(false);
-    }
-  };
-
-  const fetchExpenses = async () => {
-    setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/expenses');
-      setExpenses(res.data.data || []);
-    } catch (err) {
-      toast.error('Failed to fetch expenses');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const fetchPayrollRecords = async () => {
-    setIsRefreshing(true);
-    try {
-      const res = await axios.get('/finance/payroll/all');
-      setPayrollData(res.data.data || []);
-    } catch (err) {
-      toast.error('Failed to fetch payroll history');
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -1079,36 +1202,36 @@ const FinancePage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 pb-10 px-4 sm:px-6 lg:px-0">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-          <div className="space-y-2">
+      <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 w-full min-w-0">
+          <div className="space-y-2 w-full max-w-md">
             <Skeleton className="h-8 w-48 sm:w-64" />
             <Skeleton className="h-4 w-full max-w-xs sm:w-96" />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-10 w-28 sm:w-32 rounded-lg" />
-            <Skeleton className="h-10 w-20 sm:w-24 rounded-lg" />
-            <Skeleton className="h-10 w-28 sm:w-32 rounded-lg" />
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Skeleton className="h-9 sm:h-10 w-28 sm:w-32 rounded-lg" />
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg" />
+            <Skeleton className="h-9 sm:h-10 w-28 sm:w-32 rounded-lg" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="lg:col-span-2 h-[400px] rounded-2xl" />
-          <Skeleton className="h-[400px] rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
+          <Skeleton className="lg:col-span-2 h-[400px] rounded-2xl w-full" />
+          <Skeleton className="h-[400px] rounded-2xl w-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-10 max-w-[1400px] mx-auto py-2 px-4 sm:px-6 lg:px-0">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
       {/* Header section with Asymmetric Layout */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full min-w-0">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight mt-1">
             Financial Hub
@@ -1119,85 +1242,273 @@ const FinancePage = () => {
         </div>
         <div className="flex items-center flex-nowrap gap-1.5 sm:gap-2">
           {hasPermission('finance', 'expenses.create') && (
-            <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowExpenseModal(true)}
-                className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
-              >
-                <TrendingDown className="w-3.5 h-3.5 shrink-0" />
-                <span className="whitespace-nowrap">Add Expense</span>
-              </Button>
-            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setShowExpenseModal(true)}
+              className="bg-white hover:bg-slate-50 text-slate-700 rounded-md py-2 px-2 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all shrink-0"
+            >
+              <TrendingDown className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">Add Expense</span>
+            </Button>
           )}
           {hasPermission('finance', 'payroll.manage') && (
-            <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowMonthlyPayrollModal(true)}
-                className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
-              >
-                <Wallet className="w-3.5 h-3.5 shrink-0" />
-                <span className="whitespace-nowrap">Generate Payroll</span>
-              </Button>
-            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setShowMonthlyPayrollModal(true)}
+              className="bg-white hover:bg-slate-50 text-slate-700 rounded-md py-2 px-2 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all shrink-0"
+            >
+              <Wallet className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">Generate Payroll</span>
+            </Button>
           )}
           {hasPermission('finance', 'invoices.create') && (
             <>
-              <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
-                <Button
-                  size="sm"
-                  onClick={() => { setInvoiceModalType('Outbound'); setShowInvoiceModal(true); }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5 shrink-0" />
-                  <span className="whitespace-nowrap">New Outbound Invoice</span>
-                </Button>
-              </div>
-              <div className="bg-slate-200/30 p-0.5 sm:p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => { setInvoiceModalType('Inbound'); setShowInvoiceModal(true); }}
-                  className="bg-white hover:bg-slate-50 text-slate-700 rounded-full py-1 px-2.5 sm:px-3 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span className="whitespace-nowrap">Record Inbound Invoice</span>
-                </Button>
-              </div>
+              <Button
+                onClick={() => { setInvoiceModalType('Outbound'); setShowInvoiceModal(true); }}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-md py-2 px-2 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">New Outbound Invoice</span>
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => { setInvoiceModalType('Inbound'); setShowInvoiceModal(true); }}
+                className="bg-white hover:bg-slate-50 text-slate-700 rounded-md py-2 px-2 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all shrink-0"
+              >
+                <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="whitespace-nowrap">Record Inbound Invoice</span>
+              </Button>
             </>
           )}
         </div>
       </div>
 
-      {/* View Tabs capsules */}
-      <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-fit -mx-4 px-4 sm:mx-0 sm:px-1.5">
-        {[
-          ...(isSuperAdmin ? [{ id: 'Overview', icon: LayoutDashboard }] : []),
-          { id: 'Invoices', icon: FileText },
-          { id: 'Expenses', icon: TrendingDown },
-          { id: 'Payroll', icon: Wallet }
-        ].map(tab => {
-          const isActive = activeView === tab.id;
-          return (
+      {/* Financial Navigation and Filters Bar (Justify-between, No Shadow Wrapper) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 w-full">
+        {/* Left: View Navigation Tabs */}
+        <div className="bg-slate-200/60 border border-slate-200/40 rounded-md p-1 flex items-center gap-1 overflow-x-auto no-scrollbar w-full sm:w-fit shrink-0">
+          {[
+            ...(isSuperAdmin ? [{ id: 'Overview', icon: LayoutDashboard }] : []),
+            { id: 'Invoices', icon: FileText },
+            { id: 'Expenses', icon: TrendingDown },
+            { id: 'Payroll', icon: Wallet }
+          ].map(tab => {
+            const isActive = activeView === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabSelect(tab.id)}
+                className={cn(
+                  "px-2 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 active:scale-[0.98] whitespace-nowrap shrink-0",
+                  isActive
+                    ? "bg-white text-blue-600 shadow-xs border border-slate-200/40"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/40"
+                )}
+              >
+                <tab.icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{tab.id.toUpperCase()}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: Tab-Specific Filters, Search Toggle & Date Controls */}
+        <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end shrink-0">
+          {/* Quick Reload Button */}
+          <button
+            type="button"
+            onClick={() => loadActiveTabData(activeView, false)}
+            disabled={isRefreshing}
+            className={cn(
+              "py-1.5 px-2 rounded-md border transition-all duration-200 flex items-center justify-center gap-1 shadow-2xs bg-white border-slate-200/80 text-slate-500 hover:text-slate-800 hover:bg-slate-50 cursor-pointer disabled:opacity-60",
+              isRefreshing && "text-blue-600 border-blue-200 bg-blue-50/50"
+            )}
+            title="Refresh current tab data"
+          >
+            <RotateCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin text-blue-600")} />
+          </button>
+
+          {/* Search Toggle Icon Button (for tabs with search) */}
+          {activeView !== 'Overview' && (
             <button
-              key={tab.id}
-              onClick={() => setActiveView(tab.id)}
+              type="button"
+              onClick={() => setIsSearchOpen(prev => !prev)}
               className={cn(
-                "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 flex items-center gap-1.5 sm:gap-2 active:scale-[0.98] whitespace-nowrap shrink-0",
-                isActive
-                  ? "bg-white text-blue-600 shadow-sm border border-slate-200/20"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                "py-1.5 px-2 rounded-md border transition-all duration-200 flex items-center justify-center relative shadow-2xs",
+                isSearchOpen || (activeView === 'Invoices' ? invoiceSearch : activeView === 'Expenses' ? expenseSearch : payrollSearch)
+                  ? "bg-blue-50 border-blue-200 text-blue-600 shadow-xs"
+                  : "bg-white border-slate-200/80 text-slate-500 hover:text-slate-800 hover:bg-slate-50"
               )}
+              title={isSearchOpen ? "Close search" : "Open search"}
             >
-              <tab.icon className="w-3.5 h-3.5 shrink-0" />
-              {tab.id.toUpperCase()}
+              <Search className="w-3.5 h-3.5" />
+              {Boolean(activeView === 'Invoices' ? invoiceSearch : activeView === 'Expenses' ? expenseSearch : payrollSearch) && !isSearchOpen && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white"></span>
+              )}
             </button>
-          );
-        })}
+          )}
+
+          {/* Tab-Specific Dropdown Filters */}
+          {activeView === 'Overview' && (
+            <select
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+              className="text-xs rounded-lg border border-slate-200 py-1.5 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+            >
+              <option value="All">All (Consolidated INR)</option>
+              {Object.keys(reportData?.byCurrency || {}).length > 0
+                ? Object.keys(reportData.byCurrency).map(curr => {
+                    const cObj = CURRENCIES.find(c => c.code === curr);
+                    return (
+                      <option key={curr} value={curr}>
+                        {curr} {cObj ? `(${cObj.symbol})` : ''}
+                      </option>
+                    );
+                  })
+                : CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                  ))
+              }
+            </select>
+          )}
+
+          {activeView === 'Invoices' && (
+            <>
+              <select
+                value={invoiceTypeFilter}
+                onChange={(e) => setInvoiceTypeFilter(e.target.value)}
+                className="text-xs rounded-lg border border-slate-200 py-1.5 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+              >
+                <option value="All">All Types</option>
+                <option value="Outbound">Outbound (Billing)</option>
+                <option value="Inbound">Inbound (Vendor)</option>
+              </select>
+
+              <select
+                value={invoiceStatusFilter}
+                onChange={(e) => setInvoiceStatusFilter(e.target.value)}
+                className="text-xs rounded-lg border border-slate-200 py-1.5 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Paid">Paid</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </>
+          )}
+
+          {activeView === 'Expenses' && (
+            <select
+              value={expenseCategoryFilter}
+              onChange={(e) => setExpenseCategoryFilter(e.target.value)}
+              className="text-xs rounded-lg border border-slate-200 py-1.5 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+            >
+              <option value="All">All Categories</option>
+              {categoryOptions.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          )}
+
+          {activeView === 'Payroll' && (
+            <select
+              value={payrollStatusFilter}
+              onChange={(e) => setPayrollStatusFilter(e.target.value)}
+              className="text-xs rounded-lg border border-slate-200 py-1.5 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-2xs"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Paid">Paid</option>
+              <option value="Sent">Sent</option>
+            </select>
+          )}
+
+          {/* Date Range Dropdown with From & To Calendars */}
+          <DateRangePicker
+            startDate={startDateFilter}
+            endDate={endDateFilter}
+            onChange={({ startDate, endDate }) => {
+              setStartDateFilter(startDate);
+              setEndDateFilter(endDate);
+              if (activeView === 'Overview') {
+                fetchFinanceData(startDate, endDate);
+              }
+            }}
+          />
+
+          {/* Reset Filter Button (visible if date range is active) */}
+          {(startDateFilter || endDateFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStartDateFilter('');
+                setEndDateFilter('');
+                if (activeView === 'Overview') {
+                  fetchFinanceData('', '');
+                }
+              }}
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow-2xs border border-rose-200/50 shrink-0 cursor-pointer"
+              title="Reset date filter"
+            >
+              <X className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Search Input Bar (Outside the Main Div) */}
+      {isSearchOpen && activeView !== 'Overview' && (
+        <div className="bg-white border border-slate-200/80 rounded-md p-2 sm:px-3 shadow-2xs flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+          <Search className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+          <input
+            type="text"
+            autoFocus
+            placeholder={
+              activeView === 'Invoices'
+                ? "Search invoice # or client..."
+                : activeView === 'Expenses'
+                  ? "Search expenses by description, project..."
+                  : "Search payroll month or year..."
+            }
+            value={
+              activeView === 'Invoices'
+                ? invoiceSearch
+                : activeView === 'Expenses'
+                  ? expenseSearch
+                  : payrollSearch
+            }
+            onChange={(e) => {
+              if (activeView === 'Invoices') setInvoiceSearch(e.target.value);
+              else if (activeView === 'Expenses') setExpenseSearch(e.target.value);
+              else if (activeView === 'Payroll') setPayrollSearch(e.target.value);
+            }}
+            className="flex-1 bg-transparent border-none text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-0 font-medium py-1"
+          />
+          {(activeView === 'Invoices' ? invoiceSearch : activeView === 'Expenses' ? expenseSearch : payrollSearch) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (activeView === 'Invoices') setInvoiceSearch('');
+                else if (activeView === 'Expenses') setExpenseSearch('');
+                else if (activeView === 'Payroll') setPayrollSearch('');
+              }}
+              className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 px-2 py-0.5 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsSearchOpen(false)}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            title="Close search"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <Suspense fallback={<TabLoader />}>
         {activeView === 'Overview' && (
@@ -1212,7 +1523,7 @@ const FinancePage = () => {
 
         {activeView === 'Invoices' && (
           <InvoicesTab
-            invoices={invoices}
+            invoices={filteredInvoices}
             isRefreshing={isRefreshing}
             invoiceSearch={invoiceSearch}
             setInvoiceSearch={setInvoiceSearch}
@@ -1226,12 +1537,14 @@ const FinancePage = () => {
             reminderSendingId={reminderSendingId}
             isSuperAdmin={isSuperAdmin}
             fileBaseUrl={FILE_BASE_URL}
+            fetchInvoices={fetchInvoices}
           />
         )}
 
         {activeView === 'Expenses' && (
           <ExpensesTab
-            expenses={expenses}
+            expenses={filteredExpenses}
+            isRefreshing={isRefreshing}
             expenseSearch={expenseSearch}
             setExpenseSearch={setExpenseSearch}
             expenseCategoryFilter={expenseCategoryFilter}
@@ -1240,16 +1553,21 @@ const FinancePage = () => {
             categories={expenseCategories}
             onCategoriesChange={setExpenseCategories}
             fileBaseUrl={FILE_BASE_URL}
+            fetchExpenses={fetchExpenses}
           />
         )}
 
         {activeView === 'Payroll' && (
           <PayrollTab
-            batches={payrollBatches}
+            batches={filteredPayrollBatches}
             loading={isRefreshing}
             onOpenGenerateModal={() => setShowMonthlyPayrollModal(true)}
             onViewBatchDetails={handleViewBatchDetails}
             stats={{ totalEmployees: users.length }}
+            searchQuery={payrollSearch}
+            setSearchQuery={setPayrollSearch}
+            statusFilter={payrollStatusFilter}
+            setStatusFilter={setPayrollStatusFilter}
           />
         )}
       </Suspense>

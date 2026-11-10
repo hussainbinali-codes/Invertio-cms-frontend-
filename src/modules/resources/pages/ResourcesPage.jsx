@@ -76,17 +76,17 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
-      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 w-full min-w-0", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col w-full min-w-0">
         {(title || subtitle) && (
-          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
               {Icon && (
-                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 shrink-0">
                   <Icon className="w-4 h-4 text-slate-500" />
                 </div>
               )}
-              <div>
+              <div className="min-w-0">
                 {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
                 {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
               </div>
@@ -94,7 +94,7 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
             {headerRight}
           </div>
         )}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col w-full min-w-0 overflow-x-auto">
           {children}
         </div>
       </div>
@@ -223,22 +223,22 @@ const ResourcesPage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 pb-10">
-        <div className="flex justify-between items-center">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-96" />
+      <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-2 w-full max-w-md">
+            <Skeleton className="h-8 w-48 sm:w-64" />
+            <Skeleton className="h-4 w-full max-w-sm sm:w-96" />
           </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-24 rounded-lg" />
-            <Skeleton className="h-10 w-24 rounded-lg" />
-            <Skeleton className="h-10 w-32 rounded-lg" />
+          <div className="flex gap-2 shrink-0">
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-xl" />
+            <Skeleton className="h-9 sm:h-10 w-20 sm:w-24 rounded-xl" />
+            <Skeleton className="h-9 sm:h-10 w-28 sm:w-32 rounded-xl" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full min-w-0">
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
+          <Skeleton className="h-32 rounded-2xl w-full" />
         </div>
         <Skeleton className="h-[400px] w-full rounded-2xl" />
       </div>
@@ -246,18 +246,18 @@ const ResourcesPage = () => {
   }
 
   return (
-    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
       {/* Header section with Asymmetric Layout */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full min-w-0">
+        <div className="w-full md:w-auto min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight mt-1">
             Asset Center
           </h1>
-          <p className="text-sm text-slate-500 mt-1 font-normal">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
             Manage institutional inventory and workforce allocation.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           {/* Tabs toggle */}
           <div className="bg-slate-200/40 border border-slate-200/25 rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap">
             {[
@@ -288,7 +288,7 @@ const ResourcesPage = () => {
                   setSelectedAssignmentUsers([]);
                   setShowAddModal(true); 
                 }} 
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-4 sm:px-5 text-xs sm:text-sm font-semibold shadow-sm flex items-center gap-2"
               >
                 <Plus className="w-3.5 h-3.5" />
                 New Asset
@@ -299,8 +299,8 @@ const ResourcesPage = () => {
       </div>
 
       {activeTab === 'inventory' ? (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full min-w-0">
             <KpiCard title="Total Inventory" value={resources.length} icon={Cpu} subtext="Tracked items" />
             <KpiCard title="Assigned" value={resources.filter(r => r.assigned_users?.length > 0).length} icon={Monitor} subtext="Currently in use" />
             <KpiCard title="Available" value={resources.filter(r => !r.assigned_users || r.assigned_users.length === 0).length} icon={AlertCircle} subtext="Ready to deploy" />
@@ -396,14 +396,14 @@ const ResourcesPage = () => {
             </PremiumCard>
         </div>
       ) : (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full min-w-0">
             <KpiCard title="Total Team" value={userAllocation.length} icon={Users} subtext="Global talent pool" />
             <KpiCard title="Bench Strength" value={utilization.find(u => u.name === 'Bench')?.value || 0} icon={Layers} subtext="Available now" />
             <KpiCard title="ROI Matrix" value="84%" icon={TrendingUp} trend="+5%" subtext="Efficiency score" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full min-w-0">
             <PremiumCard title="Workforce Utilization" icon={Layers}>
               <div className="h-[350px] p-6">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>

@@ -162,17 +162,17 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
 // Premium Double-Bezel Card Container component
 const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerRight }) => {
   return (
-    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10", className)}>
-      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
+    <div className={cn("bg-slate-200/30 p-1.5 rounded-[2rem] border border-slate-200/10 w-full min-w-0", className)}>
+      <div className="bg-white rounded-[calc(2rem-0.375rem)] border border-slate-200/20 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_4px_16px_-8px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col w-full min-w-0">
         {(title || subtitle) && (
-          <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
               {Icon && (
-                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 shrink-0">
                   <Icon className="w-4 h-4 text-slate-500" />
                 </div>
               )}
-              <div>
+              <div className="min-w-0">
                 {title && <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>}
                 {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
               </div>
@@ -180,7 +180,7 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
             {headerRight}
           </div>
         )}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col w-full min-w-0 overflow-x-auto">
           {children}
         </div>
       </div>
@@ -823,22 +823,22 @@ const ClientsPage = () => {
   const statsList = stats;
 
   return (
-    <div className="space-y-8 pb-10 max-w-[1400px] mx-auto py-2">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
       {/* Header section with Asymmetric Layout */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full min-w-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-950 tracking-tight mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight mt-1">
             Clients & CRM
           </h1>
-          <p className="text-sm text-slate-500 mt-1 font-normal">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
             Manage your customer pipeline and track interactions.
           </p>
         </div>
         {hasPermission("clients", "create") && activeTab === 'Lead' ? (
-          <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+          <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
             <Button
               onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-5 text-sm font-semibold shadow-sm flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-4 sm:px-5 text-xs sm:text-sm font-semibold shadow-sm flex items-center gap-2"
             >
               <Plus className="w-3.5 h-3.5" />
               Add {activeTab}
@@ -848,7 +848,7 @@ const ClientsPage = () => {
       </div>
 
       {/* KPI Stats Grid in Double-Bezel nested wrapper */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full min-w-0">
         {statsLoading
           ? [...Array(4)].map((_, i) => (
               <div key={i} className="bg-slate-200/40 p-1.5 rounded-[1.75rem] border border-slate-200/20 flex-1">

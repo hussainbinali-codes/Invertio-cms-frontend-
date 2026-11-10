@@ -4,7 +4,15 @@ import Badge from '../../../components/ui/Badge';
 import PaginationControls from '../../../components/ui/PaginationControls';
 import { CheckCircle2, Calendar, CheckSquare, User, Clock } from 'lucide-react';
 
-const PAGE_LIMIT = 20;
+const getDynamicPageLimit = () => {
+  if (typeof window === 'undefined') return 10;
+  const h = window.innerHeight;
+  if (h < 700) return 7;
+  if (h < 800) return 9;
+  if (h < 920) return 11;
+  if (h < 1080) return 13;
+  return 15;
+};
 
 const formatDateTime = (dateStr) => {
   if (!dateStr) return 'N/A';
@@ -20,21 +28,33 @@ const formatDateTime = (dateStr) => {
 };
 
 const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
+  const [pageLimit, setPageLimit] = useState(getDynamicPageLimit);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterAssignedTo, setFilterAssignedTo] = useState('');
+  const [filterClient, setFilterClient] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateOperator, setFilterDateOperator] = useState('='); // '=', '<', '>'
   const [filterDueDate, setFilterDueDate] = useState('');
 
+  useEffect(() => {
+    const handleResize = () => setPageLimit(getDynamicPageLimit());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Reset pagination to page 1 whenever filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterAssignedTo, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
+  }, [filterAssignedTo, filterClient, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
 
   // Extract unique values for filters
   const uniqueAssignees = useMemo(() => {
     return [...new Set(tasks.map(t => t.assigned_to_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [tasks]);
+
+  const uniqueClients = useMemo(() => {
+    return [...new Set(tasks.map(t => t.client_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }, [tasks]);
 
   const uniquePriorities = useMemo(() => {
@@ -48,6 +68,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
   const filteredTasks = useMemo(() => {
     const result = tasks.filter(task => {
       if (filterAssignedTo && task.assigned_to_name !== filterAssignedTo) return false;
+      if (filterClient && task.client_name !== filterClient) return false;
       if (filterPriority && task.priority !== filterPriority) return false;
       if (filterStatus && task.status !== filterStatus) return false;
 
@@ -61,41 +82,28 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
       return true;
     });
 
-    // Group users together (alphabetically by assignee name), then sort by project name
-    return result.sort((a, b) => {
-      const userA = (a.assigned_to_name || 'Unassigned').toLowerCase();
-      const userB = (b.assigned_to_name || 'Unassigned').toLowerCase();
-      if (userA !== userB) return userA.localeCompare(userB);
-
-      const projA = (a.project_name || '').toLowerCase();
-      const projB = (b.project_name || '').toLowerCase();
-      return projA.localeCompare(projB);
-    });
+    return result;
   }, [tasks, filterAssignedTo, filterPriority, filterStatus, filterDueDate, filterDateOperator]);
 
-  // Paginated tasks slice for limit 20
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredTasks.length / pageLimit) || 1;
   const paginatedTasks = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_LIMIT;
-    return filteredTasks.slice(start, start + PAGE_LIMIT);
-  }, [filteredTasks, currentPage]);
+    const start = (currentPage - 1) * pageLimit;
+    return filteredTasks.slice(start, start + pageLimit);
+  }, [filteredTasks, currentPage, pageLimit]);
 
-  const paginationData = useMemo(() => {
-    const total = filteredTasks.length;
-    const totalPages = Math.ceil(total / PAGE_LIMIT) || 1;
-    return {
-      page: currentPage,
-      limit: PAGE_LIMIT,
-      total,
-      totalPages,
-      hasNextPage: currentPage < totalPages,
-      hasPreviousPage: currentPage > 1
-    };
-  }, [filteredTasks.length, currentPage]);
+  const paginationData = {
+    page: currentPage,
+    total: filteredTasks.length,
+    totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages
+  };
 
   return (
-    <div className="w-full overflow-hidden border border-slate-200 rounded-xl bg-white shadow-sm">
+    <div className="w-full flex-1 min-h-0 flex flex-col justify-between overflow-hidden border border-slate-200 rounded-xl bg-white shadow-sm">
       {/* Top Filter Bar */}
-      <div className="p-3 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-3 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2">
           {/* Assignee Filter */}
           <select
@@ -107,6 +115,20 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
             {uniqueAssignees.map((a) => (
               <option key={a} value={a}>
                 {a}
+              </option>
+            ))}
+          </select>
+
+          {/* Client Filter */}
+          <select
+            value={filterClient}
+            onChange={(e) => setFilterClient(e.target.value)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 shadow-sm"
+          >
+            <option value="">All Clients</option>
+            {uniqueClients.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
@@ -167,10 +189,11 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
             )}
           </div>
 
-          {(filterAssignedTo || filterPriority || filterStatus || filterDueDate) && (
+          {(filterAssignedTo || filterClient || filterPriority || filterStatus || filterDueDate) && (
             <button
               onClick={() => {
                 setFilterAssignedTo("");
+                setFilterClient("");
                 setFilterPriority("");
                 setFilterStatus("");
                 setFilterDueDate("");
@@ -188,22 +211,26 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
       </div>
 
       {/* Table Section - Clean Column Headers Layout */}
-      <Table className="w-full table-fixed border-collapse">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <Table className="w-full table-fixed border-collapse">
         <TableHeader>
           <TableRow className="bg-slate-50/50 border-b border-slate-200">
-            <TableHead className="px-3 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[28%]">
+            <TableHead className="px-3 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[23%]">
               TASK DETAILS
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
+              CLIENT
+            </TableHead>
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
               PROJECT
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[15%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[13%]">
               ASSIGNEE
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[10%]">
               PRIORITY
             </TableHead>
-            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[12%]">
+            <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
               STATUS
             </TableHead>
             <TableHead className="px-2 py-3 font-bold text-[11px] text-slate-700 uppercase tracking-tight w-[11%]">
@@ -226,7 +253,19 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
                 <div className="text-[10px] text-slate-400 line-clamp-1 font-medium italic">{task.description || 'No description'}</div>
               </TableCell>
               <TableCell className="px-2 py-3 truncate">
-                <Badge variant="secondary" className="text-[10px] font-bold truncate max-w-full block">{task.project_name}</Badge>
+                {task.client_name ? (
+                  <span 
+                    className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 max-w-full truncate"
+                    title={task.client_name}
+                  >
+                    {task.client_name}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400 italic">Internal</span>
+                )}
+              </TableCell>
+              <TableCell className="px-2 py-3 truncate">
+                <Badge variant="secondary" className="text-[10px] font-bold truncate max-w-full block" title={task.project_name}>{task.project_name}</Badge>
               </TableCell>
               <TableCell className="px-1.5 py-3 truncate">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -287,7 +326,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
           ))}
           {filteredTasks.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="p-10 text-center">
+              <TableCell colSpan={8} className="p-10 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center">
                     <CheckSquare className="w-5 h-5 text-slate-300" />
@@ -300,6 +339,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
           )}
         </tbody>
       </Table>
+    </div>
 
       {/* Pagination Footer Controls */}
       {filteredTasks.length > 0 && (
@@ -308,6 +348,7 @@ const TaskAssigneesTab = ({ tasks, setSelectedTaskDetail }) => {
           itemCount={paginatedTasks.length}
           onPrevious={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           onNext={() => setCurrentPage(prev => Math.min(paginationData.totalPages, prev + 1))}
+          hideRecordsText
         />
       )}
     </div>

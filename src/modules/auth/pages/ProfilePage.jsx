@@ -1,13 +1,38 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
-import { User, Mail, Shield, Calendar, Loader2, Briefcase, Building } from 'lucide-react';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import {
+  User,
+  Mail,
+  Shield,
+  Calendar,
+  Loader2,
+  Briefcase,
+  Building,
+  Lock,
+  ShieldCheck,
+  KeyRound,
+  LogOut,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../../utils/cn';
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Change Password state
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -24,6 +49,34 @@ const ProfilePage = () => {
     fetchProfile();
   }, []);
 
+  const handlePasswordChange = (e) => {
+    setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      return toast.error('New passwords do not match');
+    }
+    if (passwordData.newPassword.length < 8) {
+      return toast.error('Password must be at least 8 characters long');
+    }
+
+    setPasswordLoading(true);
+    try {
+      await axios.post('/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      toast.success('Password updated successfully');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setIsChangePasswordOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -37,11 +90,35 @@ const ProfilePage = () => {
   if (!profile) return null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
-      {/* Clean Profile Header */}
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="h-32 bg-slate-50 border-b border-slate-100" />
-        <div className="px-8 pb-8">
+    <div className="w-full min-w-0 space-y-6 pb-20">
+      {/* Clean Profile Header with Invertio Banner */}
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm w-full min-w-0">
+        <div className="h-36 sm:h-44 relative bg-gradient-to-r from-slate-100 via-blue-50/70 to-indigo-50/40 border-b border-slate-200/80 overflow-hidden flex items-center justify-between px-6 sm:px-10">
+          {/* Subtle Dot Grid Pattern */}
+          <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.12] pointer-events-none" />
+          
+          {/* Ambient Glows */}
+          <div className="absolute -top-16 -right-16 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 left-1/3 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Large Invertio Monogram Watermark */}
+          <img
+            src="/invertio_logo_short.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute right-6 sm:right-20 -bottom-8 h-48 sm:h-56 object-contain opacity-[0.09] pointer-events-none select-none"
+          />
+
+          {/* Invertio Full Brand Banner Badge */}
+          <div className="relative ml-auto flex items-center gap-3 bg-white/75 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/80 shadow-xs">
+            <img
+              src="/invertio_logo.png"
+              alt="Invertio"
+              className="h-7 sm:h-9 w-auto object-contain"
+            />
+          </div>
+        </div>
+        <div className="px-4 sm:px-8 pb-8">
           <div className="relative flex flex-col md:flex-row md:items-end gap-6 -mt-12">
             <div className="w-32 h-32 rounded-2xl bg-primary-600 flex items-center justify-center text-white text-4xl font-bold shadow-lg ring-4 ring-white">
               {profile.name.charAt(0).toUpperCase()}
@@ -116,6 +193,120 @@ const ProfilePage = () => {
             </CardContent>
           </Card>
 
+          {/* Security & Change Password Section */}
+          <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-slate-100 py-4 px-6 bg-white">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold flex items-center gap-2.5">
+                  <Lock className="w-5 h-5 text-primary-600" />
+                  Security & Password
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant={isChangePasswordOpen ? "secondary" : "outline"}
+                  onClick={() => setIsChangePasswordOpen((prev) => !prev)}
+                  className="text-xs font-semibold"
+                >
+                  {isChangePasswordOpen ? "Close Box" : "Change Password"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {!isChangePasswordOpen ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 bg-slate-100 rounded-xl text-slate-600 shrink-0">
+                      <KeyRound className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Account Password</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        Update your login credentials to keep your portal access protected.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsChangePasswordOpen(true)}
+                    className="text-xs font-semibold text-primary-600 border-primary-200 hover:bg-primary-50 self-start sm:self-center"
+                  >
+                    Change Password
+                  </Button>
+                </div>
+              ) : (
+                /* Box opens below Change Password */
+                <div className="p-5 sm:p-6 bg-slate-50/80 border border-slate-200/90 rounded-2xl animate-in slide-in-from-top-2 duration-200 space-y-5">
+                  <div className="flex items-start gap-3 p-3.5 bg-blue-50/80 border border-blue-100 rounded-xl">
+                    <ShieldCheck className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-blue-950 leading-relaxed font-medium">
+                      Enter your current password followed by your new password. Passwords must be at least 8 characters long.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                    <Input
+                      label="Current Password"
+                      name="currentPassword"
+                      type="password"
+                      required
+                      placeholder="Enter your current password"
+                      icon={Lock}
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="New Password"
+                        name="newPassword"
+                        type="password"
+                        required
+                        placeholder="Minimum 8 characters"
+                        icon={Lock}
+                        value={passwordData.newPassword}
+                        onChange={handlePasswordChange}
+                      />
+
+                      <Input
+                        label="Confirm New Password"
+                        name="confirmPassword"
+                        type="password"
+                        required
+                        placeholder="Repeat new password"
+                        icon={Lock}
+                        value={passwordData.confirmPassword}
+                        onChange={handlePasswordChange}
+                      />
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end gap-2.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsChangePasswordOpen(false);
+                          setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        }}
+                        className="text-xs"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        isLoading={passwordLoading}
+                        className="text-xs font-semibold bg-primary-600 hover:bg-primary-700 text-white"
+                      >
+                        Update Password
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="border-slate-200 shadow-sm rounded-2xl">
             <CardHeader className="border-b border-slate-100 py-5">
@@ -170,6 +361,20 @@ const ProfilePage = () => {
                   <span className="text-xs text-slate-500 font-medium">Clearance</span>
                   <Badge variant="success">Active</Badge>
                </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.clear();
+                  navigate('/login');
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 rounded-xl transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out of Account</span>
+              </button>
             </div>
           </Card>
 

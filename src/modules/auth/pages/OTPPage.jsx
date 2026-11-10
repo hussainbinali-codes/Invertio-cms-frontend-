@@ -8,8 +8,7 @@ const OTPPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email;
-  
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(location.state?.debugOtp || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 

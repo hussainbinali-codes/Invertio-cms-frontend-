@@ -4,17 +4,24 @@ import Table, { TableHeader, TableRow, TableHead, TableCell } from '../../../com
 import Badge from '../../../components/ui/Badge';
 import { Search, TrendingDown, Tag, FileText } from 'lucide-react';
 import CategoryManagerModal from './CategoryManagerModal';
+ 
+import Skeleton from '../../../components/ui/Skeleton';
 
 const ExpensesTab = ({
-  expenses,
+  expenses = [],
+  isRefreshing = false,
   expenseSearch,
   setExpenseSearch,
   expenseCategoryFilter,
   setExpenseCategoryFilter,
-  currencies,
+  currencies = [],
   categories = [],
   onCategoriesChange,
-  fileBaseUrl
+  fileBaseUrl,
+  yearFilter = 'All',
+  monthFilter = 'All',
+  dateFilter = '',
+  fetchExpenses
 }) => {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
 
@@ -26,17 +33,32 @@ const ExpensesTab = ({
   // Derive unique categories from categories prop or expenses list
   const categoryOptions = React.useMemo(() => {
     const list = new Set();
-    categories.forEach(c => list.add(c.name));
-    expenses.forEach(e => { if (e.category) list.add(e.category); });
+    categories.forEach(c => { if (c?.name) list.add(c.name); });
+    expenses.forEach(e => { if (e?.category) list.add(e.category); });
     return Array.from(list).sort();
   }, [categories, expenses]);
 
-  const filteredExpenses = expenses.filter(exp => {
-    const matchesSearch = exp.description?.toLowerCase().includes(expenseSearch.toLowerCase()) || 
-                        exp.project_name?.toLowerCase().includes(expenseSearch.toLowerCase()) ||
-                        exp.category?.toLowerCase().includes(expenseSearch.toLowerCase());
+  const filteredExpenses = (expenses || []).filter(exp => {
+    const rawDate = exp.date || exp.created_at;
+    const expDateObj = rawDate ? new Date(rawDate) : null;
+
+    const searchLower = (expenseSearch || '').toLowerCase().trim();
+    const desc = (exp.description || '').toLowerCase();
+    const proj = (exp.project_name || '').toLowerCase();
+    const cat = (exp.category || '').toLowerCase();
+
+    const matchesSearch = !searchLower || 
+      desc.includes(searchLower) || 
+      proj.includes(searchLower) ||
+      cat.includes(searchLower);
+
     const matchesCategory = expenseCategoryFilter === 'All' || exp.category === expenseCategoryFilter;
-    return matchesSearch && matchesCategory;
+
+    const matchesYear = !expDateObj || yearFilter === 'All' || expDateObj.getFullYear() === Number(yearFilter);
+    const matchesMonth = !expDateObj || monthFilter === 'All' || (expDateObj.getMonth() + 1) === Number(monthFilter);
+    const matchesDate = !dateFilter || (rawDate && String(rawDate).startsWith(dateFilter));
+
+    return matchesSearch && matchesCategory && matchesYear && matchesMonth && matchesDate;
   });
 
   return (
@@ -80,7 +102,25 @@ const ExpensesTab = ({
         }
       >
         <div className="flex-grow">
-           <Table>
+          {isRefreshing ? (
+            <div className="divide-y divide-slate-100 p-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="w-8 h-8 rounded-lg" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="py-4">Category</TableHead>
@@ -123,7 +163,8 @@ const ExpensesTab = ({
                   ))
                 )}
               </tbody>
-           </Table>
+            </Table>
+          )}
         </div>
       </PremiumCard>
 
