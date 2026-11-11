@@ -327,6 +327,11 @@ const TasksPage = () => {
 
     if (updates.status === 'Completed') {
       if (isAlreadyCompleted) return;
+      const currentStatusLower = String(existing?.status || '').toLowerCase();
+      if (currentStatusLower !== 'in progress') {
+        toast.error("Task must be 'In Progress' before it can be marked as Completed.");
+        return;
+      }
       setTaskToComplete({ id: taskId, ...updates });
       setShowProofModal(true);
       return;
@@ -395,8 +400,12 @@ const TasksPage = () => {
       return;
     }
 
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const safeDueDate = (defaultDueDate && defaultDueDate >= todayStr) ? defaultDueDate : todayStr;
+
     setSelectedProject(targetProject);
-    setInitialTaskDueDate(defaultDueDate || new Date().toISOString().split('T')[0]);
+    setInitialTaskDueDate(safeDueDate);
     setIsFetchingTeam(true);
 
     try {
@@ -442,6 +451,15 @@ const TasksPage = () => {
     const deliverables = formData.getAll('deliverables');
 
     const desc = formData.get('description') || formData.get('business_objective') || '';
+    const dueDate = formData.get('due_date') || formData.get('estimated_end_date') || undefined;
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (dueDate && dueDate < todayStr) {
+      toast.error("Tasks cannot be created for past dates (such as yesterday). Please select today or a future date.");
+      setIsSubmitting(false);
+      return;
+    }
 
     const payload = {
       title: formData.get('title'),
@@ -456,7 +474,7 @@ const TasksPage = () => {
       estimated_start_date: formData.get('estimated_start_date') || undefined,
       estimated_end_date: formData.get('estimated_end_date') || undefined,
       estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : undefined,
-      due_date: formData.get('due_date') || formData.get('estimated_end_date') || undefined,
+      due_date: dueDate,
 
       template_data: {
         business_objective: desc || formData.get('business_objective') || '',

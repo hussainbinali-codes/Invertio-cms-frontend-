@@ -826,6 +826,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                           />
                           <input
                             type="date"
+                            min={new Date().toISOString().split('T')[0]}
                             value={newSubTask.due_date}
                             onChange={e => setNewSubTask(prev => ({ ...prev, due_date: e.target.value }))}
                             className="flex-1 px-2 py-1 text-xs rounded-md border border-slate-200 bg-white"

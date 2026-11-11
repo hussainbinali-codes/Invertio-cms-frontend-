@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import {
   Calendar,
   Clock,
@@ -130,6 +131,15 @@ const parseDateOnly = (val) => {
   if (isNaN(d.getTime())) return null;
   d.setHours(0, 0, 0, 0);
   return d;
+};
+
+const isPastDate = (val) => {
+  if (!val) return false;
+  const target = parseDateOnly(val);
+  if (!target) return false;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return target.getTime() < now.getTime();
 };
 
 const matchesTaskDate = (task, targetDate) => {
@@ -285,6 +295,21 @@ const MyPipelineTab = ({
   const [dateFilterMode, setDateFilterMode] = useState('date'); // 'date' (default: today) | 'all'
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
+  const [openStatusDropdownTaskId, setOpenStatusDropdownTaskId] = useState(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('[data-status-dropdown]')) {
+        setOpenStatusDropdownTaskId(null);
+      }
+    };
+    if (openStatusDropdownTaskId) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [openStatusDropdownTaskId]);
 
   // Build deduplicated list of available users from selection and task assignees
   const availableUsers = useMemo(() => {
@@ -402,15 +427,20 @@ const MyPipelineTab = ({
 
       // 3. Status Filter
       if (statusFilter !== 'all') {
+        const s = String(task.status || '').trim().toLowerCase();
         if (statusFilter === 'Pending') {
           const isPending =
-            task.status === 'Pending' ||
-            task.status === 'Yet to Start' ||
-            task.status === 'To Do';
+            s === 'pending' ||
+            s === 'yet to start' ||
+            s === 'to do' ||
+            s === 'created' ||
+            !s;
           if (!isPending) return false;
         } else if (statusFilter === 'Completed') {
           if (!isTaskCompleted(task)) return false;
-        } else if (task.status !== statusFilter) {
+        } else if (statusFilter === 'In Progress') {
+          if (s !== 'in progress' && s !== 'in_progress') return false;
+        } else if (s !== statusFilter.trim().toLowerCase()) {
           return false;
         }
       }
@@ -433,25 +463,51 @@ const MyPipelineTab = ({
 
     if (sortOrder === 'due_date') {
       return list.sort((a, b) => {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
+        const isACompleted = isTaskCompleted(a);
+        const isBCompleted = isTaskCompleted(b);
+        if (isACompleted && !isBCompleted) return 1;
+        if (!isACompleted && isBCompleted) return -1;
+        if (!a.due_date && b.due_date) return 1;
+        if (a.due_date && !b.due_date) return -1;
+        if (!a.due_date && !b.due_date) return 0;
         return new Date(a.due_date) - new Date(b.due_date);
       });
     }
 
     if (sortOrder === 'title') {
-      return list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      return list.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
     }
 
-    // Default 'my_order': In Progress first, then Pending, then Completed
+    // Default 'my_order':
+    // For admin, prioritize due date tasks at the top for maximum visibility!
     return list.sort((a, b) => {
       const isACompleted = isTaskCompleted(a);
       const isBCompleted = isTaskCompleted(b);
       if (isACompleted && !isBCompleted) return 1;
       if (!isACompleted && isBCompleted) return -1;
+
+      if (effectiveIsAdmin) {
+        const hasDueA = Boolean(a.due_date);
+        const hasDueB = Boolean(b.due_date);
+
+        if (hasDueA && !hasDueB) return -1;
+        if (!hasDueA && hasDueB) return 1;
+
+        if (hasDueA && hasDueB) {
+          const diff = new Date(a.due_date) - new Date(b.due_date);
+          if (diff !== 0) return diff;
+        }
+      }
+
+      // Secondary: In Progress first, then Pending, then Completed
+      const sA = String(a.status || '').toLowerCase();
+      const sB = String(b.status || '').toLowerCase();
+      if (sA === 'in progress' && sB !== 'in progress') return -1;
+      if (sA !== 'in progress' && sB === 'in progress') return 1;
+
       return 0;
     });
-  }, [filteredTasks, sortOrder]);
+  }, [filteredTasks, sortOrder, effectiveIsAdmin]);
 
   // Pagination
   const totalPages = Math.ceil(sortedTasks.length / pageSize) || 1;
@@ -622,9 +678,9 @@ const MyPipelineTab = ({
                   }}
                   className="h-10 pl-3.5 pr-8 text-[12px] font-medium bg-white border border-slate-200/90 rounded-2xl text-slate-700 focus:outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100 cursor-pointer shadow-2xs hover:bg-slate-50/70 transition-all appearance-none"
                 >
-                  <option value="my_order">My order</option>
-                  <option value="priority">Priority</option>
+                  <option value="my_order">{effectiveIsAdmin ? "Due date first (Admin)" : "My order"}</option>
                   <option value="due_date">Due date</option>
+                  <option value="priority">Priority</option>
                   <option value="title">Alphabetical</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
@@ -634,7 +690,10 @@ const MyPipelineTab = ({
               {handleCreateTask && (
                 <button
                   type="button"
-                  onClick={() => handleCreateTask(projects[0] || null, formatYMD(selectedDate))}
+                  onClick={() => {
+                    const targetDate = isPastDate(selectedDate) ? formatYMD(new Date()) : formatYMD(selectedDate);
+                    handleCreateTask(projects[0] || null, targetDate);
+                  }}
                   className="h-10 px-4 text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-2xl flex items-center gap-1.5 shadow-2xs transition-all shrink-0 cursor-pointer whitespace-nowrap"
                   title="Create new task"
                 >
@@ -731,7 +790,7 @@ const MyPipelineTab = ({
                       <span>View all tasks</span>
                     </button>
                   )}
-                  {handleCreateTask && (
+                  {handleCreateTask && !isPastDate(selectedDate) && (
                     <button
                       type="button"
                       onClick={() => handleCreateTask(projects[0] || null, formatYMD(selectedDate))}
@@ -782,7 +841,8 @@ const MyPipelineTab = ({
                   <div
                     key={task.id}
                     className={cn(
-                      "bg-white rounded-2xl p-4 border transition-all flex items-start gap-3.5 group shadow-2xs hover:shadow-xs relative overflow-hidden",
+                      "bg-white rounded-2xl p-4 border transition-all flex items-start gap-3.5 group shadow-2xs hover:shadow-xs relative",
+                      openStatusDropdownTaskId === task.id ? "z-30 overflow-visible ring-1 ring-blue-100" : "z-0",
                       isCompleted
                         ? "border-slate-200/60 bg-slate-50/40 opacity-75"
                         : "border-slate-200/90 hover:border-slate-300"
@@ -794,7 +854,12 @@ const MyPipelineTab = ({
                       disabled={isUpdating || isCompleted}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!isCompleted && handleUpdateTask) {
+                        if (isCompleted || isUpdating) return;
+                        if (task.status !== 'In Progress') {
+                          toast.error("Please move task to 'In Progress' before completing.");
+                          return;
+                        }
+                        if (handleUpdateTask) {
                           handleUpdateTask(task.id, {
                             status: 'Completed'
                           });
@@ -806,9 +871,17 @@ const MyPipelineTab = ({
                           ? "bg-emerald-500 text-white border border-emerald-500 cursor-default"
                           : isUpdating
                             ? "opacity-50 cursor-not-allowed"
-                            : "border-2 border-slate-300 hover:border-teal-600 hover:bg-teal-50/50 cursor-pointer"
+                            : task.status === 'In Progress'
+                              ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
+                              : "border-2 border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
                       )}
-                      title={isCompleted ? "Task is completed (status locked)" : "Complete Task"}
+                      title={
+                        isCompleted
+                          ? "Task is completed (status locked)"
+                          : task.status === 'In Progress'
+                            ? "Complete Task"
+                            : "Task must be 'In Progress' before completing"
+                      }
                     >
                       {isUpdating ? (
                         <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
@@ -849,32 +922,116 @@ const MyPipelineTab = ({
 
                         {/* Badges & Eye Details Button Container */}
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Status Pill */}
-                          <span
-                            className={cn(
-                              "text-[11px] font-medium px-3 py-0.5 rounded-full border transition-all",
-                              isCompleted
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
-                                : task.status === 'In Progress'
-                                  ? "bg-blue-50 text-blue-700 border-blue-200/80"
-                                  : "bg-slate-100 text-slate-600 border-slate-200/80"
-                            )}
-                          >
-                            {task.status || 'Created'}
-                          </span>
+                          {/* Admin Top Visibility Due Date Badge */}
+                          {effectiveIsAdmin && task.due_date && (
+                            <span
+                              className={cn(
+                                "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1.5 transition-all shadow-2xs",
+                                isTaskOverdue
+                                  ? "bg-rose-50 text-rose-700 border-rose-200/90 font-bold"
+                                  : isDueToday
+                                    ? "bg-amber-50 text-amber-700 border-amber-200/90 font-bold"
+                                    : "bg-blue-50/80 text-blue-700 border-blue-200/80"
+                              )}
+                              title={`Due Date: ${formatShortDate(task.due_date)}`}
+                            >
+                              <Calendar className="w-3 h-3 text-current shrink-0" />
+                              <span>Due {formatShortDate(task.due_date)}</span>
+                            </span>
+                          )}
 
-                          {/* Eye Icon Button: Clicking opens the full task modal */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (setSelectedTaskDetail) setSelectedTaskDetail(task);
-                            }}
-                            className="p-1 rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/80 hover:border-blue-200 transition-all shadow-2xs group/eye"
-                            title="View Task Details"
-                          >
-                            <Eye className="w-3.5 h-3.5 group-hover/eye:scale-110 transition-transform" />
-                          </button>
+                          {/* Interactive Status Dropdown (Eye icon removed) */}
+                          {isCompleted ? (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-emerald-200/80 bg-emerald-50 text-emerald-700 flex items-center gap-1.5 shadow-2xs select-none cursor-default"
+                              title="Task is completed (status locked)"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                              <span>Done</span>
+                            </div>
+                          ) : (
+                            <div className="relative" data-status-dropdown="true" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenStatusDropdownTaskId(openStatusDropdownTaskId === task.id ? null : task.id);
+                                }}
+                                className={cn(
+                                  "text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs select-none",
+                                  task.status === 'In Progress'
+                                    ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/80"
+                                    : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/80"
+                                )}
+                                title="Click to change status"
+                              >
+                                <span
+                                  className={cn(
+                                    "w-1.5 h-1.5 rounded-full shrink-0",
+                                    task.status === 'In Progress' ? "bg-blue-600" : "bg-amber-500"
+                                  )}
+                                />
+                                <span>{task.status === 'In Progress' ? 'In Progress' : 'Pending'}</span>
+                                <ChevronDown
+                                  className={cn(
+                                    "w-3 h-3 transition-transform duration-200 opacity-60",
+                                    openStatusDropdownTaskId === task.id && "rotate-180"
+                                  )}
+                                />
+                              </button>
+
+                              {openStatusDropdownTaskId === task.id && (
+                                <div
+                                  className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl border border-slate-200/95 shadow-2xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
+                                    <span>Change Status</span>
+                                    {isUpdating && <Loader2 className="w-3 h-3 animate-spin text-blue-600" />}
+                                  </div>
+                                  {(task.status === 'In Progress'
+                                    ? [
+                                      { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                                      { label: 'Completed', value: 'Completed', dot: 'bg-emerald-500' },
+                                    ]
+                                    : [
+                                      { label: 'Pending', value: 'Pending', dot: 'bg-amber-500' },
+                                      { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                                    ]
+                                  ).map((item) => (
+                                    <button
+                                      key={item.value}
+                                      type="button"
+                                      disabled={isUpdating}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenStatusDropdownTaskId(null);
+                                        if (item.value !== task.status && handleUpdateTask) {
+                                          handleUpdateTask(task.id, { status: item.value });
+                                        }
+                                      }}
+                                      className={cn(
+                                        "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left cursor-pointer",
+                                        (task.status === item.value || (!task.status && item.value === 'Pending'))
+                                          ? "bg-slate-100 text-slate-900 font-bold"
+                                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className={cn("w-2 h-2 rounded-full shrink-0", item.dot)} />
+                                        <span>{item.label}</span>
+                                      </div>
+                                      {(task.status === item.value || (!task.status && item.value === 'Pending')) && (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 

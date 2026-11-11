@@ -43,6 +43,15 @@ const AddTaskModal = ({
 
   const currentProj = activeProject || selectedProject || projects[0];
 
+  const todayStr = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+  const safeDueDate = initialDueDate && initialDueDate >= todayStr ? initialDueDate : todayStr;
+
   if (!isOpen || !currentProj) return null;
 
   return (
@@ -152,8 +161,9 @@ const AddTaskModal = ({
                 <input
                   type="date"
                   name="due_date"
-                  defaultValue={initialDueDate || new Date().toISOString().split('T')[0]}
-                  key={initialDueDate || 'default-date'}
+                  min={todayStr}
+                  defaultValue={safeDueDate}
+                  key={safeDueDate}
                   className="w-full h-10 px-3 text-xs font-medium rounded-xl border border-slate-200 text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all"
                   required
                 />
