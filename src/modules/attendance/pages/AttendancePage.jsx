@@ -521,10 +521,36 @@ const AttendancePage = () => {
       let totalAbsentDays = 0;
       let totalLeaveDays = 0;
 
+      // Today's team attendance counts
+      let todayPresent = 0;
+      let todayLeave = 0;
+      let todayAbsent = 0;
+
+      const now = new Date();
+      const isViewingCurrentMonth = (selectedMonth === now.getMonth() && selectedYear === now.getFullYear());
+      const dayOfWeekToday = now.getDay();
+      const isWeekendToday = dayOfWeekToday === 0 || dayOfWeekToday === 6;
+      const isHolidayToday = holidays.some(h => parseDbDateKey(h.date) === todayStr);
+
       employees.forEach(emp => {
         const empLeaveMap = getMonthLeaveClassification(emp.user_id);
         const empJoiningKey = emp.joining_date ? parseDbDateKey(emp.joining_date) : null;
 
+        // Calculate Today's counts for active employees
+        if (isViewingCurrentMonth && (!empJoiningKey || todayStr >= empJoiningKey)) {
+          const isPresentToday = attendance.some(a => a.user_id === emp.user_id && parseDbDateKey(a.date) === todayStr);
+          const leaveToday = empLeaveMap[todayStr];
+
+          if (isPresentToday) {
+            todayPresent++;
+          } else if ((leaveToday?.isPaid || leaveToday?.isPending) && !isWeekendToday && !isHolidayToday) {
+            todayLeave++;
+          } else if (!isWeekendToday && !isHolidayToday) {
+            todayAbsent++;
+          }
+        }
+
+        // Monthly totals calculation for attendance rate
         for (let day = 1; day <= totalDays; day++) {
           const dateKey = formatDateKey(new Date(selectedYear, selectedMonth, day));
           if (dateKey > todayStr) continue;
@@ -563,19 +589,19 @@ const AttendancePage = () => {
       }).length;
 
       return {
-        card1Title: "Total Present",
-        card1Value: totalPresentDays,
-        card1Subtext: "This month",
-        card2Title: "Total Absent",
-        card2Value: totalAbsentDays,
-        card2Subtext: "Missed working days",
-        cardLeaveTitle: "Paid Leave",
-        cardLeaveValue: totalLeaveDays,
-        cardLeaveSubtext: "1 day/mo allowance",
-        card3Title: "Avg. Attendance Rate",
+        card1Title: isViewingCurrentMonth ? "Present Today" : "Total Present",
+        card1Value: isViewingCurrentMonth ? todayPresent : totalPresentDays,
+        card1Subtext: isViewingCurrentMonth ? `${todayPresent} of ${employees.length} active` : "This month",
+        card2Title: isViewingCurrentMonth ? "Absent Today" : "Total Absent",
+        card2Value: isViewingCurrentMonth ? todayAbsent : totalAbsentDays,
+        card2Subtext: isViewingCurrentMonth ? "Not checked in" : "Missed working days",
+        cardLeaveTitle: isViewingCurrentMonth ? "Leave Today" : "Paid Leave",
+        cardLeaveValue: isViewingCurrentMonth ? todayLeave : totalLeaveDays,
+        cardLeaveSubtext: isViewingCurrentMonth ? "Approved / pending" : "1 day/mo allowance",
+        card3Title: "Avg Rate",
         card3Value: `${attendanceRate}%`,
         card3Subtext: "Past working days",
-        card4Title: "Company Holidays",
+        card4Title: "Holidays",
         card4Value: holidaysCount,
         card4Subtext: "This month"
       };
@@ -1088,7 +1114,7 @@ const AttendancePage = () => {
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               <div className="flex flex-col text-left">
                 <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider leading-none whitespace-nowrap">
-                  Present
+                  {activeStats.card1Title || "Present"}
                 </span>
                 <span className="text-xs sm:text-sm font-extrabold text-emerald-950 font-mono leading-tight mt-0.5">
                   {activeStats.card1Value}
@@ -1111,7 +1137,7 @@ const AttendancePage = () => {
               <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
               <div className="flex flex-col text-left">
                 <span className="text-[9px] font-bold text-rose-800 uppercase tracking-wider leading-none whitespace-nowrap">
-                  Absent
+                  {activeStats.card2Title || "Absent"}
                 </span>
                 <span className="text-xs sm:text-sm font-extrabold text-rose-950 font-mono leading-tight mt-0.5">
                   {activeStats.card2Value}
@@ -1134,7 +1160,7 @@ const AttendancePage = () => {
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
               <div className="flex flex-col text-left">
                 <span className="text-[9px] font-bold text-amber-800 uppercase tracking-wider leading-none whitespace-nowrap">
-                  Leave
+                  {activeStats.cardLeaveTitle || "Leave"}
                 </span>
                 <span className="text-xs sm:text-sm font-extrabold text-amber-950 font-mono leading-tight mt-0.5">
                   {activeStats.cardLeaveValue || 0}

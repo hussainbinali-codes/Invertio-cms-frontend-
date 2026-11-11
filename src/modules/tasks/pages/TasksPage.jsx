@@ -337,6 +337,14 @@ const TasksPage = () => {
       return;
     }
 
+    if (updates.status === 'Cancelled') {
+      const currentStatusLower = String(existing?.status || '').toLowerCase();
+      if (currentStatusLower !== 'in progress') {
+        toast.error("Task must be 'In Progress' before it can be cancelled.");
+        return;
+      }
+    }
+
     setUpdatingTaskId(taskId);
     try {
       await axios.patch(`/projects/tasks/${taskId}`, updates);
@@ -402,7 +410,12 @@ const TasksPage = () => {
 
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const safeDueDate = (defaultDueDate && defaultDueDate >= todayStr) ? defaultDueDate : todayStr;
+    const startOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = `${thirtyDaysAgo.getFullYear()}-${String(thirtyDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgo.getDate()).padStart(2, '0')}`;
+    const minMonthDateStr = startOfMonthStr < thirtyDaysAgoStr ? startOfMonthStr : thirtyDaysAgoStr;
+    const safeDueDate = (defaultDueDate && defaultDueDate >= minMonthDateStr) ? defaultDueDate : todayStr;
 
     setSelectedProject(targetProject);
     setInitialTaskDueDate(safeDueDate);
@@ -454,9 +467,14 @@ const TasksPage = () => {
     const dueDate = formData.get('due_date') || formData.get('estimated_end_date') || undefined;
 
     const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    if (dueDate && dueDate < todayStr) {
-      toast.error("Tasks cannot be created for past dates (such as yesterday). Please select today or a future date.");
+    const startOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = `${thirtyDaysAgo.getFullYear()}-${String(thirtyDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgo.getDate()).padStart(2, '0')}`;
+    const minMonthDateStr = startOfMonthStr < thirtyDaysAgoStr ? startOfMonthStr : thirtyDaysAgoStr;
+
+    if (!isAdmin && dueDate && dueDate < minMonthDateStr) {
+      toast.error("Tasks cannot be created for dates prior to this month. Please select a date within the month or a future date.");
       setIsSubmitting(false);
       return;
     }

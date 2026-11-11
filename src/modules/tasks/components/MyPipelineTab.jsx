@@ -16,7 +16,9 @@ import {
   Plus,
   User,
   UserCheck,
-  Users
+  Users,
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { deduplicateTasks } from '../utils/taskDeduplication';
@@ -133,13 +135,14 @@ const parseDateOnly = (val) => {
   return d;
 };
 
-const isPastDate = (val) => {
+const isBeforeYesterday = (val) => {
   if (!val) return false;
   const target = parseDateOnly(val);
   if (!target) return false;
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return target.getTime() < now.getTime();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  return target.getTime() < yesterday.getTime();
 };
 
 const matchesTaskDate = (task, targetDate) => {
@@ -166,11 +169,12 @@ const matchesTaskDate = (task, targetDate) => {
       return true;
     }
 
-    // It was also an active task prior to completion (between start/created and completion)
+    // It was also an active task prior to completion (between start/created/due and completion)
     const startDate =
       parseDateOnly(task.start_date) ||
       parseDateOnly(task.estimated_start_date) ||
       parseDateOnly(task.created_at) ||
+      parseDateOnly(task.due_date) ||
       completedDate;
 
     const effectiveStart = startDate <= completedDate ? startDate : completedDate;
@@ -190,6 +194,9 @@ const matchesTaskDate = (task, targetDate) => {
     parseDateOnly(task.created_at) ||
     dueDate;
 
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
   if (dueDate && startDate) {
     const effectiveStart = startDate <= dueDate ? startDate : dueDate;
 
@@ -200,8 +207,6 @@ const matchesTaskDate = (task, targetDate) => {
     }
 
     // If viewing Today and the task is overdue (past due date but still not completed):
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
     if (target.getTime() === now.getTime() && dueDate < now) {
       return true;
     }
@@ -210,11 +215,15 @@ const matchesTaskDate = (task, targetDate) => {
   }
 
   if (dueDate) {
-    return target.getTime() === dueDate.getTime();
+    if (target.getTime() === dueDate.getTime()) return true;
+    if (target.getTime() === now.getTime() && dueDate < now) return true;
+    return false;
   }
 
   if (startDate) {
-    return target.getTime() === startDate.getTime();
+    if (target.getTime() === startDate.getTime()) return true;
+    if (target.getTime() === now.getTime() && startDate < now) return true;
+    return false;
   }
 
   return false;
@@ -296,6 +305,7 @@ const MyPipelineTab = ({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
   const [openStatusDropdownTaskId, setOpenStatusDropdownTaskId] = useState(null);
+  const [taskToCancel, setTaskToCancel] = useState(null);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -461,53 +471,79 @@ const MyPipelineTab = ({
       });
     }
 
-    if (sortOrder === 'due_date') {
-      return list.sort((a, b) => {
-        const isACompleted = isTaskCompleted(a);
-        const isBCompleted = isTaskCompleted(b);
-        if (isACompleted && !isBCompleted) return 1;
-        if (!isACompleted && isBCompleted) return -1;
-        if (!a.due_date && b.due_date) return 1;
-        if (a.due_date && !b.due_date) return -1;
-        if (!a.due_date && !b.due_date) return 0;
-        return new Date(a.due_date) - new Date(b.due_date);
-      });
-    }
-
     if (sortOrder === 'title') {
       return list.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
     }
 
-    // Default 'my_order':
-    // For admin, prioritize due date tasks at the top for maximum visibility!
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const selectedMidnight = (dateFilterMode === 'date' && selectedDate) ? parseDateOnly(selectedDate) : todayMidnight;
+
+    const getTaskDueRank = (task) => {
+      if (isTaskCompleted(task)) return 99;
+      if (isTaskCancelled(task)) return 98;
+
+      const dueDate = parseDateOnly(task.due_date);
+      if (!dueDate) return 4;
+
+      // 1. DUE TODAY or due on currently selected date (Top Priority for Admin Visibility!)
+      if (dueDate.getTime() === todayMidnight.getTime()) return 1;
+      if (selectedMidnight && dueDate.getTime() === selectedMidnight.getTime()) return 1;
+
+      // 2. OVERDUE (past due date, active task)
+      if (dueDate.getTime() < todayMidnight.getTime()) return 2;
+
+      // 3. Due in the future
+      return 3;
+    };
+
     return list.sort((a, b) => {
-      const isACompleted = isTaskCompleted(a);
-      const isBCompleted = isTaskCompleted(b);
-      if (isACompleted && !isBCompleted) return 1;
-      if (!isACompleted && isBCompleted) return -1;
-
-      if (effectiveIsAdmin) {
-        const hasDueA = Boolean(a.due_date);
-        const hasDueB = Boolean(b.due_date);
-
-        if (hasDueA && !hasDueB) return -1;
-        if (!hasDueA && hasDueB) return 1;
-
-        if (hasDueA && hasDueB) {
-          const diff = new Date(a.due_date) - new Date(b.due_date);
-          if (diff !== 0) return diff;
-        }
+      // 1. Due urgency rank: Due Today (1) -> Overdue (2) -> Future (3) -> No Due (4) -> Cancelled (98) -> Done (99)
+      const rankA = getTaskDueRank(a);
+      const rankB = getTaskDueRank(b);
+      if (rankA !== rankB) {
+        return rankA - rankB;
       }
 
-      // Secondary: In Progress first, then Pending, then Completed
+      // 2. For tasks due today / selected date (Rank 1):
+      // Put In Progress first, then Pending; then latest created first for easy checking
+      if (rankA === 1) {
+        const sA = String(a.status || '').toLowerCase();
+        const sB = String(b.status || '').toLowerCase();
+        if (sA === 'in progress' && sB !== 'in progress') return -1;
+        if (sA !== 'in progress' && sB === 'in progress') return 1;
+
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : (Number(a.id) || 0);
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : (Number(b.id) || 0);
+        if (timeA !== timeB) return timeB - timeA;
+      }
+
+      // 3. For Overdue tasks (Rank 2):
+      // Most recent overdue first
+      if (rankA === 2 && a.due_date && b.due_date) {
+        const diff = new Date(b.due_date) - new Date(a.due_date);
+        if (diff !== 0) return diff;
+      }
+
+      // 4. For Future due dates (Rank 3):
+      // Earliest due date first
+      if (rankA === 3 && a.due_date && b.due_date) {
+        const diff = new Date(a.due_date) - new Date(b.due_date);
+        if (diff !== 0) return diff;
+      }
+
+      // 5. In Progress before Pending
       const sA = String(a.status || '').toLowerCase();
       const sB = String(b.status || '').toLowerCase();
       if (sA === 'in progress' && sB !== 'in progress') return -1;
       if (sA !== 'in progress' && sB === 'in progress') return 1;
 
-      return 0;
+      // 6. Newest created first
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : (Number(a.id) || 0);
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : (Number(b.id) || 0);
+      return timeB - timeA;
     });
-  }, [filteredTasks, sortOrder, effectiveIsAdmin]);
+  }, [filteredTasks, sortOrder, selectedDate, dateFilterMode]);
 
   // Pagination
   const totalPages = Math.ceil(sortedTasks.length / pageSize) || 1;
@@ -691,7 +727,7 @@ const MyPipelineTab = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const targetDate = isPastDate(selectedDate) ? formatYMD(new Date()) : formatYMD(selectedDate);
+                    const targetDate = isBeforeYesterday(selectedDate) ? formatYMD(new Date()) : formatYMD(selectedDate);
                     handleCreateTask(projects[0] || null, targetDate);
                   }}
                   className="h-10 px-4 text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-2xl flex items-center gap-1.5 shadow-2xs transition-all shrink-0 cursor-pointer whitespace-nowrap"
@@ -790,7 +826,7 @@ const MyPipelineTab = ({
                       <span>View all tasks</span>
                     </button>
                   )}
-                  {handleCreateTask && !isPastDate(selectedDate) && (
+                  {handleCreateTask && !isBeforeYesterday(selectedDate) && (
                     <button
                       type="button"
                       onClick={() => handleCreateTask(projects[0] || null, formatYMD(selectedDate))}
@@ -845,9 +881,9 @@ const MyPipelineTab = ({
                       openStatusDropdownTaskId === task.id ? "z-30 overflow-visible ring-1 ring-blue-100" : "z-0",
                       isCompleted
                         ? "border-slate-200/60 bg-slate-50/40 opacity-75"
-                        : "border-slate-200/90 hover:border-slate-300"
-                    )}
-                  >
+                    : "border-slate-200/90 hover:border-slate-300"
+                  )}
+                >
                     {/* Circular Quick Completion Button */}
                     <button
                       type="button"
@@ -856,7 +892,9 @@ const MyPipelineTab = ({
                         e.stopPropagation();
                         if (isCompleted || isUpdating) return;
                         if (task.status !== 'In Progress') {
-                          toast.error("Please move task to 'In Progress' before completing.");
+                          if (handleUpdateTask) {
+                            handleUpdateTask(task.id, { status: 'In Progress' });
+                          }
                           return;
                         }
                         if (handleUpdateTask) {
@@ -873,14 +911,14 @@ const MyPipelineTab = ({
                             ? "opacity-50 cursor-not-allowed"
                             : task.status === 'In Progress'
                               ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
-                              : "border-2 border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
+                              : "border-2 border-slate-200 bg-slate-50 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer"
                       )}
                       title={
                         isCompleted
                           ? "Task is completed (status locked)"
                           : task.status === 'In Progress'
                             ? "Complete Task"
-                            : "Task must be 'In Progress' before completing"
+                            : "Click to start task (move to In Progress)"
                       }
                     >
                       {isUpdating ? (
@@ -920,26 +958,8 @@ const MyPipelineTab = ({
                           )}
                         </div>
 
-                        {/* Badges & Eye Details Button Container */}
+                        {/* Badges & Status Dropdown Container */}
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Admin Top Visibility Due Date Badge */}
-                          {effectiveIsAdmin && task.due_date && (
-                            <span
-                              className={cn(
-                                "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1.5 transition-all shadow-2xs",
-                                isTaskOverdue
-                                  ? "bg-rose-50 text-rose-700 border-rose-200/90 font-bold"
-                                  : isDueToday
-                                    ? "bg-amber-50 text-amber-700 border-amber-200/90 font-bold"
-                                    : "bg-blue-50/80 text-blue-700 border-blue-200/80"
-                              )}
-                              title={`Due Date: ${formatShortDate(task.due_date)}`}
-                            >
-                              <Calendar className="w-3 h-3 text-current shrink-0" />
-                              <span>Due {formatShortDate(task.due_date)}</span>
-                            </span>
-                          )}
-
                           {/* Interactive Status Dropdown (Eye icon removed) */}
                           {isCompleted ? (
                             <div
@@ -963,17 +983,29 @@ const MyPipelineTab = ({
                                   "text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs select-none",
                                   task.status === 'In Progress'
                                     ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/80"
-                                    : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/80"
+                                    : task.status === 'Cancelled'
+                                      ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100/80"
+                                      : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/80"
                                 )}
                                 title="Click to change status"
                               >
                                 <span
                                   className={cn(
                                     "w-1.5 h-1.5 rounded-full shrink-0",
-                                    task.status === 'In Progress' ? "bg-blue-600" : "bg-amber-500"
+                                    task.status === 'In Progress'
+                                      ? "bg-blue-600"
+                                      : task.status === 'Cancelled'
+                                        ? "bg-rose-500"
+                                        : "bg-amber-500"
                                   )}
                                 />
-                                <span>{task.status === 'In Progress' ? 'In Progress' : 'Pending'}</span>
+                                <span>
+                                  {task.status === 'In Progress'
+                                    ? 'In Progress'
+                                    : task.status === 'Cancelled'
+                                      ? 'Cancelled'
+                                      : 'Pending'}
+                                </span>
                                 <ChevronDown
                                   className={cn(
                                     "w-3 h-3 transition-transform duration-200 opacity-60",
@@ -995,11 +1027,17 @@ const MyPipelineTab = ({
                                     ? [
                                       { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
                                       { label: 'Completed', value: 'Completed', dot: 'bg-emerald-500' },
+                                      { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
                                     ]
-                                    : [
-                                      { label: 'Pending', value: 'Pending', dot: 'bg-amber-500' },
-                                      { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
-                                    ]
+                                    : task.status === 'Cancelled'
+                                      ? [
+                                        { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
+                                        { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                                      ]
+                                      : [
+                                        { label: 'Pending', value: 'Pending', dot: 'bg-amber-500' },
+                                        { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                                      ]
                                   ).map((item) => (
                                     <button
                                       key={item.value}
@@ -1008,6 +1046,10 @@ const MyPipelineTab = ({
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setOpenStatusDropdownTaskId(null);
+                                        if (item.value === 'Cancelled') {
+                                          setTaskToCancel(task);
+                                          return;
+                                        }
                                         if (item.value !== task.status && handleUpdateTask) {
                                           handleUpdateTask(task.id, { status: item.value });
                                         }
@@ -1260,7 +1302,86 @@ const MyPipelineTab = ({
         </div>
 
       </div>
-    </div>
+
+      {/* Cancel or Reassign Alert Modal */}
+      {
+        taskToCancel && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200 font-sans"
+            onClick={() => setTaskToCancel(null)}
+          >
+            <div
+              className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100/90 space-y-6 relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setTaskToCancel(null)}
+                className="absolute top-5 right-5 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-start gap-4 pr-6">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+                  <AlertCircle className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                    Cancel or Reassign Task?
+                  </h3>
+                  <p className="text-xs sm:text-[13px] text-slate-500 mt-1.5 leading-relaxed font-normal">
+                    Before cancelling <strong>&quot;{taskToCancel.title}&quot;</strong>, you can reassign it to another team member to take over, or proceed with cancelling it.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setTaskToCancel(null)}
+                  className="w-full sm:w-auto h-10 px-4 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all cursor-pointer whitespace-nowrap"
+                >
+                  Keep In Progress
+                </button>
+
+                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = taskToCancel;
+                      setTaskToCancel(null);
+                      if (setSelectedTaskDetail) {
+                        setSelectedTaskDetail(target);
+                      }
+                    }}
+                    className="flex-1 sm:flex-none h-10 px-4.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+                  >
+                    <UserCheck className="w-4 h-4 stroke-[2.2]" />
+                    <span>Reassign to Other</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetId = taskToCancel.id;
+                      setTaskToCancel(null);
+                      if (handleUpdateTask) {
+                        handleUpdateTask(targetId, { status: 'Cancelled' });
+                      }
+                    }}
+                    className="flex-1 sm:flex-none h-10 px-4 text-xs font-bold bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <X className="w-4 h-4 stroke-[2.2]" />
+                    <span>Cancel Task</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 };
 

@@ -6,7 +6,7 @@ import Badge from '../../../components/ui/Badge';
 import Skeleton from '../../../components/ui/Skeleton';
 import Input from '../../../components/ui/Input';
 import Textarea from '../../../components/ui/Textarea';
-import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2, GitBranch, Trash2, CheckSquare, Layers, ShieldAlert, Target, Building2, MessageSquare, Send, ChevronDown, UserCheck } from 'lucide-react';
+import { X, Calendar, User, ClipboardList, Info, Clock, FolderOpen, Link, ExternalLink, FileText, CheckCircle2, Plus, Loader2, GitBranch, Trash2, CheckSquare, Layers, ShieldAlert, Target, Building2, MessageSquare, Send, ChevronDown, UserCheck, AlertCircle } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import Button from '../../../components/ui/Button';
@@ -115,6 +115,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const [subTaskDropdownOpen, setSubTaskDropdownOpen] = React.useState(false);
   const subTaskDropdownRef = React.useRef(null);
   const [showHandoverModal, setShowHandoverModal] = React.useState(false);
+  const [showCancelAlertModal, setShowCancelAlertModal] = React.useState(false);
   const [isSubmittingHandover, setIsSubmittingHandover] = React.useState(false);
 
   React.useEffect(() => {
@@ -378,8 +379,23 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     }
     if (newStatus === currentStatus) return;
 
-    if (newStatus === 'Completed') {
+    if (newStatus === 'Completed' || newStatus === 'Done') {
+      const currentStatusLower = String(currentStatus || '').toLowerCase();
+      if (currentStatusLower !== 'in progress') {
+        toast.error("Task must be 'In Progress' before it can be marked as Completed.");
+        return;
+      }
       setShowProofModal(true);
+      return;
+    }
+
+    if (newStatus === 'Cancelled') {
+      const currentStatusLower = String(currentStatus || '').toLowerCase();
+      if (currentStatusLower !== 'in progress') {
+        toast.error("Task must be 'In Progress' before it can be cancelled.");
+        return;
+      }
+      setShowCancelAlertModal(true);
       return;
     }
 
@@ -958,12 +974,22 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                         Update Work Status
                       </div>
-                      {[
-                        { label: 'Pending', value: 'Pending', desc: 'Not Started', dot: 'bg-amber-500' },
-                        { label: 'In Progress', value: 'In Progress', desc: 'Working', dot: 'bg-blue-500' },
-                        { label: 'Done', value: 'Completed', desc: 'Mark Completed', dot: 'bg-emerald-500' },
-                        { label: 'Cancelled', value: 'Cancelled', desc: 'Cancelled', dot: 'bg-rose-500' },
-                      ].map((item) => (
+                      {(currentStatus === 'In Progress'
+                        ? [
+                          { label: 'In Progress', value: 'In Progress', desc: 'Working', dot: 'bg-blue-500' },
+                          { label: 'Done', value: 'Completed', desc: 'Mark Completed', dot: 'bg-emerald-500' },
+                          { label: 'Cancelled', value: 'Cancelled', desc: 'Cancel Task', dot: 'bg-rose-500' }
+                        ]
+                        : currentStatus === 'Cancelled'
+                          ? [
+                            { label: 'Cancelled', value: 'Cancelled', desc: 'Cancelled', dot: 'bg-rose-500' },
+                            { label: 'In Progress', value: 'In Progress', desc: 'Resume Work', dot: 'bg-blue-500' }
+                          ]
+                          : [
+                            { label: 'Pending', value: 'Pending', desc: 'Not Started', dot: 'bg-amber-500' },
+                            { label: 'In Progress', value: 'In Progress', desc: 'Working', dot: 'bg-blue-500' }
+                          ]
+                      ).map((item) => (
                         <button
                           key={item.value}
                           type="button"
@@ -1808,13 +1834,13 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             PROJECT RESOURCES
           </Button>
 
-          {/* Complete Task button placed on the right side of Project Resources */}
+          {/* Complete Task / Start Task button placed on the right side of Project Resources */}
           {String(currentStatus || '').toLowerCase() === 'completed' || String(taskData?.status || '').toLowerCase() === 'completed' ? (
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold select-none">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>Task Completed</span>
             </div>
-          ) : (
+          ) : currentStatus === 'In Progress' ? (
             <Button
               type="button"
               disabled={isUpdating}
@@ -1827,6 +1853,20 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <CheckCircle2 className="w-4 h-4" />
               )}
               <span>Complete Task</span>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              disabled={isUpdating}
+              onClick={() => handleQuickStatusUpdate('In Progress')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition-all"
+            >
+              {isUpdating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Clock className="w-4 h-4" />
+              )}
+              <span>Start Task</span>
             </Button>
           )}
         </div>
@@ -1853,6 +1893,88 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
           setFiles={setCompletionFiles}
           isSubmitting={isSubmittingProof}
         />
+      )}
+
+      {/* Cancel or Reassign Alert Modal */}
+      {showCancelAlertModal && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200 font-sans">
+          <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100/90 space-y-6 relative">
+            <button
+              type="button"
+              onClick={() => setShowCancelAlertModal(false)}
+              className="absolute top-5 right-5 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-start gap-4 pr-6">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+                <AlertCircle className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                  Cancel or Reassign Task?
+                </h3>
+                <p className="text-xs sm:text-[13px] text-slate-500 mt-1.5 leading-relaxed font-normal">
+                  Before cancelling this task, you can reassign it to another team member to take over, or proceed with cancelling it.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowCancelAlertModal(false)}
+                className="w-full sm:w-auto h-10 px-4 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all cursor-pointer whitespace-nowrap"
+              >
+                Keep In Progress
+              </button>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCancelAlertModal(false);
+                    if (assignableUsers.length === 0) {
+                      fetchAssignableUsers();
+                    }
+                    setShowHandoverModal(true);
+                  }}
+                  className="flex-1 sm:flex-none h-10 px-4.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+                >
+                  <UserCheck className="w-4 h-4 stroke-[2.2]" />
+                  <span>Reassign to Other</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdating}
+                  onClick={async () => {
+                    setShowCancelAlertModal(false);
+                    setIsUpdating(true);
+                    try {
+                      const res = await axios.patch(`/projects/tasks/${taskId}`, { status: 'Cancelled' });
+                      const updatedTask = res.data.data || { ...taskData, status: 'Cancelled', updated_at: new Date().toISOString() };
+                      setTaskData(updatedTask);
+                      setCurrentStatus('Cancelled');
+                      toast.success('Task marked as Cancelled');
+                      fetchTaskActivities();
+                      if (onUpdate) onUpdate(updatedTask);
+                    } catch (err) {
+                      toast.error(err.response?.data?.message || 'Failed to cancel task');
+                    } finally {
+                      setIsUpdating(false);
+                    }
+                  }}
+                  className="flex-1 sm:flex-none h-10 px-4 text-xs font-bold bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                >
+                  <X className="w-4 h-4 stroke-[2.2]" />
+                  <span>Cancel Task</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Task Handover & Transition Modal */}
