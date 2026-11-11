@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
-import { Clock, LogIn, LogOut, Loader2, MapPin } from "lucide-react";
+import { Clock, LogIn, LogOut, Loader2, MapPin, ChevronUp, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "../utils/cn";
 import Button from "./ui/Button";
@@ -85,6 +85,53 @@ const AttendancePunch = ({
     const [internalIsDetectingLocation, setInternalIsDetectingLocation] = useState(false);
     const [internalLocation, setInternalLocation] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date());
+
+    const isAdmin = React.useMemo(() => {
+        try {
+            const user = JSON.parse(localStorage.getItem("user") || "{}");
+            const role = (user.role_name || user.role || "").toLowerCase();
+            const email = (user.email || "").toLowerCase();
+            return (
+                role === "super admin" ||
+                role === "admin" ||
+                role === "administrator" ||
+                role.includes("admin") ||
+                email === "cloud4invertio@gmail.com"
+            );
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        try {
+            const user = JSON.parse(localStorage.getItem("user") || "{}");
+            const role = (user.role_name || user.role || "").toLowerCase();
+            const email = (user.email || "").toLowerCase();
+            const userIsAdmin = (
+                role === "super admin" ||
+                role === "admin" ||
+                role === "administrator" ||
+                role.includes("admin") ||
+                email === "cloud4invertio@gmail.com"
+            );
+            if (!userIsAdmin) return false;
+            return localStorage.getItem("invertio_punch_card_collapsed") === "true";
+        } catch {
+            return false;
+        }
+    });
+
+    const toggleCollapsed = () => {
+        if (!isAdmin) return;
+        setIsCollapsed((prev) => {
+            const next = !prev;
+            try {
+                localStorage.setItem("invertio_punch_card_collapsed", String(next));
+            } catch {}
+            return next;
+        });
+    };
 
     // Location Access Dialog State
     const [locationDialog, setLocationDialog] = useState({
@@ -310,85 +357,147 @@ const AttendancePunch = ({
         );
 
     return (
-        <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-0.5">
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200/25 shadow-sm text-center">
-                <div className="mb-2">
-                    <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                        <Clock className="w-2.5 h-2.5 text-blue-600" />
-                        Live Time
-                    </div>
-                    <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none mt-1">
-                        {currentTime.toLocaleTimeString("en-IN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: true,
-                            timeZone: "Asia/Kolkata",
-                        })}
-                    </p>
-                    <p className="text-xs font-medium text-slate-500 mt-1">
-                        {currentTime.toLocaleDateString("en-IN", {
-                            weekday: "long",
-                            month: "short",
-                            day: "numeric",
-                            timeZone: "Asia/Kolkata",
-                        })}
-                    </p>
-                </div>
-
-                <div className="space-y-2">
-                    <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
-                        <Button
-                            onClick={handlePunchButtonClick}
-                            disabled={actionLoading || isDetectingLocation || status === "out"}
-                            className={cn(
-                                "w-full h-9 text-xs font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5",
-                                status === "in"
-                                    ? "bg-rose-600 hover:bg-rose-700 text-white"
-                                    : status === "out"
-                                        ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                                        : "bg-blue-600 hover:bg-blue-700 text-white",
-                            )}
+        <div className="bg-slate-200/40 p-1 rounded-2xl border border-slate-200/20 mx-0.5 transition-all">
+            {isAdmin && isCollapsed ? (
+                /* Collapsed compact view: click to expand (Admin only) */
+                <div
+                    onClick={toggleCollapsed}
+                    className="bg-white px-2.5 py-2 rounded-xl border border-slate-200/25 shadow-xs flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors group select-none"
+                    title="Click to show punch in"
+                >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCollapsed();
+                            }}
+                            className="w-5 h-5 rounded-md flex items-center justify-center text-slate-400 group-hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+                            title="Show punch in"
                         >
-                            {isDetectingLocation ? (
-                                <>
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    Detecting Location...
-                                </>
-                            ) : actionLoading ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : status === "in" ? (
-                                <>
-                                    <LogOut className="w-3.5 h-3.5" /> Punch Out
-                                </>
-                            ) : status === "out" ? (
-                                <>
-                                    <Clock className="w-3.5 h-3.5" /> Day Ended
-                                </>
-                            ) : (
-                                <>
-                                    <LogIn className="w-3.5 h-3.5" /> Punch In
-                                </>
-                            )}
-                        </Button>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-[11px] font-bold text-slate-700 font-mono tracking-tight">
+                            {currentTime.toLocaleTimeString("en-IN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                                timeZone: "Asia/Kolkata",
+                            })}
+                        </span>
                     </div>
 
-                    <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400">
-                        <MapPin
-                            className={cn(
-                                "w-2.5 h-2.5",
-                                location ? "text-emerald-500" : "text-slate-300",
-                            )}
-                        />
-                        <span>
-                            {isDetectingLocation
-                                ? "detecting location"
-                                : location
-                                    ? "verified"
-                                    : "GPS REQUIRED"}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={cn(
+                            "w-2 h-2 rounded-full",
+                            status === "in" ? "bg-emerald-500 animate-pulse" : status === "out" ? "bg-slate-300" : "bg-blue-500"
+                        )} />
+                        <span className="text-[10px] font-semibold text-slate-500 capitalize">
+                            {status === "in" ? "Punched In" : status === "out" ? "Day Ended" : "Punch In"}
                         </span>
                     </div>
                 </div>
-            </div>
+            ) : (
+                /* Full expanded view */
+                <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200/25 shadow-sm text-center relative">
+                    {/* Top Header Row with Arrow on Top Left (Admin only) */}
+                    <div className="flex items-center justify-between mb-2">
+                        {isAdmin ? (
+                            <button
+                                type="button"
+                                onClick={toggleCollapsed}
+                                className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                                title="Hide punch in"
+                            >
+                                <ChevronUp className="w-4 h-4" />
+                            </button>
+                        ) : (
+                            <div className="w-6 shrink-0" />
+                        )}
+
+                        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <Clock className="w-2.5 h-2.5 text-blue-600" />
+                            Live Time
+                        </div>
+
+                        {/* Symmetrical placeholder for centering */}
+                        <div className="w-6 shrink-0" />
+                    </div>
+
+                    <div>
+                        <p className="text-xl font-bold text-slate-800 tracking-tight font-mono leading-none mt-1">
+                            {currentTime.toLocaleTimeString("en-IN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                                timeZone: "Asia/Kolkata",
+                            })}
+                        </p>
+                        <p className="text-xs font-medium text-slate-500 mt-1">
+                            {currentTime.toLocaleDateString("en-IN", {
+                                weekday: "long",
+                                month: "short",
+                                day: "numeric",
+                                timeZone: "Asia/Kolkata",
+                            })}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2 mt-2.5">
+                        <div className="bg-slate-200/30 p-0.5 rounded-xl border border-slate-200/20 active:scale-[0.98] transition-all duration-300">
+                            <Button
+                                onClick={handlePunchButtonClick}
+                                disabled={actionLoading || isDetectingLocation || status === "out"}
+                                className={cn(
+                                    "w-full h-9 text-xs font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5",
+                                    status === "in"
+                                        ? "bg-rose-600 hover:bg-rose-700 text-white"
+                                        : status === "out"
+                                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                                            : "bg-blue-600 hover:bg-blue-700 text-white",
+                                )}
+                            >
+                                {isDetectingLocation ? (
+                                    <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        Detecting Location...
+                                    </>
+                                ) : actionLoading ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : status === "in" ? (
+                                    <>
+                                        <LogOut className="w-3.5 h-3.5" /> Punch Out
+                                    </>
+                                ) : status === "out" ? (
+                                    <>
+                                        <Clock className="w-3.5 h-3.5" /> Day Ended
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogIn className="w-3.5 h-3.5" /> Punch In
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400">
+                            <MapPin
+                                className={cn(
+                                    "w-2.5 h-2.5",
+                                    location ? "text-emerald-500" : "text-slate-300",
+                                )}
+                            />
+                            <span>
+                                {isDetectingLocation
+                                    ? "detecting location"
+                                    : location
+                                        ? "verified"
+                                        : "GPS REQUIRED"}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <LocationAccessDialog
                 isOpen={locationDialog.isOpen}
