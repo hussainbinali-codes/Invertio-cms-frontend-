@@ -10,7 +10,18 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+build
+build/
 *.local
+
+# Build archives and packages
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+BuildFile.zip
+cmsFrontend_buildFile.zip
+dist.zip
 
 # Editor directories and files
 .vscode/*
@@ -25,4 +36,3 @@ dist-ssr
 
 src/api/baseUrl.js
 skills
-dist.zip
