@@ -28,6 +28,7 @@ import toast from "react-hot-toast";
 import StatCard from "../../../components/ui/StatCard";
 import { cn } from "../../../utils/cn";
 import Skeleton from "../../../components/ui/Skeleton";
+import { hasPermission } from "../../../utils/permissionUtils";
 
 // Normal dimension KPI Card component
 const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
@@ -115,23 +116,31 @@ const LeavesPage = () => {
       const myLeaves = res.data.data || [];
       if (myLeaves.length > 0) {
         setLeaves(myLeaves);
-      } else {
-        // If no personal leaves, check if company leaves are available (e.g. for Admin role)
+      } else if (hasPermission("hr")) {
+        // If no personal leaves, check if company leaves are available (only for Admin/HR)
         try {
           const fallbackRes = await axios.get("/hr/leaves");
           setLeaves(fallbackRes.data.data && fallbackRes.data.data.length > 0 ? fallbackRes.data.data : myLeaves);
         } catch {
           setLeaves(myLeaves);
         }
+      } else {
+        // Standard user with no leaves applied yet
+        setLeaves([]);
       }
     } catch (err) {
-      console.warn("Could not fetch personal leaves, falling back to /hr/leaves:", err);
-      try {
-        const fallbackRes = await axios.get("/hr/leaves");
-        setLeaves(fallbackRes.data.data || []);
-      } catch (fallbackErr) {
-        console.error("Failed to load leaves:", fallbackErr);
-        toast.error("Failed to load leaves");
+      console.warn("Could not fetch personal leaves:", err);
+      // Only fall back to company leaves if user actually has HR permissions
+      if (hasPermission("hr")) {
+        try {
+          const fallbackRes = await axios.get("/hr/leaves");
+          setLeaves(fallbackRes.data.data || []);
+        } catch (fallbackErr) {
+          console.error("Failed to load leaves:", fallbackErr);
+          toast.error("Failed to load leaves");
+        }
+      } else {
+        setLeaves([]);
       }
     } finally {
       setLoading(false);
@@ -182,17 +191,126 @@ const LeavesPage = () => {
 
   if (loading) {
     return (
-      <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10">
-        <div className="space-y-2 w-full max-w-md">
-          <Skeleton className="h-8 w-48 sm:w-64" />
-          <Skeleton className="h-4 w-full max-w-sm sm:w-96" />
+      <div className="w-full min-w-0 flex-1 flex flex-col gap-3 pb-4 animate-in fade-in duration-200">
+        {/* Header section skeleton */}
+        <div className="flex flex-col justify-between items-start gap-1 shrink-0">
+          <Skeleton className="h-6 w-44 rounded-lg" />
+          <Skeleton className="h-3.5 w-72 rounded-md" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0">
-          <div className="lg:col-span-1 space-y-5 w-full min-w-0">
-            <Skeleton className="h-32 rounded-2xl w-full" />
-            <Skeleton className="h-[400px] rounded-2xl w-full" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full min-w-0 items-start">
+          {/* Left Column: Apply for Leave & Allowance Note Skeleton */}
+          <div className="lg:col-span-1 flex flex-col gap-3 w-full min-w-0">
+            {/* Form Card Skeleton */}
+            <div className="bg-slate-200/30 p-1.5 rounded-2xl border border-slate-200/10">
+              <div className="bg-white rounded-[calc(1rem-0.125rem)] border border-slate-200/20 p-4 space-y-3.5">
+                {/* Header */}
+                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                  <Skeleton className="w-7 h-7 rounded-lg" />
+                  <div className="space-y-1">
+                    <Skeleton className="w-28 h-4 rounded-md" />
+                    <Skeleton className="w-40 h-3 rounded-md" />
+                  </div>
+                </div>
+
+                {/* Segmented Toggle capsule skeleton */}
+                <div className="bg-slate-100/80 p-1 rounded-xl flex gap-1">
+                  <Skeleton className="h-7 flex-1 rounded-lg" />
+                  <Skeleton className="h-7 flex-1 rounded-lg" />
+                </div>
+
+                {/* Date Input skeleton */}
+                <div className="space-y-1">
+                  <Skeleton className="w-20 h-3 rounded-md" />
+                  <Skeleton className="h-8.5 w-full rounded-xl" />
+                </div>
+
+                {/* Leave Type selector skeleton */}
+                <div className="space-y-1">
+                  <Skeleton className="w-20 h-3 rounded-md" />
+                  <Skeleton className="h-8.5 w-full rounded-xl" />
+                </div>
+
+                {/* Reason Textarea skeleton */}
+                <div className="space-y-1">
+                  <Skeleton className="w-16 h-3 rounded-md" />
+                  <Skeleton className="h-16 w-full rounded-xl" />
+                </div>
+
+                {/* Submit button skeleton */}
+                <Skeleton className="h-9 w-full rounded-xl" />
+              </div>
+            </div>
+
+            {/* Monthly Allowance Note Skeleton */}
+            <div className="bg-blue-50/60 border border-blue-200/60 rounded-2xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-4 h-4 rounded-full" />
+                  <Skeleton className="w-32 h-3.5 rounded-md" />
+                </div>
+                <Skeleton className="w-20 h-4 rounded-md" />
+              </div>
+              <Skeleton className="w-full h-3 rounded-md" />
+              <Skeleton className="w-4/5 h-2.5 rounded-md" />
+            </div>
           </div>
-          <Skeleton className="lg:col-span-2 h-[550px] rounded-2xl w-full" />
+
+          {/* Right Column: Leave History Table Skeleton */}
+          <div className="lg:col-span-2 w-full min-w-0 flex flex-col">
+            <div className="bg-slate-200/30 p-1.5 rounded-2xl border border-slate-200/10">
+              <div className="bg-white rounded-[calc(1rem-0.125rem)] border border-slate-200/20 overflow-hidden">
+                {/* Table Header Row Skeleton */}
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="w-7 h-7 rounded-lg" />
+                    <div className="space-y-1">
+                      <Skeleton className="w-24 h-4 rounded-md" />
+                      <Skeleton className="w-48 h-3 rounded-md" />
+                    </div>
+                  </div>
+                  <Skeleton className="w-16 h-5 rounded-md" />
+                </div>
+
+                {/* Column Titles Skeleton */}
+                <div className="bg-slate-50/80 px-4 py-2 border-b border-slate-200/60 grid grid-cols-12 gap-2">
+                  <Skeleton className="col-span-3 h-3 rounded-md" />
+                  <Skeleton className="col-span-2 h-3 rounded-md" />
+                  <Skeleton className="col-span-5 h-3 rounded-md" />
+                  <Skeleton className="col-span-2 h-3 rounded-md ml-auto w-12" />
+                </div>
+
+                {/* Row Skeletons */}
+                <div className="p-2 space-y-1">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="px-3 py-3 rounded-xl border border-slate-100 grid grid-cols-12 items-center gap-2"
+                    >
+                      <div className="col-span-3 space-y-1">
+                        <Skeleton className="h-3.5 w-24 rounded-md" />
+                        <Skeleton className="h-2.5 w-12 rounded-md" />
+                      </div>
+                      <div className="col-span-2">
+                        <Skeleton className="h-5 w-16 rounded-md" />
+                      </div>
+                      <div className="col-span-5">
+                        <Skeleton
+                          className={cn(
+                            "h-3 rounded-md",
+                            i % 2 === 0 ? "w-4/5" : "w-3/5"
+                          )}
+                        />
+                      </div>
+                      <div className="col-span-2 flex justify-end">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

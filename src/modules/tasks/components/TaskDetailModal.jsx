@@ -691,14 +691,16 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
       <Card className="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1440px] shadow-2xl animate-in fade-in zoom-in duration-300 border-none flex flex-col h-[92vh] max-h-[92vh] overflow-hidden bg-white">
 
         {/* Header */}
-        <CardHeader className="flex flex-row items-start sm:items-center justify-between bg-white border-b border-slate-100 py-5 sm:py-6 px-5 sm:px-8 shrink-0">
-          <div className="flex items-start sm:items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center">
-              <ClipboardList className="w-6 h-6 text-primary-600" />
+        <CardHeader className="flex flex-row items-start sm:items-center justify-between bg-white border-b border-slate-100 py-4 sm:py-5 px-5 sm:px-8 shrink-0 gap-4">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 pr-2">
+            <div className="w-11 h-11 bg-primary-50 rounded-2xl flex items-center justify-center shrink-0">
+              <ClipboardList className="w-5 h-5 text-primary-600" />
             </div>
-            <div>
-              <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">{taskData.title}</CardTitle>
-              <div className="flex flex-wrap items-center gap-2 mt-1.5">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 break-words leading-tight">
+                {taskData.title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5">
                 {taskData.client_name && (
                   <Badge variant="outline" className="text-xs font-semibold text-indigo-700 border-indigo-200 bg-indigo-50 flex items-center gap-1">
                     <Building2 className="w-3 h-3 text-indigo-500" /> Client: {taskData.client_name}
@@ -753,15 +755,16 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 whitespace-nowrap self-start sm:self-center">
             {taskData.due_date && (
-              <Badge variant="outline" className="text-xs font-semibold text-rose-600 border-rose-200 bg-rose-50 flex items-center gap-1.5 py-1 px-2.5">
-                <Calendar className="w-3.5 h-3.5" /> Due {new Date(taskData.due_date).toLocaleDateString()}
+              <Badge variant="outline" className="text-xs font-semibold text-rose-600 border-rose-200 bg-rose-50 flex items-center gap-1.5 py-1.5 px-2.5 whitespace-nowrap shrink-0">
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Due {new Date(taskData.due_date).toLocaleDateString()}</span>
               </Badge>
             )}
 
             {/* Sub Tasks Dropdown in Top Header */}
-            <div className="relative" ref={subTaskDropdownRef}>
+            <div className="relative shrink-0" ref={subTaskDropdownRef}>
               <button
                 type="button"
                 onClick={() => {
@@ -772,18 +775,18 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                   }
                 }}
                 className={cn(
-                  "h-9 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer select-none",
+                  "h-9 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0",
                   subTaskDropdownOpen ? "bg-blue-50 text-blue-700 border-blue-300" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                 )}
               >
-                <GitBranch className="w-3.5 h-3.5 text-blue-600" />
-                <span>Sub Tasks</span>
+                <GitBranch className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span className="whitespace-nowrap">Sub Tasks</span>
                 {subTasks.length > 0 && (
-                  <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-full">
-                    {subTasks.filter(s => s.status === 'Completed').length}/{subTasks.length}
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-full shrink-0">
+                    {subTasks.filter(s => s.status === 'Completed' || s.status === 'Done').length}/{subTasks.length}
                   </span>
                 )}
-                <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform duration-200", subTaskDropdownOpen && "rotate-180")} />
+                <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform duration-200 shrink-0", subTaskDropdownOpen && "rotate-180")} />
               </button>
 
               {subTaskDropdownOpen && (
@@ -892,45 +895,65 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                     </div>
                   ) : (
                     <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
-                      {subTasks.map(st => (
-                        <div key={st.id} className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100/70 transition-colors group">
-                          <button
-                            type="button"
-                            onClick={() => handleSubTaskStatusChange(st.id, st.status === 'Completed' ? 'Pending' : 'Completed')}
-                            className={cn(
-                              'w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors cursor-pointer',
-                              st.status === 'Completed' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 hover:border-emerald-400'
+                      {subTasks.map(st => {
+                        const isSubTaskCompleted = st.status === 'Completed' || st.status === 'Done';
+                        return (
+                          <div key={st.id} className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100/70 transition-colors group">
+                            {isSubTaskCompleted ? (
+                              <div
+                                className="w-3.5 h-3.5 rounded-full border border-emerald-500 bg-emerald-500 flex items-center justify-center shrink-0 select-none cursor-default"
+                                title="Completed (status locked)"
+                              >
+                                <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSubTaskStatusChange(st.id, 'Completed')}
+                                className="w-3.5 h-3.5 rounded-full border border-slate-300 hover:border-emerald-500 hover:bg-emerald-50 flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                                title="Click to mark as Done"
+                              />
                             )}
-                          >
-                            {st.status === 'Completed' && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <p className={cn('text-xs font-medium truncate', st.status === 'Completed' && 'line-through text-slate-400')}>
-                              {st.title}
-                            </p>
+
+                            <div className="flex-1 min-w-0">
+                              <p className={cn('text-xs font-medium truncate', isSubTaskCompleted && 'line-through text-slate-400 font-normal')}>
+                                {st.title}
+                              </p>
+                            </div>
+
+                            {isSubTaskCompleted ? (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md flex items-center gap-1 select-none">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                Done
+                              </span>
+                            ) : (
+                              <select
+                                value={st.status === 'Pending' ? 'In Progress' : st.status}
+                                onChange={e => handleSubTaskStatusChange(st.id, e.target.value)}
+                                className={cn(
+                                  "text-[10px] font-bold border rounded px-1.5 py-0.5 bg-white shrink-0 cursor-pointer transition-colors",
+                                  st.status === 'Cancelled' ? "text-rose-600 border-rose-200 bg-rose-50" : "text-slate-700 border-slate-200"
+                                )}
+                              >
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Done</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                            )}
+
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubTask(st.id)}
+                                className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer transition-opacity"
+                                title="Delete sub task"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
-                          <select
-                            value={st.status}
-                            onChange={e => handleSubTaskStatusChange(st.id, e.target.value)}
-                            className="text-[9px] font-bold border border-slate-200 rounded px-1 py-0.5 bg-white shrink-0 cursor-pointer"
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Blocked">Blocked</option>
-                          </select>
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteSubTask(st.id)}
-                              className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer transition-opacity"
-                              title="Delete sub task"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -940,20 +963,20 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             {!isEditing && (
               (currentStatus === 'Completed' || currentStatus === 'Done' || String(currentStatus || '').toLowerCase() === 'completed' || String(taskData?.status || '').toLowerCase() === 'completed') ? (
                 <div
-                  className="h-9 px-3.5 rounded-xl text-xs font-bold border border-emerald-300 bg-emerald-50 text-emerald-700 flex items-center gap-2 shadow-xs select-none cursor-default"
+                  className="h-9 px-3.5 rounded-xl text-xs font-bold border border-emerald-300 bg-emerald-50 text-emerald-700 flex items-center gap-2 shadow-xs select-none cursor-default whitespace-nowrap shrink-0"
                   title="Completed task (status locked)"
                 >
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span>Done</span>
+                  <span className="whitespace-nowrap">Done</span>
                 </div>
               ) : (
-                <div className="relative" ref={statusDropdownRef}>
+                <div className="relative shrink-0" ref={statusDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
                     disabled={isUpdating}
                     className={cn(
-                      "h-9 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-xs cursor-pointer select-none",
+                      "h-9 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shadow-xs cursor-pointer select-none whitespace-nowrap shrink-0",
                       currentStatus === 'In Progress' ? "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100/80" :
                         currentStatus === 'Cancelled' ? "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100/80" :
                           "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100/80"
@@ -965,8 +988,8 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                         currentStatus === 'Cancelled' ? "bg-rose-500" :
                           "bg-amber-500"
                     )} />
-                    <span>{currentStatus}</span>
-                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 opacity-70", statusDropdownOpen && "rotate-180")} />
+                    <span className="whitespace-nowrap">{currentStatus}</span>
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 opacity-70 shrink-0", statusDropdownOpen && "rotate-180")} />
                   </button>
 
                   {statusDropdownOpen && (
@@ -1022,18 +1045,18 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer"
+                className="h-9 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer whitespace-nowrap shrink-0"
                 onClick={() => setIsEditing(true)}
               >
                 Edit Details
               </Button>
             )}
             {isEditing && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 whitespace-nowrap shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-9 text-xs font-semibold text-slate-500"
+                  className="h-9 text-xs font-semibold text-slate-500 whitespace-nowrap shrink-0"
                   onClick={() => setIsEditing(false)}
                 >
                   Cancel
@@ -1041,7 +1064,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <Button
                   variant="primary"
                   size="sm"
-                  className="h-9 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700"
+                  className="h-9 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 whitespace-nowrap shrink-0"
                   onClick={handleUpdateTask}
                   disabled={isUpdating}
                 >
@@ -1057,9 +1080,9 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600 group"
+              className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600 group shrink-0"
             >
-              <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" />
+              <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-200 shrink-0" />
             </button>
           </div>
         </CardHeader>
@@ -1283,10 +1306,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                     )}
 
                     {/* SECTION: Task Description & Notes */}
-                    <div className="space-y-2 pb-3 border-b border-slate-100">
-                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                    <div className="space-y-2.5 pb-4 border-b border-slate-100">
+                      <h1 className="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
                         <span>Task Description</span>
-                      </h3>
+                      </h1>
 
                       {isEditing && isAdmin ? (
                         <div className="space-y-2 mt-2">
@@ -1295,14 +1318,20 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                             value={editData.business_objective || editData.description || ''}
                             onChange={(e) => setEditData({ ...editData, business_objective: e.target.value, description: e.target.value })}
                             placeholder="Describe the task, meeting details, or action items..."
-                            className="min-h-[80px]"
+                            className="min-h-[100px] text-sm"
                           />
                         </div>
                       ) : (
-                        <div className="space-y-2 mt-1">
-                          <p className="text-xs text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">
-                            {taskData.description || taskData.business_objective || "No specific description detailed for this task."}
-                          </p>
+                        <div className="space-y-2 mt-1.5">
+                          {taskData.description || taskData.business_objective ? (
+                            <p className="text-sm sm:text-base text-slate-800 leading-relaxed font-normal whitespace-pre-wrap">
+                              {taskData.description || taskData.business_objective}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-slate-500 italic leading-relaxed">
+                              No specific description detailed for this task.
+                            </p>
+                          )}
 
                           {/* Legacy Context fields (Only shown if populated in older tasks) */}
                           {(taskData.current_issue || taskData.expected_improvement || taskData.business_impact) && (

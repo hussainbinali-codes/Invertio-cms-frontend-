@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import Button from '../components/ui/Button';
+import Skeleton from '../components/ui/Skeleton';
 import toast from 'react-hot-toast';
 
 const NotificationsPage = () => {
@@ -84,10 +85,10 @@ const NotificationsPage = () => {
             return isNaN(d.getTime())
               ? match
               : d.toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                });
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              });
           } catch {
             return match;
           }
@@ -101,10 +102,10 @@ const NotificationsPage = () => {
             return isNaN(d.getTime())
               ? match
               : d.toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                });
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              });
           } catch {
             return match;
           }
@@ -303,9 +304,37 @@ const NotificationsPage = () => {
       {/* Notifications List */}
       <div className="space-y-3">
         {loading ? (
-          <div className="bg-white p-12 rounded-2xl border border-slate-200/80 text-center">
-            <RotateCw className="w-8 h-8 text-primary-600 animate-spin mx-auto mb-3" />
-            <p className="text-xs font-semibold text-slate-500">Loading notifications...</p>
+          <div className="space-y-2.5">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="px-3.5 py-3 rounded-xl border border-slate-200/70 bg-white shadow-2xs flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* Icon Skeleton */}
+                  <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
+
+                  {/* Title Skeleton */}
+                  <Skeleton className="w-28 sm:w-36 h-4 rounded-md shrink-0" />
+
+                  <span className="text-slate-200 shrink-0 hidden sm:inline">•</span>
+
+                  {/* Message Body Skeleton */}
+                  <Skeleton
+                    className={cn(
+                      "h-3.5 rounded-md flex-1 min-w-0",
+                      i % 3 === 0 ? "w-3/5" : i % 3 === 1 ? "w-4/5" : "w-1/2"
+                    )}
+                  />
+
+                  {/* Timestamp Skeleton */}
+                  <Skeleton className="w-20 h-3 rounded-md shrink-0 ml-auto hidden sm:block" />
+                </div>
+
+                {/* Action button placeholder */}
+                <Skeleton className="w-5 h-5 rounded-md shrink-0" />
+              </div>
+            ))}
           </div>
         ) : filteredNotifications.length > 0 ? (
           filteredNotifications.map((n) => (
@@ -356,12 +385,12 @@ const NotificationsPage = () => {
                 <span className="text-[11px] text-slate-400 font-mono shrink-0 whitespace-nowrap ml-auto pl-2">
                   {n.created_at
                     ? new Date(n.created_at).toLocaleString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true,
-                      })
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })
                     : ''}
                 </span>
               </div>

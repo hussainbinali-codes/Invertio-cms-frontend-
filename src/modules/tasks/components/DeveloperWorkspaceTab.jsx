@@ -38,26 +38,34 @@ const priorityDot = (priority) => {
 };
 
 // ──────────────── Sub Tasks Row ────────────────
-const SubTaskRow = ({ subTask, onStatusChange, disabled }) => (
-  <div className="flex items-center gap-2.5 py-1.5 px-3 hover:bg-slate-50 rounded-lg transition-colors">
-    <GitBranch className="w-3 h-3 text-slate-300 shrink-0" />
-    {priorityDot(subTask.priority)}
-    <span className={cn('text-xs flex-1 truncate', subTask.status === 'Completed' && 'line-through text-slate-400')}>
-      {subTask.title}
-    </span>
-    <select
-      value={subTask.status}
-      onChange={e => onStatusChange(subTask.id, e.target.value)}
-      disabled={disabled}
-      className="text-[9px] font-bold border border-slate-200 rounded-lg px-1.5 py-0.5 bg-white focus:outline-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      <option value="Pending">Pending</option>
-      <option value="In Progress">In Progress</option>
-      <option value="Completed">Completed</option>
-      <option value="Blocked">Blocked</option>
-    </select>
-  </div>
-);
+const SubTaskRow = ({ subTask, onStatusChange, disabled }) => {
+  const isCompleted = subTask.status === 'Completed' || subTask.status === 'Done';
+  return (
+    <div className="flex items-center gap-2.5 py-1.5 px-3 hover:bg-slate-50 rounded-lg transition-colors">
+      <GitBranch className="w-3 h-3 text-slate-300 shrink-0" />
+      {priorityDot(subTask.priority)}
+      <span className={cn('text-xs flex-1 truncate', isCompleted && 'line-through text-slate-400')}>
+        {subTask.title}
+      </span>
+      {isCompleted ? (
+        <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded select-none">
+          Done
+        </span>
+      ) : (
+        <select
+          value={subTask.status === 'Pending' ? 'In Progress' : subTask.status}
+          onChange={e => onStatusChange(subTask.id, e.target.value)}
+          disabled={disabled}
+          className="text-[9px] font-bold border border-slate-200 rounded-lg px-1.5 py-0.5 bg-white focus:outline-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Done</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      )}
+    </div>
+  );
+};
 
 // ──────────────── Task Row ────────────────
 const TaskRow = ({ task }) => {
