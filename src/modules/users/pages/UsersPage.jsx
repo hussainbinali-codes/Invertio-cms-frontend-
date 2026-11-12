@@ -40,7 +40,7 @@ const KpiCard = ({ title, value, icon: Icon, subtext, trend }) => {
               </div>
             )}
           </div>
-          
+
           <div className="mt-3">
             <span className="text-3xl font-bold text-slate-800 tracking-tight font-mono">
               {value}
@@ -329,11 +329,11 @@ const UsersPage = () => {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 py-1">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8 pb-10 px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
       {/* Header section with Asymmetric Layout */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full min-w-0">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-950 tracking-tight">
             Team Members
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 font-normal">
@@ -342,8 +342,8 @@ const UsersPage = () => {
         </div>
         {hasPermission('users', 'create') && (
           <div className="bg-slate-200/30 p-1 rounded-full border border-slate-200/20 active:scale-[0.98] transition-all duration-300 shrink-0">
-            <Button 
-              onClick={() => { resetForm(); setShowAddModal(true); }} 
+            <Button
+              onClick={() => { resetForm(); setShowAddModal(true); }}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 px-4 sm:px-5 text-xs sm:text-sm font-semibold shadow-sm flex items-center gap-2"
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -355,30 +355,30 @@ const UsersPage = () => {
 
       {/* KPI Stats Grid in Double-Bezel nested wrapper */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full min-w-0">
-        <KpiCard 
-          title="Total Users" 
-          value={pagination.total || 0} 
-          icon={Users} 
-          subtext="Registered staff members" 
+        <KpiCard
+          title="Total Users"
+          value={pagination.total || 0}
+          icon={Users}
+          subtext="Registered staff members"
         />
-        <KpiCard 
-          title="Active Users" 
-          value={pagination.activeCount ?? users.filter(u => u.status === 'Active').length} 
-          icon={UserCheck}  
-          subtext="Active system users" 
+        <KpiCard
+          title="Active Users"
+          value={pagination.activeCount ?? users.filter(u => u.status === 'Active').length}
+          icon={UserCheck}
+          subtext="Active system users"
         />
-        <KpiCard 
-          title="Security Admins" 
-          value={pagination.adminCount ?? users.filter(u => u.role_name === 'Admin' || u.role_name === 'Super Admin').length} 
-          icon={ShieldCheck} 
-          subtext="Authorized system managers" 
+        <KpiCard
+          title="Security Admins"
+          value={pagination.adminCount ?? users.filter(u => u.role_name === 'Admin' || u.role_name === 'Super Admin').length}
+          icon={ShieldCheck}
+          subtext="Authorized system managers"
         />
       </div>
 
       {/* Main Table Enclosure wrapped in Premium Double-Bezel Card */}
-      <PremiumCard 
-        title="All Workspace Users" 
-        subtitle="Staff roster and role profiles" 
+      <PremiumCard
+        title="All Workspace Users"
+        subtitle="Staff roster and role profiles"
         icon={Users}
         headerRight={
           <div className="relative w-full sm:w-72">

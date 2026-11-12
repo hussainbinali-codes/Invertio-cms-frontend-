@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import axios from "../../../api/axios";
 import {
@@ -116,25 +116,46 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
 // Displays the exact previous dropdown UI clearly without clipping from table/card overflow-hidden,
 // and automatically flips upward when clicked on lower calendar rows.
 const InfoDropdownPopover = ({ anchorRect, onClose, children }) => {
+  const popoverRef = useRef(null);
+
   useEffect(() => {
-    const handleClose = () => onClose();
+    const handlePointerDown = (e) => {
+      // Ignore clicks inside the popover itself
+      if (popoverRef.current && popoverRef.current.contains(e.target)) {
+        return;
+      }
+      // If clicking on any info trigger button, don't close here
+      // so that button's onClick can toggle or switch dates immediately without race conditions
+      if (e.target && e.target.closest && e.target.closest('[data-info-trigger="true"]')) {
+        return;
+      }
+      onClose();
+    };
+
     const handleKeyDown = (e) => {
       if (e.key === "Escape") onClose();
     };
 
-    const timer = setTimeout(() => {
-      window.addEventListener("click", handleClose);
-    }, 10);
+    const handleScroll = (e) => {
+      // If scrolling inside the popover container, don't close!
+      if (popoverRef.current && popoverRef.current.contains(e.target)) {
+        return;
+      }
+      onClose();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown, { passive: true });
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("scroll", handleClose, true);
-    window.addEventListener("resize", handleClose);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", onClose);
 
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener("click", handleClose);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("scroll", handleClose, true);
-      window.removeEventListener("resize", handleClose);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", onClose);
     };
   }, [onClose]);
 
@@ -158,6 +179,7 @@ const InfoDropdownPopover = ({ anchorRect, onClose, children }) => {
 
   return createPortal(
     <div
+      ref={popoverRef}
       style={{
         position: "fixed",
         top: openUpward ? "auto" : `${top}px`,
@@ -1349,6 +1371,7 @@ const AttendancePage = () => {
                         {d.isCurrentMonth && (
                           <button
                             type="button"
+                            data-info-trigger="true"
                             onClick={(e) => {
                               e.stopPropagation();
                               const rect = e.currentTarget.getBoundingClientRect();
@@ -1367,14 +1390,14 @@ const AttendancePage = () => {
                               }
                             }}
                             className={cn(
-                              "w-4 h-4 rounded-full flex items-center justify-center transition-all cursor-pointer",
+                              "w-5 h-5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0",
                               openInfo?.dateKey === dateKey
                                 ? "bg-primary-600 text-white shadow-xs scale-110"
                                 : "bg-slate-100 hover:bg-primary-50 text-slate-400 hover:text-primary-600"
                             )}
                             title="View attendance details"
                           >
-                            <Info className="w-2.5 h-2.5" />
+                            <Info className="w-3 h-3 pointer-events-none" />
                           </button>
                         )}
                       </div>
@@ -1531,6 +1554,7 @@ const AttendancePage = () => {
                           return (
                             <button
                               type="button"
+                              data-info-trigger="true"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const rect = e.currentTarget.getBoundingClientRect();
@@ -1552,7 +1576,7 @@ const AttendancePage = () => {
                                 }
                               }}
                               className={cn(
-                                "w-4 h-4 rounded-full flex items-center justify-center transition-all cursor-pointer",
+                                "w-5 h-5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0",
                                 isDropdownOpen
                                   ? "bg-primary-600 text-white shadow-xs scale-110"
                                   : "bg-slate-100 hover:bg-primary-50 text-slate-400 hover:text-primary-600"
@@ -1569,7 +1593,7 @@ const AttendancePage = () => {
                                         : "View leave details"
                               }
                             >
-                              <Info className="w-2.5 h-2.5" />
+                              <Info className="w-3 h-3 pointer-events-none" />
                             </button>
                           );
                         })()}
@@ -1872,7 +1896,7 @@ const AttendancePage = () => {
 
       {/* Previous Dropdown Popup - rendered via Portal so it is never clipped and always clear */}
       {openInfo && openInfo.type === "all" && (
-        <InfoDropdownPopover anchorRect={openInfo.rect} onClose={() => setOpenInfo(null)}>
+        <InfoDropdownPopover key={`all-${openInfo.dateKey}`} anchorRect={openInfo.rect} onClose={() => setOpenInfo(null)}>
           <div className="w-56 max-h-72 overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] space-y-2 cursor-default custom-scrollbar">
             <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               <span>Attendance</span>
@@ -1901,7 +1925,7 @@ const AttendancePage = () => {
       )}
 
       {openInfo && openInfo.type === "single" && (
-        <InfoDropdownPopover anchorRect={openInfo.rect} onClose={() => setOpenInfo(null)}>
+        <InfoDropdownPopover key={`single-${openInfo.dateKey}`} anchorRect={openInfo.rect} onClose={() => setOpenInfo(null)}>
           <div className="w-52 bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl border border-slate-800 text-[11px] space-y-2 cursor-default">
             <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               <span>{openInfo.attRecord ? "Punch Info" : openInfo.isBeforeJoining ? "Pre-Joining" : "Leave Info"}</span>

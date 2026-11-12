@@ -576,7 +576,7 @@ const MyPipelineTab = ({
                     setDateFilterMode('date');
                     setCurrentPage(1);
                   }}
-                  className="px-2.5 sm:px-3 h-full flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-50 active:bg-slate-100 transition-colors border-r border-slate-200/80 cursor-pointer"
+                  className="px-2.5 sm:px-3 h-full flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-50 active:bg-slate-100 transition-colors border-r border-slate-200/80 cursor-pointer shrink-0"
                   title="Previous Day"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -590,14 +590,14 @@ const MyPipelineTab = ({
                     setCurrentPage(1);
                   }}
                   className={cn(
-                    "px-3.5 sm:px-4 h-full flex items-center justify-center text-[13px] font-semibold transition-colors cursor-pointer min-w-[72px] select-none",
+                    "px-2 h-full flex items-center justify-center text-[13px] font-semibold transition-colors cursor-pointer w-28 text-center select-none shrink-0",
                     dateFilterMode === 'date' && isDateToday(selectedDate)
                       ? "text-blue-600 bg-blue-50/40"
                       : "text-slate-700 hover:text-blue-600 hover:bg-slate-50"
                   )}
                   title="Click to jump to Today"
                 >
-                  {getDateLabel(selectedDate, dateFilterMode)}
+                  <span className="truncate">{getDateLabel(selectedDate, dateFilterMode)}</span>
                 </button>
 
                 <button
@@ -609,7 +609,7 @@ const MyPipelineTab = ({
                     setDateFilterMode('date');
                     setCurrentPage(1);
                   }}
-                  className="px-2.5 sm:px-3 h-full flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-50 active:bg-slate-100 transition-colors border-l border-slate-200/80 cursor-pointer"
+                  className="px-2.5 sm:px-3 h-full flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-50 active:bg-slate-100 transition-colors border-l border-slate-200/80 cursor-pointer shrink-0"
                   title="Next Day"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -881,9 +881,9 @@ const MyPipelineTab = ({
                       openStatusDropdownTaskId === task.id ? "z-30 overflow-visible ring-1 ring-blue-100" : "z-0",
                       isCompleted
                         ? "border-slate-200/60 bg-slate-50/40 opacity-75"
-                    : "border-slate-200/90 hover:border-slate-300"
-                  )}
-                >
+                        : "border-slate-200/90 hover:border-slate-300"
+                    )}
+                  >
                     {/* Circular Quick Completion Button */}
                     <button
                       type="button"
