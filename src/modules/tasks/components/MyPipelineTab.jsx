@@ -145,6 +145,18 @@ const isBeforeYesterday = (val) => {
   return target.getTime() < yesterday.getTime();
 };
 
+const isTaskCompleted = (task) => {
+  if (!task) return false;
+  const s = String(task.status || '').trim().toLowerCase();
+  return s === 'completed' || s === 'done';
+};
+
+const isTaskCancelled = (task) => {
+  if (!task) return false;
+  const s = String(task.status || '').trim().toLowerCase();
+  return s === 'cancelled' || s === 'canceled';
+};
+
 const matchesTaskDate = (task, targetDate) => {
   if (!task || !targetDate) return false;
 
@@ -152,6 +164,7 @@ const matchesTaskDate = (task, targetDate) => {
   if (!target) return false;
 
   const isCompleted = isTaskCompleted(task);
+  const isCancelled = isTaskCancelled(task);
 
   if (isCompleted) {
     // A completed task reflects on the day it was completed!
@@ -181,6 +194,36 @@ const matchesTaskDate = (task, targetDate) => {
 
     // Active between start date and completion date (never shown on dates after completionDate)
     return target >= effectiveStart && target <= completedDate;
+  }
+
+  if (isCancelled) {
+    // A cancelled task reflects on the day it was cancelled or scheduled!
+    const cancelledDate =
+      parseDateOnly(task.cancelled_at) ||
+      parseDateOnly(task.cancellation_date) ||
+      (String(task.status || '').toLowerCase().includes('cancel') ? parseDateOnly(task.updated_at) : null) ||
+      parseDateOnly(task.due_date) ||
+      parseDateOnly(task.start_date) ||
+      parseDateOnly(task.created_at);
+
+    if (!cancelledDate) return false;
+
+    // Matches the exact day it was cancelled / scheduled
+    if (target.getTime() === cancelledDate.getTime()) {
+      return true;
+    }
+
+    // Active prior to cancellation (between start/created and cancellation date)
+    const startDate =
+      parseDateOnly(task.start_date) ||
+      parseDateOnly(task.estimated_start_date) ||
+      parseDateOnly(task.created_at) ||
+      cancelledDate;
+
+    const effectiveStart = startDate <= cancelledDate ? startDate : cancelledDate;
+
+    // Only active between start date and cancellation date (never shown on dates after cancelledDate)
+    return target >= effectiveStart && target <= cancelledDate;
   }
 
   // Active / Ongoing / Pending task
@@ -227,18 +270,6 @@ const matchesTaskDate = (task, targetDate) => {
   }
 
   return false;
-};
-
-const isTaskCompleted = (task) => {
-  if (!task) return false;
-  const s = String(task.status || '').trim().toLowerCase();
-  return s === 'completed' || s === 'done';
-};
-
-const isTaskCancelled = (task) => {
-  if (!task) return false;
-  const s = String(task.status || '').trim().toLowerCase();
-  return s === 'cancelled' || s === 'canceled';
 };
 
 const isOverdue = (dueDate, status) => {
@@ -418,7 +449,8 @@ const MyPipelineTab = ({
   const filteredTasks = useMemo(() => {
     return rawDataset.filter((task) => {
       // 1. Date Filter (Default: Today's tasks)
-      if (dateFilterMode === 'date') {
+      // When explicitly filtering by "Cancelled" status, or when "all" date mode is active, include all cancelled tasks
+      if (dateFilterMode === 'date' && statusFilter !== 'Cancelled') {
         if (!matchesTaskDate(task, selectedDate)) {
           return false;
         }
@@ -448,6 +480,8 @@ const MyPipelineTab = ({
           if (!isPending) return false;
         } else if (statusFilter === 'Completed') {
           if (!isTaskCompleted(task)) return false;
+        } else if (statusFilter === 'Cancelled') {
+          if (!isTaskCancelled(task)) return false;
         } else if (statusFilter === 'In Progress') {
           if (s !== 'in progress' && s !== 'in_progress') return false;
         } else if (s !== statusFilter.trim().toLowerCase()) {
@@ -700,6 +734,7 @@ const MyPipelineTab = ({
                   <option value="In Progress">In Progress</option>
                   <option value="Pending">Pending</option>
                   <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
               </div>
@@ -841,6 +876,7 @@ const MyPipelineTab = ({
             ) : (
               paginatedTasks.map((task) => {
                 const isCompleted = isTaskCompleted(task);
+                const isCancelled = isTaskCancelled(task);
                 const isUpdating = updatingTaskId === task.id;
                 const priority = task.priority || 'Medium';
                 const isSelf = String(task.assigned_to) === String(storedUser?.id) ||
@@ -858,19 +894,19 @@ const MyPipelineTab = ({
                 const selectedDateObj = dateFilterMode === 'date' ? parseDateOnly(selectedDate) : null;
                 const todayObj = parseDateOnly(new Date());
 
-                const isDueOnSelectedDate = !isCompleted && Boolean(
+                const isDueOnSelectedDate = !isCompleted && !isCancelled && Boolean(
                   taskDueDateObj &&
                   selectedDateObj &&
                   taskDueDateObj.getTime() === selectedDateObj.getTime()
                 );
 
-                const isDueToday = !isCompleted && Boolean(
+                const isDueToday = !isCompleted && !isCancelled && Boolean(
                   taskDueDateObj &&
                   todayObj &&
                   taskDueDateObj.getTime() === todayObj.getTime()
                 );
 
-                const isTaskOverdue = !isCompleted && isOverdue(task.due_date, task.status);
+                const isTaskOverdue = !isCompleted && !isCancelled && isOverdue(task.due_date, task.status);
                 const isDeadline = isDueOnSelectedDate || isDueToday || isTaskOverdue;
 
                 return (
@@ -879,7 +915,7 @@ const MyPipelineTab = ({
                     className={cn(
                       "bg-white rounded-2xl p-4 border transition-all flex items-start gap-3.5 group shadow-2xs hover:shadow-xs relative",
                       openStatusDropdownTaskId === task.id ? "z-30 overflow-visible ring-1 ring-blue-100" : "z-0",
-                      isCompleted
+                      isCompleted || isCancelled
                         ? "border-slate-200/60 bg-slate-50/40 opacity-75"
                         : "border-slate-200/90 hover:border-slate-300"
                     )}
@@ -887,10 +923,10 @@ const MyPipelineTab = ({
                     {/* Circular Quick Completion Button */}
                     <button
                       type="button"
-                      disabled={isUpdating || isCompleted}
+                      disabled={isUpdating || isCompleted || isCancelled}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (isCompleted || isUpdating) return;
+                        if (isCompleted || isCancelled || isUpdating) return;
                         if (task.status !== 'In Progress') {
                           if (handleUpdateTask) {
                             handleUpdateTask(task.id, { status: 'In Progress' });
@@ -907,24 +943,30 @@ const MyPipelineTab = ({
                         "mt-0.5 ml-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all",
                         isCompleted
                           ? "bg-emerald-500 text-white border border-emerald-500 cursor-default"
-                          : isUpdating
-                            ? "opacity-50 cursor-not-allowed"
-                            : task.status === 'In Progress'
-                              ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
-                              : "border-2 border-slate-200 bg-slate-50 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer"
+                          : isCancelled
+                            ? "bg-rose-50 text-rose-400 border border-rose-200 cursor-default"
+                            : isUpdating
+                              ? "opacity-50 cursor-not-allowed"
+                              : task.status === 'In Progress'
+                                ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
+                                : "border-2 border-slate-200 bg-slate-50 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer"
                       )}
                       title={
                         isCompleted
                           ? "Task is completed (status locked)"
-                          : task.status === 'In Progress'
-                            ? "Complete Task"
-                            : "Click to start task (move to In Progress)"
+                          : isCancelled
+                            ? "Task is cancelled"
+                            : task.status === 'In Progress'
+                              ? "Complete Task"
+                              : "Click to start task (move to In Progress)"
                       }
                     >
                       {isUpdating ? (
                         <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
                       ) : isCompleted ? (
                         <CheckCircle2 className="w-3.5 h-3.5 fill-current" />
+                      ) : isCancelled ? (
+                        <X className="w-3 h-3 text-rose-500 stroke-[2.5]" />
                       ) : null}
                     </button>
 
@@ -942,7 +984,7 @@ const MyPipelineTab = ({
                           <h4
                             className={cn(
                               "text-[13px] font-semibold tracking-tight truncate transition-colors",
-                              isCompleted
+                              isCompleted || isCancelled
                                 ? "text-slate-400 line-through font-normal group-hover/card:text-slate-600"
                                 : "text-slate-900 group-hover/card:text-blue-600"
                             )}
@@ -1037,6 +1079,7 @@ const MyPipelineTab = ({
                                       : [
                                         { label: 'Pending', value: 'Pending', dot: 'bg-amber-500' },
                                         { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                                        { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
                                       ]
                                   ).map((item) => (
                                     <button
