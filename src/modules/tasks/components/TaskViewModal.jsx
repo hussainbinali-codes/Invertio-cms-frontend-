@@ -3,16 +3,16 @@ import axios from '../../../api/axios';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableCell } from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
-import { X, Loader2, Calendar, User, ClipboardList, FolderOpen, CheckCircle2, Ban } from 'lucide-react';
+import { X, Loader2, Calendar, User, ClipboardList, FolderOpen, CheckCircle2, Ban, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import ProjectResourcesModal from '../../projects/components/ProjectResourcesModal';
 import TaskDetailModal from './TaskDetailModal';
 import Button from '../../../components/ui/Button';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import { cn } from '../../../utils/cn';
 
-const TaskViewModal = ({ 
-  project, 
-  onClose, 
+const TaskViewModal = ({
+  project,
+  onClose,
   initialStatusFilter = 'all',
   initialAssigneeFilter = 'all'
 }) => {
@@ -23,6 +23,8 @@ const TaskViewModal = ({
   const [selectedTask, setSelectedTask] = useState(null);
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
+  const [sortField, setSortField] = useState('due_date');
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' | 'desc'
   const initializedFilterRef = useRef(false);
 
   const currentUser = useMemo(() => {
@@ -100,7 +102,7 @@ const TaskViewModal = ({
       const name = rawName || 'Unassigned';
       const role = t.assigned_to_role || (currentUserName && name.toLowerCase() === currentUserName.toLowerCase() ? currentUserRole : '');
       const isCurrent = (currentUserId && (t.assigned_to === currentUserId || t.user_id === currentUserId)) ||
-                        (currentUserName && name.toLowerCase() === currentUserName.toLowerCase());
+        (currentUserName && name.toLowerCase() === currentUserName.toLowerCase());
 
       if (!map.has(name)) {
         map.set(name, { name, count: 1, isUnassigned: !rawName, role, isCurrentUser: isCurrent });
@@ -162,7 +164,7 @@ const TaskViewModal = ({
 
         if (isFilteringMe) {
           const isMyTask = (currentUserId && (task.assigned_to === currentUserId || task.user_id === currentUserId)) ||
-                           (currentUserName && (task.assigned_to_name?.trim().toLowerCase() === currentUserName.toLowerCase()));
+            (currentUserName && (task.assigned_to_name?.trim().toLowerCase() === currentUserName.toLowerCase()));
           if (!isMyTask) return false;
         } else {
           if (effectiveAssigneeFilter === 'Unassigned') {
@@ -177,6 +179,78 @@ const TaskViewModal = ({
     });
   }, [tasks, statusFilter, effectiveAssigneeFilter, currentUser, currentUserName]);
 
+  const priorityWeight = {
+    critical: 4,
+    urgent: 4,
+    high: 3,
+    medium: 2,
+    low: 1
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="w-3 h-3 text-slate-300 group-hover/th:text-slate-500 transition-colors ml-1 inline" />;
+    }
+    return sortDirection === 'asc'
+      ? <ChevronUp className="w-3 h-3 text-primary-600 ml-1 inline" />
+      : <ChevronDown className="w-3 h-3 text-primary-600 ml-1 inline" />;
+  };
+
+  const sortedTasks = useMemo(() => {
+    return [...filteredTasks].sort((a, b) => {
+      let comparison = 0;
+
+      if (sortField === 'due_date') {
+        const timeA = a.due_date ? new Date(a.due_date).getTime() : null;
+        const timeB = b.due_date ? new Date(b.due_date).getTime() : null;
+
+        if (timeA && timeB) {
+          comparison = timeA - timeB;
+        } else if (timeA && !timeB) {
+          comparison = -1; // tasks with due date first
+        } else if (!timeA && timeB) {
+          comparison = 1;
+        } else {
+          comparison = 0;
+        }
+      } else if (sortField === 'title') {
+        comparison = (a.title || '').localeCompare(b.title || '');
+      } else if (sortField === 'client') {
+        comparison = (a.client_name || '').localeCompare(b.client_name || '');
+      } else if (sortField === 'assignee') {
+        comparison = (a.assigned_to_name || '').localeCompare(b.assigned_to_name || '');
+      } else if (sortField === 'priority') {
+        const pA = priorityWeight[String(a.priority || '').toLowerCase()] || 2;
+        const pB = priorityWeight[String(b.priority || '').toLowerCase()] || 2;
+        comparison = pA - pB;
+      } else if (sortField === 'points') {
+        const ptA = Number(a.story_points) || 0;
+        const ptB = Number(b.story_points) || 0;
+        comparison = ptA - ptB;
+      } else if (sortField === 'status') {
+        comparison = (a.status || '').localeCompare(b.status || '');
+      }
+
+      if (comparison === 0) {
+        const timeA = a.due_date ? new Date(a.due_date).getTime() : 0;
+        const timeB = b.due_date ? new Date(b.due_date).getTime() : 0;
+        if (timeA !== timeB && timeA && timeB) return timeA - timeB;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredTasks, sortField, sortDirection]);
+
   if (!project) return null;
 
   return (
@@ -185,24 +259,24 @@ const TaskViewModal = ({
         <CardHeader className="flex flex-row items-center justify-between bg-slate-50 border-b border-slate-100 py-4 shrink-0">
           <div>
             <div className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-primary-600" />
-                <CardTitle>Project Tasks</CardTitle>
+              <ClipboardList className="w-5 h-5 text-primary-600" />
+              <CardTitle>Project Tasks</CardTitle>
             </div>
             <p className="text-sm text-slate-500 mt-1">
               Current lifecycle of <span className="font-semibold text-slate-700">{project.name}</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="h-9 text-xs font-semibold text-slate-500 text-primary-600 hover:bg-primary-50"
               onClick={() => setShowResources(true)}
             >
               <FolderOpen className="w-3.5 h-3.5 mr-1.5" />
               Project Resources
             </Button>
-            <button 
+            <button
               onClick={onClose}
               className="p-1 hover:bg-slate-200 rounded-full transition-colors text-slate-400 hover:text-slate-600"
             >
@@ -403,33 +477,96 @@ const TaskViewModal = ({
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50">
-                  <TableHead className="w-[28%] text-[11px] sm:text-[11px]">Task Title</TableHead>
-                  <TableHead className="text-[11px] sm:text-[11px]">Client</TableHead>
-                  <TableHead className="text-[11px] sm:text-[11px]">Assigned To</TableHead>
-                  <TableHead className="text-[11px] sm:text-[11px]">Priority</TableHead>
-                  <TableHead className="text-[11px] sm:text-[11px]">Points</TableHead>
-                  <TableHead className="text-[11px] sm:text-[11px]">Status</TableHead>
-                  <TableHead className="text-[11px] sm:text-[11px]">Due Date</TableHead>
+                  <TableHead
+                    className="w-[28%] text-[11px] sm:text-[11px] cursor-pointer hover:bg-slate-100/70 transition-colors select-none group/th"
+                    onClick={() => handleSort('title')}
+                    title="Sort by Task Title"
+                  >
+                    <span className="inline-flex items-center">
+                      Task Title
+                      {renderSortIcon('title')}
+                    </span>
+                  </TableHead>
+                  <TableHead
+                    className="text-[11px] sm:text-[11px] cursor-pointer hover:bg-slate-100/70 transition-colors select-none group/th"
+                    onClick={() => handleSort('client')}
+                    title="Sort by Client"
+                  >
+                    <span className="inline-flex items-center">
+                      Client
+                      {renderSortIcon('client')}
+                    </span>
+                  </TableHead>
+                  <TableHead
+                    className="text-[11px] sm:text-[11px] cursor-pointer hover:bg-slate-100/70 transition-colors select-none group/th"
+                    onClick={() => handleSort('assignee')}
+                    title="Sort by Assignee"
+                  >
+                    <span className="inline-flex items-center">
+                      Assigned To
+                      {renderSortIcon('assignee')}
+                    </span>
+                  </TableHead>
+                  <TableHead
+                    className="text-[11px] sm:text-[11px] cursor-pointer hover:bg-slate-100/70 transition-colors select-none group/th"
+                    onClick={() => handleSort('priority')}
+                    title="Sort by Priority"
+                  >
+                    <span className="inline-flex items-center">
+                      Priority
+                      {renderSortIcon('priority')}
+                    </span>
+                  </TableHead>
+                  <TableHead
+                    className="text-[11px] sm:text-[11px] cursor-pointer hover:bg-slate-100/70 transition-colors select-none group/th"
+                    onClick={() => handleSort('points')}
+                    title="Sort by Story Points"
+                  >
+                    <span className="inline-flex items-center">
+                      Points
+                      {renderSortIcon('points')}
+                    </span>
+                  </TableHead>
+                  <TableHead
+                    className="text-[11px] sm:text-[11px] cursor-pointer hover:bg-slate-100/70 transition-colors select-none group/th"
+                    onClick={() => handleSort('status')}
+                    title="Sort by Status"
+                  >
+                    <span className="inline-flex items-center">
+                      Status
+                      {renderSortIcon('status')}
+                    </span>
+                  </TableHead>
+                  <TableHead
+                    className="text-[11px] sm:text-[11px] cursor-pointer hover:bg-slate-100/70 transition-colors select-none group/th"
+                    onClick={() => handleSort('due_date')}
+                    title="Sort by Due Date"
+                  >
+                    <span className="inline-flex items-center">
+                      Due Date
+                      {renderSortIcon('due_date')}
+                    </span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <tbody>
-                {filteredTasks.map((task) => (
-                  <TableRow 
-                    key={task.id} 
+                {sortedTasks.map((task) => (
+                  <TableRow
+                    key={task.id}
                     className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                     onClick={() => setSelectedTask(task)}
                   >
                     <TableCell className="py-4 max-w-[280px]">
                       <div className="flex flex-col gap-1 overflow-hidden">
-                        <span 
-                          className="font-semibold text-slate-900 leading-none truncate group-hover:text-primary-600 transition-colors" 
+                        <span
+                          className="font-semibold text-slate-900 leading-none truncate group-hover:text-primary-600 transition-colors"
                           title={task.title}
                         >
                           {task.title}
                         </span>
                         {task.description && (
-                          <span 
-                            className="text-xs text-slate-500 line-clamp-1 break-all italic" 
+                          <span
+                            className="text-xs text-slate-500 line-clamp-1 break-all italic"
                             title={task.description}
                           >
                             {task.description}
@@ -447,7 +584,7 @@ const TaskViewModal = ({
                       )}
                     </TableCell>
                     <TableCell>
-                      <div 
+                      <div
                         className="inline-flex items-center gap-2.5 text-sm text-slate-600 hover:text-primary-700 p-1 -m-1 rounded-md hover:bg-primary-50 transition-colors group/assignee"
                         title={`Click to filter by ${task.assigned_to_name || 'Unassigned'}`}
                         onClick={(e) => {
@@ -473,13 +610,13 @@ const TaskViewModal = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={
-                          task.priority === 'Urgent' ? 'default' : 
-                          task.priority === 'High' ? 'warning' : 
-                          task.priority === 'Medium' ? 'primary' : 
-                          'secondary'
-                        } 
+                          task.priority === 'Urgent' ? 'default' :
+                            task.priority === 'High' ? 'warning' :
+                              task.priority === 'Medium' ? 'primary' :
+                                'secondary'
+                        }
                         className={
                           task.priority === 'Urgent'
                             ? 'text-[10px] bg-rose-100 text-rose-700'
@@ -493,12 +630,12 @@ const TaskViewModal = ({
                       <span className="text-[10px] font-bold text-slate-600">{task.story_points || 0} pts</span>
                     </TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={
-                          task.status === 'Completed' ? 'success' : 
-                          task.status === 'In Progress' ? 'primary' : 
-                          task.status === 'Cancelled' ? 'danger' :
-                          'default'
+                          task.status === 'Completed' ? 'success' :
+                            task.status === 'In Progress' ? 'primary' :
+                              task.status === 'Cancelled' ? 'danger' :
+                                'default'
                         }
                       >
                         {task.status}
@@ -542,18 +679,18 @@ const TaskViewModal = ({
       </Card>
 
       {showResources && (
-        <ProjectResourcesModal 
-          project={project} 
+        <ProjectResourcesModal
+          project={project}
           projectId={project?.id}
-          onClose={() => setShowResources(false)} 
+          onClose={() => setShowResources(false)}
           onUpdate={fetchTasks}
         />
       )}
 
       {selectedTask && (
-        <TaskDetailModal 
-          task={{...selectedTask, project_name: project?.name || selectedTask?.project_name}} 
-          onClose={() => setSelectedTask(null)} 
+        <TaskDetailModal
+          task={{ ...selectedTask, project_name: project?.name || selectedTask?.project_name }}
+          onClose={() => setSelectedTask(null)}
           onUpdate={handleTaskUpdate}
         />
       )}
