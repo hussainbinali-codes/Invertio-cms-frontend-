@@ -99,10 +99,10 @@ const TaskViewModal = ({
     const currentUserId = currentUser?.id;
 
     tasks.forEach((t) => {
-      const rawName = t.assigned_to_name?.trim();
+      const rawName = (t.assigned_to_name || t.user_name)?.trim();
       const name = rawName || 'Unassigned';
-      const role = t.assigned_to_role || (currentUserName && name.toLowerCase() === currentUserName.toLowerCase() ? currentUserRole : '');
-      const isCurrent = (currentUserId && (t.assigned_to === currentUserId || t.user_id === currentUserId)) ||
+      const role = t.assigned_to_role || t.user_role || (currentUserName && name.toLowerCase() === currentUserName.toLowerCase() ? currentUserRole : '');
+      const isCurrent = (currentUserId && (String(t.assigned_to) === String(currentUserId) || String(t.user_id) === String(currentUserId))) ||
         (currentUserName && name.toLowerCase() === currentUserName.toLowerCase());
 
       if (!map.has(name)) {
@@ -164,14 +164,15 @@ const TaskViewModal = ({
         const isFilteringMe = currentUserName && effectiveAssigneeFilter.toLowerCase() === currentUserName.toLowerCase();
 
         if (isFilteringMe) {
-          const isMyTask = (currentUserId && (task.assigned_to === currentUserId || task.user_id === currentUserId)) ||
-            (currentUserName && (task.assigned_to_name?.trim().toLowerCase() === currentUserName.toLowerCase()));
+          const isMyTask = (currentUserId && (String(task.assigned_to) === String(currentUserId) || String(task.user_id) === String(currentUserId))) ||
+            (currentUserName && ((task.assigned_to_name || task.user_name)?.trim().toLowerCase() === currentUserName.toLowerCase()));
           if (!isMyTask) return false;
         } else {
+          const assigneeName = (task.assigned_to_name || task.user_name || '').trim();
           if (effectiveAssigneeFilter === 'Unassigned') {
-            if (task.assigned_to_name && task.assigned_to_name.trim() !== '') return false;
+            if (assigneeName !== '') return false;
           } else {
-            if ((task.assigned_to_name || '').trim().toLowerCase() !== effectiveAssigneeFilter.toLowerCase()) return false;
+            if (assigneeName.toLowerCase() !== effectiveAssigneeFilter.toLowerCase()) return false;
           }
         }
       }

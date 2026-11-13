@@ -2030,6 +2030,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                       const updatedTask = res.data.data || { ...taskData, status: 'Cancelled', updated_at: new Date().toISOString() };
                       setTaskData(updatedTask);
                       setCurrentStatus('Cancelled');
+                      setEditData(prev => ({ ...prev, status: 'Cancelled', progress_note: '' }));
                       toast.success('Task marked as Cancelled');
                       fetchTaskActivities();
                       if (onUpdate) onUpdate(updatedTask);
