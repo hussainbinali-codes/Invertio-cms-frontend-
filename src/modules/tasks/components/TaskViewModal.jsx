@@ -9,6 +9,7 @@ import TaskDetailModal from './TaskDetailModal';
 import Button from '../../../components/ui/Button';
 import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 import { cn } from '../../../utils/cn';
+import { deduplicateTasks } from '../utils/taskDeduplication';
 
 const TaskViewModal = ({
   project,
@@ -66,7 +67,7 @@ const TaskViewModal = ({
     setLoading(true);
     try {
       const res = await axios.get(`/projects/${project.id}/tasks`);
-      setTasks(res.data.data || []);
+      setTasks(deduplicateTasks(res.data.data || []));
     } catch (error) {
       console.error("Failed to fetch tasks", error);
     } finally {
@@ -77,9 +78,9 @@ const TaskViewModal = ({
   const handleTaskUpdate = (updatedTask) => {
     if (!updatedTask?.id) return;
 
-    setTasks((prevTasks) => prevTasks.map((task) => (
+    setTasks((prevTasks) => deduplicateTasks(prevTasks.map((task) => (
       task.id === updatedTask.id ? { ...task, ...updatedTask } : task
-    )));
+    ))));
     setSelectedTask((prevTask) => (
       prevTask?.id === updatedTask.id ? { ...prevTask, ...updatedTask } : prevTask
     ));
@@ -285,10 +286,10 @@ const TaskViewModal = ({
           </div>
         </CardHeader>
 
-        {/* Status Filter Selector & Assignee Filter */}
+        {/* Status Filter Selector (Left) & Assignee Filter (Right) */}
         {!loading && tasks.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-2.5 bg-slate-50/70 border-b border-slate-200/80 shrink-0">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center justify-between gap-3 px-6 py-2.5 bg-slate-50/70 border-b border-slate-200/80 shrink-0 overflow-x-auto custom-scrollbar-none">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setStatusFilter('all')}
@@ -389,8 +390,8 @@ const TaskViewModal = ({
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Assignee Filter Dropdown */}
+            {/* Assignee Filter Dropdown (Right side) */}
+            <div className="flex items-center shrink-0 ml-auto">
               <div className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all shadow-xs",
                 effectiveAssigneeFilter !== 'all'
@@ -423,10 +424,6 @@ const TaskViewModal = ({
                   </button>
                 )}
               </div>
-
-              <span className="text-xs text-slate-400 font-medium whitespace-nowrap hidden sm:inline-block">
-                Showing <strong>{filteredTasks.length}</strong> of <strong>{tasks.length}</strong> tasks
-              </span>
             </div>
           </div>
         )}

@@ -32,14 +32,16 @@ export const deduplicateTasks = (tasksList = []) => {
     uniqueById.push(t);
   }
 
-  // 2. Second pass: remove duplicate clones (same normalized title and same project)
+  // 2. Second pass: remove duplicate clones (same normalized title, same project, same assignee, and same due date)
   for (const t of uniqueById) {
     const titleKey = (t.title || '').trim().toLowerCase();
     const projKey = String(t.project_id || t.project_name || 'general').trim().toLowerCase();
+    const assigneeKey = String(t.assigned_to || t.assigned_to_name || 'none').trim().toLowerCase();
+    const dueDateKey = String(t.due_date || t.estimated_end_date || '').split('T')[0];
 
-    // If task has a non-trivial title, deduplicate clones
+    // If task has a non-trivial title, deduplicate clones only when they share the same assignee and due date
     if (titleKey.length > 2) {
-      const key = `${titleKey}:::${projKey}`;
+      const key = `${titleKey}:::${projKey}:::${assigneeKey}:::${dueDateKey}`;
       const existing = map.get(key);
       if (!existing) {
         map.set(key, t);

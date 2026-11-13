@@ -52,6 +52,18 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   const canEdit = isAdmin || user?.modules?.tasks?.edit;
   const [taskData, setTaskData] = React.useState(task);
 
+  const currentUserId = user?.id;
+  const currentUserName = (user?.name || user?.full_name || '').trim().toLowerCase();
+  const assignedUserId = taskData?.assigned_to || taskData?.user_id;
+  const assignedUserName = (taskData?.assigned_to_name || taskData?.user_name || '').trim().toLowerCase();
+
+  const isAssignedToCurrentUser = Boolean(
+    (currentUserId && assignedUserId && String(currentUserId) === String(assignedUserId)) ||
+    (currentUserName && assignedUserName && currentUserName === assignedUserName)
+  );
+
+  const canChangeStatus = isAdmin || isAssignedToCurrentUser;
+
   const [showResources, setShowResources] = React.useState(false);
   const [documents, setDocuments] = React.useState([]);
   const [activities, setActivities] = React.useState([]);
@@ -368,6 +380,11 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   };
 
   const handleQuickStatusUpdate = async (newStatus) => {
+    if (!canChangeStatus) {
+      toast.error('Only the assigned developer or an admin can update task status.');
+      return;
+    }
+
     const isAlreadyCompleted = currentStatus === 'Completed' ||
       currentStatus === 'Done' ||
       String(currentStatus || '').toLowerCase() === 'completed' ||
@@ -422,6 +439,11 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
   };
 
   const handleQuickReassign = async (newAssigneeId) => {
+    if (!isAdmin) {
+      toast.error('Only administrators can reassign tasks.');
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const updatedUser = assignableUsers.find(u => String(u.id) === String(newAssigneeId));
@@ -709,16 +731,6 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 <Badge variant="outline" className="text-xs font-semibold text-slate-600">
                   {taskData.project_name || 'Individual Task'}
                 </Badge>
-                <Badge
-                  variant={
-                    currentStatus === 'Completed' ? 'success' :
-                      currentStatus === 'In Progress' ? 'primary' :
-                        'default'
-                  }
-                  className="text-xs font-semibold"
-                >
-                  {currentStatus}
-                </Badge>
 
                 {/* Feature / Task Type Badge */}
                 <Badge variant="outline" className="text-xs font-semibold text-blue-700 border-blue-200 bg-blue-50/80 flex items-center gap-1.5">
@@ -959,9 +971,35 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                 </div>
               )}
             </div>
-            {/* Status in Navbar (Locked if Completed, Dropdown if Active) */}
+            {/* Status in Navbar (Locked if Completed or Not Assigned to User, Dropdown if Active & Authorized) */}
             {!isEditing && (
-              (currentStatus === 'Completed' || currentStatus === 'Done' || String(currentStatus || '').toLowerCase() === 'completed' || String(taskData?.status || '').toLowerCase() === 'completed') ? (
+              !canChangeStatus ? (
+                <div
+                  className={cn(
+                    "h-9 px-3.5 rounded-xl text-xs font-bold border flex items-center gap-2 shadow-xs select-none cursor-default whitespace-nowrap shrink-0",
+                    currentStatus === 'Completed' || currentStatus === 'Done' || String(currentStatus || '').toLowerCase() === 'completed'
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                      : currentStatus === 'In Progress'
+                        ? "border-blue-300 bg-blue-50 text-blue-700"
+                        : currentStatus === 'Cancelled'
+                          ? "border-rose-300 bg-rose-50 text-rose-700"
+                          : "border-amber-300 bg-amber-50 text-amber-700"
+                  )}
+                  title={`Status: ${currentStatus} (Assigned to ${taskData.assigned_to_name || taskData.user_name || 'another developer'})`}
+                >
+                  <span className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    currentStatus === 'Completed' || currentStatus === 'Done' || String(currentStatus || '').toLowerCase() === 'completed'
+                      ? "bg-emerald-500"
+                      : currentStatus === 'In Progress'
+                        ? "bg-blue-500"
+                        : currentStatus === 'Cancelled'
+                          ? "bg-rose-500"
+                          : "bg-amber-500"
+                  )} />
+                  <span className="whitespace-nowrap">{currentStatus}</span>
+                </div>
+              ) : (currentStatus === 'Completed' || currentStatus === 'Done' || String(currentStatus || '').toLowerCase() === 'completed' || String(taskData?.status || '').toLowerCase() === 'completed') ? (
                 <div
                   className="h-9 px-3.5 rounded-xl text-xs font-bold border border-emerald-300 bg-emerald-50 text-emerald-700 flex items-center gap-2 shadow-xs select-none cursor-default whitespace-nowrap shrink-0"
                   title="Completed task (status locked)"
@@ -1277,31 +1315,33 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Assign to:</span>
-                          <div className="relative w-48 sm:w-56">
-                            <select
-                              value={taskData.assigned_to || ''}
-                              onChange={(e) => handleQuickReassign(e.target.value)}
-                              disabled={isUpdating}
-                              className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-colors hover:border-slate-300 appearance-none"
-                            >
-                              <option value="">Unassigned</option>
-                              {developerUsers.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.name} {u.role_name || u.role || u.designation ? `(${u.role_name || u.role || u.designation})` : ''}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                              {isUpdating ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-                              ) : (
-                                <ChevronDown className="w-3.5 h-3.5" />
-                              )}
+                        {isAdmin && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Assign to:</span>
+                            <div className="relative w-48 sm:w-56">
+                              <select
+                                value={taskData.assigned_to || ''}
+                                onChange={(e) => handleQuickReassign(e.target.value)}
+                                disabled={isUpdating}
+                                className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-colors hover:border-slate-300 appearance-none"
+                              >
+                                <option value="">Unassigned</option>
+                                {developerUsers.map((u) => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.name} {u.role_name || u.role || u.designation ? `(${u.role_name || u.role || u.designation})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                {isUpdating ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                                ) : (
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
 
@@ -1868,6 +1908,10 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold select-none">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>Task Completed</span>
+            </div>
+          ) : !canChangeStatus ? (
+            <div className="text-xs font-medium text-slate-400 italic">
+              Assigned to {taskData.assigned_to_name || taskData.user_name || 'another developer'}
             </div>
           ) : currentStatus === 'In Progress' ? (
             <Button
