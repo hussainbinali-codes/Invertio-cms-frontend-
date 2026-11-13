@@ -337,6 +337,7 @@ const MyPipelineTab = ({
   const pageSize = 8;
   const [openStatusDropdownTaskId, setOpenStatusDropdownTaskId] = useState(null);
   const [taskToCancel, setTaskToCancel] = useState(null);
+  const [showCompletedOnToday, setShowCompletedOnToday] = useState(false);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -579,12 +580,354 @@ const MyPipelineTab = ({
     });
   }, [filteredTasks, sortOrder, selectedDate, dateFilterMode]);
 
-  // Pagination
-  const totalPages = Math.ceil(sortedTasks.length / pageSize) || 1;
+  const isTodayView = dateFilterMode === 'date' && Boolean(
+    parseDateOnly(selectedDate) &&
+    parseDateOnly(new Date()) &&
+    parseDateOnly(selectedDate).getTime() === parseDateOnly(new Date()).getTime()
+  );
+
+  // When viewing Today with statusFilter 'all', separate active tasks and today's completed tasks
+  const { displayTasks, todayCompletedTasks } = useMemo(() => {
+    if (isTodayView && statusFilter === 'all') {
+      const active = [];
+      const completed = [];
+      sortedTasks.forEach((t) => {
+        if (isTaskCompleted(t)) {
+          completed.push(t);
+        } else {
+          active.push(t);
+        }
+      });
+      return { displayTasks: active, todayCompletedTasks: completed };
+    }
+    return { displayTasks: sortedTasks, todayCompletedTasks: [] };
+  }, [isTodayView, statusFilter, sortedTasks]);
+
+  // Pagination (paginates the active displayTasks)
+  const totalPages = Math.ceil(displayTasks.length / pageSize) || 1;
   const paginatedTasks = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return sortedTasks.slice(start, start + pageSize);
-  }, [sortedTasks, currentPage, pageSize]);
+    return displayTasks.slice(start, start + pageSize);
+  }, [displayTasks, currentPage, pageSize]);
+
+  // Reusable Task Card Renderer
+  const renderTaskCard = (task) => {
+    const isCompleted = isTaskCompleted(task);
+    const isCancelled = isTaskCancelled(task);
+    const isUpdating = updatingTaskId === task.id;
+    const priority = task.priority || 'Medium';
+    const isSelf = String(task.assigned_to) === String(storedUser?.id) ||
+      (storedUser?.name && (task.assigned_to_name === storedUser.name || task.user_name === storedUser.name));
+    const rawAssignee =
+      task.assigned_to_name ||
+      task.user_name ||
+      task.author_name ||
+      task.assignee_name ||
+      availableUsers.find((u) => String(u.id) === String(task.assigned_to))?.name ||
+      (task.assigned_to ? `User #${task.assigned_to}` : (isSelf ? (storedUser?.name || 'You') : 'Unassigned'));
+    const assigneeName = isSelf ? (rawAssignee.includes('(You)') ? rawAssignee : `${rawAssignee} (You)`) : rawAssignee;
+
+    const taskDueDateObj = parseDateOnly(task.due_date);
+    const selectedDateObj = dateFilterMode === 'date' ? parseDateOnly(selectedDate) : null;
+    const todayObj = parseDateOnly(new Date());
+
+    const isDueOnSelectedDate = !isCompleted && !isCancelled && Boolean(
+      taskDueDateObj &&
+      selectedDateObj &&
+      taskDueDateObj.getTime() === selectedDateObj.getTime()
+    );
+
+    const isDueToday = !isCompleted && !isCancelled && Boolean(
+      taskDueDateObj &&
+      todayObj &&
+      taskDueDateObj.getTime() === todayObj.getTime()
+    );
+
+    const isTaskOverdue = !isCompleted && !isCancelled && isOverdue(task.due_date, task.status);
+    const isDeadline = isDueOnSelectedDate || isDueToday || isTaskOverdue;
+
+    return (
+      <div
+        key={task.id}
+        className={cn(
+          "bg-white rounded-2xl p-4 border transition-all flex items-start gap-3.5 group shadow-2xs hover:shadow-xs relative",
+          openStatusDropdownTaskId === task.id ? "z-30 overflow-visible ring-1 ring-blue-100" : "z-0",
+          isCompleted
+            ? "border-emerald-100 bg-emerald-50/20 hover:border-emerald-200"
+            : isCancelled
+              ? "border-slate-200/60 bg-slate-50/40 opacity-75"
+              : "border-slate-200/90 hover:border-slate-300"
+        )}
+      >
+        {/* Circular Quick Completion Button */}
+        <button
+          type="button"
+          disabled={isUpdating || isCompleted || isCancelled}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isCompleted || isCancelled || isUpdating) return;
+            if (task.status !== 'In Progress') {
+              if (handleUpdateTask) {
+                handleUpdateTask(task.id, { status: 'In Progress' });
+              }
+              return;
+            }
+            if (handleUpdateTask) {
+              handleUpdateTask(task.id, {
+                status: 'Completed'
+              });
+            }
+          }}
+          className={cn(
+            "mt-0.5 ml-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all",
+            isCompleted
+              ? "bg-emerald-500 text-white border border-emerald-500 cursor-default shadow-2xs"
+              : isCancelled
+                ? "bg-rose-50 text-rose-400 border border-rose-200 cursor-default"
+                : isUpdating
+                  ? "opacity-50 cursor-not-allowed"
+                  : task.status === 'In Progress'
+                    ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
+                    : "border-2 border-slate-200 bg-slate-50 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer"
+          )}
+          title={
+            isCompleted
+              ? "Task is completed (status locked)"
+              : isCancelled
+                ? "Task is cancelled"
+                : task.status === 'In Progress'
+                  ? "Complete Task"
+                  : "Click to start task (move to In Progress)"
+          }
+        >
+          {isUpdating ? (
+            <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+          ) : isCompleted ? (
+            <CheckCircle2 className="w-3.5 h-3.5 fill-current" />
+          ) : isCancelled ? (
+            <X className="w-3 h-3 text-rose-500 stroke-[2.5]" />
+          ) : null}
+        </button>
+
+        {/* Task Content: Entire container is clickable to open details */}
+        <div
+          onClick={() => {
+            if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+          }}
+          className="flex-1 min-w-0 pr-1 cursor-pointer group/card"
+          title="Click anywhere to view task details"
+        >
+          <div className="flex items-start justify-between gap-3">
+            {/* Title & Description */}
+            <div className="min-w-0 flex-1">
+              <h4
+                className={cn(
+                  "text-[13px] tracking-tight truncate transition-colors",
+                  isCompleted
+                    ? "text-slate-600 font-medium group-hover/card:text-slate-900"
+                    : isCancelled
+                      ? "text-slate-400 font-normal line-through group-hover/card:text-slate-600"
+                      : "text-slate-900 font-semibold group-hover/card:text-blue-600"
+                )}
+                title={task.title}
+              >
+                {task.title}
+              </h4>
+
+              {task.description && (
+                <p className="text-[12px] text-slate-400 font-normal line-clamp-1 mt-1 leading-relaxed group-hover/card:text-slate-600 transition-colors">
+                  {task.description}
+                </p>
+              )}
+            </div>
+
+            {/* Badges & Status Dropdown Container */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Interactive Status Dropdown */}
+              {isCompleted ? (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-emerald-200/80 bg-emerald-50 text-emerald-700 flex items-center gap-1.5 shadow-2xs select-none cursor-default"
+                  title="Task is completed (status locked)"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Done</span>
+                </div>
+              ) : (
+                <div className="relative" data-status-dropdown="true" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenStatusDropdownTaskId(openStatusDropdownTaskId === task.id ? null : task.id);
+                    }}
+                    className={cn(
+                      "text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs select-none",
+                      task.status === 'In Progress'
+                        ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/80"
+                        : task.status === 'Cancelled'
+                          ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100/80"
+                          : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/80"
+                    )}
+                    title="Click to change status"
+                  >
+                    <span
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        task.status === 'In Progress'
+                          ? "bg-blue-600"
+                          : task.status === 'Cancelled'
+                            ? "bg-rose-500"
+                            : "bg-amber-500"
+                      )}
+                    />
+                    <span>
+                      {task.status === 'In Progress'
+                        ? 'In Progress'
+                        : task.status === 'Cancelled'
+                          ? 'Cancelled'
+                          : 'Pending'}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "w-3 h-3 transition-transform duration-200 opacity-60",
+                        openStatusDropdownTaskId === task.id && "rotate-180"
+                      )}
+                    />
+                  </button>
+
+                  {openStatusDropdownTaskId === task.id && (
+                    <div
+                      className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl border border-slate-200/95 shadow-2xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
+                        <span>Change Status</span>
+                        {isUpdating && <Loader2 className="w-3 h-3 animate-spin text-blue-600" />}
+                      </div>
+                      {(task.status === 'In Progress'
+                        ? [
+                          { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                          { label: 'Completed', value: 'Completed', dot: 'bg-emerald-500' },
+                          { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
+                        ]
+                        : task.status === 'Cancelled'
+                          ? [
+                            { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
+                            { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                          ]
+                          : [
+                            { label: 'Pending', value: 'Pending', dot: 'bg-amber-500' },
+                            { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
+                            { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
+                          ]
+                      ).map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenStatusDropdownTaskId(null);
+                            if (item.value === 'Cancelled') {
+                              setTaskToCancel(task);
+                              return;
+                            }
+                            if (item.value !== task.status && handleUpdateTask) {
+                              handleUpdateTask(task.id, { status: item.value });
+                            }
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left cursor-pointer",
+                            (task.status === item.value || (!task.status && item.value === 'Pending'))
+                              ? "bg-slate-100 text-slate-900 font-bold"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={cn("w-2 h-2 rounded-full", item.dot)} />
+                            <span>{item.label}</span>
+                          </div>
+                          {(task.status === item.value || (!task.status && item.value === 'Pending')) && (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer Metadata */}
+          <div className="mt-3 flex items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-100/80">
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[11px] text-slate-400 font-normal">
+                {task.project_name && (
+                  <div
+                    className="flex items-center gap-1.5 font-medium text-slate-600 group-hover/card:text-blue-600 transition-colors"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate max-w-[180px] sm:max-w-[240px]">{task.project_name}</span>
+                  </div>
+                )}
+                {task.due_date && (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 transition-all",
+                      isDeadline
+                        ? "bg-rose-500 text-white font-bold px-2 py-0.5 rounded-lg shadow-2xs"
+                        : "text-slate-500"
+                    )}
+                  >
+                    <Calendar className={cn("w-3.5 h-3.5 shrink-0", isDeadline ? "text-white" : "text-slate-400")} />
+                    <span>Due {formatShortDate(task.due_date)}</span>
+                  </span>
+                )}
+                {isCompleted && (task.completion_date || task.completed_at) && (
+                  <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Completed on {formatShortDate(task.completion_date || task.completed_at)}</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Author working on task */}
+              {effectiveIsAdmin && (
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <User className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="text-slate-400 font-normal">Author:</span>
+                  <span className="font-semibold text-slate-700 truncate max-w-[200px]" title={assigneeName}>
+                    {assigneeName}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Priority Pill placed at Bottom Right */}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 self-end sm:self-center"
+            >
+              <span
+                className={cn(
+                  "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center",
+                  priority === 'Urgent' && "bg-rose-50 text-rose-700 border-rose-200/80",
+                  priority === 'High' && "bg-amber-50 text-amber-800 border-amber-200/80",
+                  priority === 'Medium' && "bg-teal-50 text-teal-700 border-teal-200/80",
+                  priority === 'Low' && "bg-slate-100 text-slate-600 border-slate-200/80"
+                )}
+              >
+                {priority}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-6 bg-[#f8fafc]/60 font-sans">
@@ -803,7 +1146,7 @@ const MyPipelineTab = ({
               {selectedUserObj ? `${selectedUserObj.name}'s Tasks — ` : ''}
               {dateFilterMode === 'all'
                 ? `Showing all tasks (${sortedTasks.length})`
-                : `Showing tasks for ${getDateLabel(selectedDate, dateFilterMode)} (${sortedTasks.length})`}
+                : `Showing tasks for ${getDateLabel(selectedDate, dateFilterMode)} (${displayTasks.length})`}
             </span>
             {dateFilterMode === 'date' ? (
               <button
@@ -834,359 +1177,89 @@ const MyPipelineTab = ({
           {/* Tasks List Feed */}
           <div className="space-y-3">
             {paginatedTasks.length === 0 ? (
-              <div className="bg-white rounded-2xl p-10 border border-slate-200/80 shadow-2xs text-center space-y-3">
-                <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="text-[13px] font-semibold text-slate-700">
-                  {dateFilterMode === 'date'
-                    ? `No tasks scheduled for ${getDateLabel(selectedDate, dateFilterMode)}`
-                    : 'No tasks found'}
-                </p>
-                <p className="text-[12px] text-slate-400 font-normal">
-                  {query
-                    ? 'No tasks match your current search query.'
-                    : dateFilterMode === 'date'
-                      ? 'You have no tasks due on this date.'
-                      : 'Your personal pipeline is clear.'}
-                </p>
-                <div className="flex items-center justify-center gap-2 pt-1">
-                  {dateFilterMode === 'date' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDateFilterMode('all');
-                        setCurrentPage(1);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
-                    >
-                      <span>View all tasks</span>
-                    </button>
-                  )}
-                  {handleCreateTask && !isBeforeYesterday(selectedDate) && (
-                    <button
-                      type="button"
-                      onClick={() => handleCreateTask(projects[0] || null, formatYMD(selectedDate))}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Create task for {getDateLabel(selectedDate, dateFilterMode)}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              paginatedTasks.map((task) => {
-                const isCompleted = isTaskCompleted(task);
-                const isCancelled = isTaskCancelled(task);
-                const isUpdating = updatingTaskId === task.id;
-                const priority = task.priority || 'Medium';
-                const isSelf = String(task.assigned_to) === String(storedUser?.id) ||
-                  (storedUser?.name && (task.assigned_to_name === storedUser.name || task.user_name === storedUser.name));
-                const rawAssignee =
-                  task.assigned_to_name ||
-                  task.user_name ||
-                  task.author_name ||
-                  task.assignee_name ||
-                  availableUsers.find((u) => String(u.id) === String(task.assigned_to))?.name ||
-                  (task.assigned_to ? `User #${task.assigned_to}` : (isSelf ? (storedUser?.name || 'You') : 'Unassigned'));
-                const assigneeName = isSelf ? (rawAssignee.includes('(You)') ? rawAssignee : `${rawAssignee} (You)`) : rawAssignee;
-
-                const taskDueDateObj = parseDateOnly(task.due_date);
-                const selectedDateObj = dateFilterMode === 'date' ? parseDateOnly(selectedDate) : null;
-                const todayObj = parseDateOnly(new Date());
-
-                const isDueOnSelectedDate = !isCompleted && !isCancelled && Boolean(
-                  taskDueDateObj &&
-                  selectedDateObj &&
-                  taskDueDateObj.getTime() === selectedDateObj.getTime()
-                );
-
-                const isDueToday = !isCompleted && !isCancelled && Boolean(
-                  taskDueDateObj &&
-                  todayObj &&
-                  taskDueDateObj.getTime() === todayObj.getTime()
-                );
-
-                const isTaskOverdue = !isCompleted && !isCancelled && isOverdue(task.due_date, task.status);
-                const isDeadline = isDueOnSelectedDate || isDueToday || isTaskOverdue;
-
-                return (
-                  <div
-                    key={task.id}
-                    className={cn(
-                      "bg-white rounded-2xl p-4 border transition-all flex items-start gap-3.5 group shadow-2xs hover:shadow-xs relative",
-                      openStatusDropdownTaskId === task.id ? "z-30 overflow-visible ring-1 ring-blue-100" : "z-0",
-                      isCompleted || isCancelled
-                        ? "border-slate-200/60 bg-slate-50/40 opacity-75"
-                        : "border-slate-200/90 hover:border-slate-300"
-                    )}
-                  >
-                    {/* Circular Quick Completion Button */}
-                    <button
-                      type="button"
-                      disabled={isUpdating || isCompleted || isCancelled}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isCompleted || isCancelled || isUpdating) return;
-                        if (task.status !== 'In Progress') {
-                          if (handleUpdateTask) {
-                            handleUpdateTask(task.id, { status: 'In Progress' });
-                          }
-                          return;
-                        }
-                        if (handleUpdateTask) {
-                          handleUpdateTask(task.id, {
-                            status: 'Completed'
-                          });
-                        }
-                      }}
-                      className={cn(
-                        "mt-0.5 ml-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all",
-                        isCompleted
-                          ? "bg-emerald-500 text-white border border-emerald-500 cursor-default"
-                          : isCancelled
-                            ? "bg-rose-50 text-rose-400 border border-rose-200 cursor-default"
-                            : isUpdating
-                              ? "opacity-50 cursor-not-allowed"
-                              : task.status === 'In Progress'
-                                ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
-                                : "border-2 border-slate-200 bg-slate-50 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer"
-                      )}
-                      title={
-                        isCompleted
-                          ? "Task is completed (status locked)"
-                          : isCancelled
-                            ? "Task is cancelled"
-                            : task.status === 'In Progress'
-                              ? "Complete Task"
-                              : "Click to start task (move to In Progress)"
-                      }
-                    >
-                      {isUpdating ? (
-                        <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
-                      ) : isCompleted ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 fill-current" />
-                      ) : isCancelled ? (
-                        <X className="w-3 h-3 text-rose-500 stroke-[2.5]" />
-                      ) : null}
-                    </button>
-
-                    {/* Task Content: Entire container (pink box) is clickable to open details */}
-                    <div
-                      onClick={() => {
-                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
-                      }}
-                      className="flex-1 min-w-0 pr-1 cursor-pointer group/card"
-                      title="Click anywhere to view task details"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        {/* Title & Description */}
-                        <div className="min-w-0 flex-1">
-                          <h4
-                            className={cn(
-                              "text-[13px] font-semibold tracking-tight truncate transition-colors",
-                              isCompleted || isCancelled
-                                ? "text-slate-400 line-through font-normal group-hover/card:text-slate-600"
-                                : "text-slate-900 group-hover/card:text-blue-600"
-                            )}
-                            title={task.title}
-                          >
-                            {task.title}
-                          </h4>
-
-                          {task.description && (
-                            <p className="text-[12px] text-slate-400 font-normal line-clamp-1 mt-1 leading-relaxed group-hover/card:text-slate-600 transition-colors">
-                              {task.description}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Badges & Status Dropdown Container */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          {/* Interactive Status Dropdown (Eye icon removed) */}
-                          {isCompleted ? (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-emerald-200/80 bg-emerald-50 text-emerald-700 flex items-center gap-1.5 shadow-2xs select-none cursor-default"
-                              title="Task is completed (status locked)"
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                              <span>Done</span>
-                            </div>
-                          ) : (
-                            <div className="relative" data-status-dropdown="true" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                disabled={isUpdating}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenStatusDropdownTaskId(openStatusDropdownTaskId === task.id ? null : task.id);
-                                }}
-                                className={cn(
-                                  "text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs select-none",
-                                  task.status === 'In Progress'
-                                    ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/80"
-                                    : task.status === 'Cancelled'
-                                      ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100/80"
-                                      : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/80"
-                                )}
-                                title="Click to change status"
-                              >
-                                <span
-                                  className={cn(
-                                    "w-1.5 h-1.5 rounded-full shrink-0",
-                                    task.status === 'In Progress'
-                                      ? "bg-blue-600"
-                                      : task.status === 'Cancelled'
-                                        ? "bg-rose-500"
-                                        : "bg-amber-500"
-                                  )}
-                                />
-                                <span>
-                                  {task.status === 'In Progress'
-                                    ? 'In Progress'
-                                    : task.status === 'Cancelled'
-                                      ? 'Cancelled'
-                                      : 'Pending'}
-                                </span>
-                                <ChevronDown
-                                  className={cn(
-                                    "w-3 h-3 transition-transform duration-200 opacity-60",
-                                    openStatusDropdownTaskId === task.id && "rotate-180"
-                                  )}
-                                />
-                              </button>
-
-                              {openStatusDropdownTaskId === task.id && (
-                                <div
-                                  className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl border border-slate-200/95 shadow-2xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
-                                    <span>Change Status</span>
-                                    {isUpdating && <Loader2 className="w-3 h-3 animate-spin text-blue-600" />}
-                                  </div>
-                                  {(task.status === 'In Progress'
-                                    ? [
-                                      { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
-                                      { label: 'Completed', value: 'Completed', dot: 'bg-emerald-500' },
-                                      { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
-                                    ]
-                                    : task.status === 'Cancelled'
-                                      ? [
-                                        { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
-                                        { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
-                                      ]
-                                      : [
-                                        { label: 'Pending', value: 'Pending', dot: 'bg-amber-500' },
-                                        { label: 'In Progress', value: 'In Progress', dot: 'bg-blue-500' },
-                                        { label: 'Cancelled', value: 'Cancelled', dot: 'bg-rose-500' },
-                                      ]
-                                  ).map((item) => (
-                                    <button
-                                      key={item.value}
-                                      type="button"
-                                      disabled={isUpdating}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenStatusDropdownTaskId(null);
-                                        if (item.value === 'Cancelled') {
-                                          setTaskToCancel(task);
-                                          return;
-                                        }
-                                        if (item.value !== task.status && handleUpdateTask) {
-                                          handleUpdateTask(task.id, { status: item.value });
-                                        }
-                                      }}
-                                      className={cn(
-                                        "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left cursor-pointer",
-                                        (task.status === item.value || (!task.status && item.value === 'Pending'))
-                                          ? "bg-slate-100 text-slate-900 font-bold"
-                                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                      )}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <span className={cn("w-2 h-2 rounded-full shrink-0", item.dot)} />
-                                        <span>{item.label}</span>
-                                      </div>
-                                      {(task.status === item.value || (!task.status && item.value === 'Pending')) && (
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-                                      )}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Footer Info: Project & Due Date & Author (Left) and Priority Pill (Right in place of Complete Task) */}
-                      <div className="mt-3 flex items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-100/80">
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[11px] text-slate-400 font-normal">
-                            {task.project_name && (
-                              <div
-                                className="flex items-center gap-1.5 font-medium text-slate-600 group-hover/card:text-blue-600 transition-colors"
-                              >
-                                <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate max-w-[180px] sm:max-w-[240px]">{task.project_name}</span>
-                              </div>
-                            )}
-                            {task.due_date && (
-                              <span
-                                className={cn(
-                                  "inline-flex items-center gap-1.5 transition-all",
-                                  isDeadline
-                                    ? "bg-rose-500 text-white font-bold px-2 py-0.5 rounded-lg shadow-2xs"
-                                    : "text-slate-500"
-                                )}
-                              >
-                                <Calendar className={cn("w-3.5 h-3.5 shrink-0", isDeadline ? "text-white" : "text-slate-400")} />
-                                <span>Due {formatShortDate(task.due_date)}</span>
-                              </span>
-                            )}
-                            {isCompleted && (task.completion_date || task.completed_at) && (
-                              <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                <span>Completed on {formatShortDate(task.completion_date || task.completed_at)}</span>
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Author working on task (for Admin only, below the due date / project info) */}
-                          {effectiveIsAdmin && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                              <User className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                              <span className="text-slate-400 font-normal">Author:</span>
-                              <span className="font-semibold text-slate-700 truncate max-w-[200px]" title={assigneeName}>
-                                {assigneeName}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Priority Pill placed at Bottom Right in place of Complete Task */}
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          className="shrink-0 self-end sm:self-center"
-                        >
-                          <span
-                            className={cn(
-                              "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center",
-                              priority === 'Urgent' && "bg-rose-50 text-rose-700 border-rose-200/80",
-                              priority === 'High' && "bg-amber-50 text-amber-800 border-amber-200/80",
-                              priority === 'Medium' && "bg-teal-50 text-teal-700 border-teal-200/80",
-                              priority === 'Low' && "bg-slate-100 text-slate-600 border-slate-200/80"
-                            )}
-                          >
-                            {priority}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+              isTodayView && statusFilter === 'all' && todayCompletedTasks.length > 0 ? (
+                <div className="bg-emerald-50/40 rounded-2xl p-8 border border-emerald-200/70 shadow-2xs text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
-                );
-              })
+                  <p className="text-[14px] font-bold text-emerald-900">
+                    All caught up for today! 🎉
+                  </p>
+                  <p className="text-[12px] text-emerald-700/80 font-normal">
+                    You have finished all active tasks scheduled for today. Check your completed tasks below!
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl p-10 border border-slate-200/80 shadow-2xs text-center space-y-3">
+                  <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto" />
+                  <p className="text-[13px] font-semibold text-slate-700">
+                    {dateFilterMode === 'date'
+                      ? `No tasks scheduled for ${getDateLabel(selectedDate, dateFilterMode)}`
+                      : 'No tasks found'}
+                  </p>
+                  <p className="text-[12px] text-slate-400 font-normal">
+                    {query
+                      ? 'No tasks match your current search query.'
+                      : dateFilterMode === 'date'
+                        ? 'You have no tasks due on this date.'
+                        : 'Your personal pipeline is clear.'}
+                  </p>
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    {dateFilterMode === 'date' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDateFilterMode('all');
+                          setCurrentPage(1);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+                      >
+                        <span>View all tasks</span>
+                      </button>
+                    )}
+                    {handleCreateTask && !isBeforeYesterday(selectedDate) && (
+                      <button
+                        type="button"
+                        onClick={() => handleCreateTask(projects[0] || null, formatYMD(selectedDate))}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Create task for {getDateLabel(selectedDate, dateFilterMode)}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            ) : (
+              paginatedTasks.map((task) => renderTaskCard(task))
+            )}
+
+            {/* Collapsible Completed Section on Today */}
+            {isTodayView && statusFilter === 'all' && todayCompletedTasks.length > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCompletedOnToday((prev) => !prev)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50/90 hover:bg-slate-100 border border-slate-200/80 rounded-2xl text-[12px] font-semibold text-slate-600 transition-all cursor-pointer shadow-2xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </div>
+                    <span>Completed today ({todayCompletedTasks.length})</span>
+                  </div>
+                  <span className="text-[11px] text-blue-600 font-semibold group-hover:underline flex items-center gap-1">
+                    {showCompletedOnToday ? 'Hide' : 'Show'}
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCompletedOnToday && "rotate-180")} />
+                  </span>
+                </button>
+
+                {showCompletedOnToday && (
+                  <div className="mt-3 space-y-3">
+                    {todayCompletedTasks.map((task) => renderTaskCard(task))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -1194,7 +1267,7 @@ const MyPipelineTab = ({
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-2 px-1">
               <span className="text-[12px] text-slate-400 font-normal">
-                Showing {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedTasks.length)} of {sortedTasks.length} tasks
+                Showing {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, displayTasks.length)} of {displayTasks.length} tasks
               </span>
               <div className="flex items-center gap-1.5">
                 <button
