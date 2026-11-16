@@ -673,8 +673,9 @@ const MyPipelineTab = ({
               : "border-slate-200/90 hover:border-slate-300"
         )}
       >
-        {/* Circular Quick Completion Button */}
-        <button
+        {/* Circular Quick Completion Button (Interactive ONLY for assignee) */}
+        {isSelf ? (
+          <button
           type="button"
           disabled={isUpdating || isCompleted || isCancelled}
           onClick={(e) => {
@@ -722,6 +723,29 @@ const MyPipelineTab = ({
             <X className="w-3 h-3 text-rose-500 stroke-[2.5]" />
           ) : null}
         </button>
+        ) : (
+          <div
+            className={cn(
+              "mt-0.5 ml-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 border select-none cursor-default",
+              isCompleted
+                ? "bg-emerald-500 text-white border-emerald-500 shadow-2xs"
+                : isCancelled
+                  ? "bg-rose-50 text-rose-400 border border-rose-200"
+                  : task.status === 'In Progress'
+                    ? "border-2 border-blue-400 bg-blue-50/60 text-blue-600"
+                    : "border-2 border-slate-200 bg-slate-50 text-slate-300"
+            )}
+            title={`Assigned to ${assigneeName} (${task.status || 'Pending'})`}
+          >
+            {isCompleted ? (
+              <CheckCircle2 className="w-3.5 h-3.5 fill-current text-white" />
+            ) : isCancelled ? (
+              <X className="w-3.5 h-3.5 text-rose-500 stroke-[2.5]" />
+            ) : task.status === 'In Progress' ? (
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            ) : null}
+          </div>
+        )}
 
         {/* Task Content: Entire container is clickable to open details */}
         <div
@@ -757,15 +781,35 @@ const MyPipelineTab = ({
 
             {/* Badges & Status Dropdown Container */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Interactive Status Dropdown */}
-              {isCompleted ? (
+              {/* Interactive Status Dropdown (Read-only if completed or not assigned to self) */}
+              {isCompleted || !isSelf ? (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-emerald-200/80 bg-emerald-50 text-emerald-700 flex items-center gap-1.5 shadow-2xs select-none cursor-default"
-                  title="Task is completed (status locked)"
+                  className={cn(
+                    "text-[11px] font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1.5 shadow-2xs select-none cursor-default",
+                    isCompleted
+                      ? "border-emerald-200/80 bg-emerald-50 text-emerald-700"
+                      : task.status === 'In Progress'
+                        ? "border-blue-200/80 bg-blue-50 text-blue-700"
+                        : task.status === 'Cancelled'
+                          ? "border-rose-200/80 bg-rose-50 text-rose-700"
+                          : "border-amber-200/80 bg-amber-50 text-amber-700"
+                  )}
+                  title={!isSelf ? `Status: ${task.status || 'Pending'} (Assigned to ${assigneeName})` : "Task is completed (status locked)"}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span>Done</span>
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      isCompleted
+                        ? "bg-emerald-500"
+                        : task.status === 'In Progress'
+                          ? "bg-blue-500"
+                          : task.status === 'Cancelled'
+                            ? "bg-rose-500"
+                            : "bg-amber-500"
+                    )}
+                  />
+                  <span>{isCompleted ? 'Done' : (task.status || 'Pending')}</span>
                 </div>
               ) : (
                 <div className="relative" data-status-dropdown="true" onClick={(e) => e.stopPropagation()}>

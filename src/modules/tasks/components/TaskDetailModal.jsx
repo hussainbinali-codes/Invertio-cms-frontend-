@@ -62,7 +62,7 @@ const TaskDetailModal = ({ task, onClose, onUpdate }) => {
     (currentUserName && assignedUserName && currentUserName === assignedUserName)
   );
 
-  const canChangeStatus = isAdmin || isAssignedToCurrentUser;
+  const canChangeStatus = isAssignedToCurrentUser;
 
   const [showResources, setShowResources] = React.useState(false);
   const [documents, setDocuments] = React.useState([]);
