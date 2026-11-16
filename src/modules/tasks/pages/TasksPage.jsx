@@ -103,6 +103,14 @@ const PremiumCard = ({ title, subtitle, icon: Icon, children, className, headerR
 
 const TasksPage = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = (user.role_name || user.role || '').toLowerCase();
+  const email = (user.email || '').toLowerCase();
+  const isAdmin =
+    role === 'admin' ||
+    role === 'super admin' ||
+    role === 'administrator' ||
+    email === 'cloud4invertio@gmail.com';
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(() => tabParam || 'my'); // 'my' or 'boards'
@@ -112,7 +120,7 @@ const TasksPage = () => {
   const [myTasks, setMyTasks] = useState([]);
   const [allTasks, setAllTasks] = useState([]);
   const [usersList, setUsersList] = useState([]);
-  const [selectedPipelineUserId, setSelectedPipelineUserId] = useState('');
+  const [selectedPipelineUserId, setSelectedPipelineUserId] = useState(() => (isAdmin ? 'all' : ''));
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [initialTaskDueDate, setInitialTaskDueDate] = useState('');
@@ -152,14 +160,6 @@ const TasksPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const role = (user.role_name || user.role || '').toLowerCase();
-  const email = (user.email || '').toLowerCase();
-  const isAdmin =
-    role === 'admin' ||
-    role === 'super admin' ||
-    role === 'administrator' ||
-    email === 'cloud4invertio@gmail.com';
-
   const canViewAll = isAdmin || !!user.modules?.tasks?.view_all;
   const canCreate = isAdmin || !!user.modules?.tasks?.create;
   const showBoardsTab = canViewAll || canCreate;
@@ -172,7 +172,18 @@ const TasksPage = () => {
 
   const tabsList = [
     { id: 'boards', label: 'Global Boards', count: projects.length, icon: LayoutGrid },
-    { id: 'my', label: 'My Pipeline', count: myTasks.length, icon: CheckSquare },
+    {
+      id: 'my',
+      label: 'My Pipeline',
+      count: (isAdmin && (selectedPipelineUserId === 'all' || !selectedPipelineUserId))
+        ? allTasks.length
+        : selectedPipelineUserId === 'me'
+          ? myTasks.length
+          : selectedPipelineUserId
+            ? allTasks.filter(t => String(t.assigned_to) === String(selectedPipelineUserId)).length
+            : myTasks.length,
+      icon: CheckSquare
+    },
     ...(isAdmin ? [{ id: 'assignees', label: 'Assignees', count: allTasks.length, icon: Users }] : [])
   ];
 
@@ -753,11 +764,13 @@ const TasksPage = () => {
             ? `Managing tasks across ${projects.length} project pipelines.`
             : (activeTab === 'assignees' && isAdmin)
               ? `Viewing all ${allTasks.length} task assignments across the company.`
-              : selectedPipelineUserId === 'all'
+              : selectedPipelineUserId === 'all' || (!selectedPipelineUserId && isAdmin)
                 ? `Viewing all ${allTasks.length} tasks across the company.`
-                : selectedPipelineUserObj
-                  ? `Viewing tasks assigned to ${selectedPipelineUserObj.name}.`
-                  : `Tracking ${myTasks.length} items assigned to you.`
+                : selectedPipelineUserId === 'me'
+                  ? `Tracking ${myTasks.length} items assigned to you.`
+                  : selectedPipelineUserObj
+                    ? `Viewing tasks assigned to ${selectedPipelineUserObj.name}.`
+                    : `Tracking ${myTasks.length} items assigned to you.`
         }
         icon={CheckSquare}
         headerRight={
@@ -767,12 +780,12 @@ const TasksPage = () => {
                 <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Viewing User:</span>
                 <select
-                  value={selectedPipelineUserId}
+                  value={selectedPipelineUserId || 'all'}
                   onChange={(e) => setSelectedPipelineUserId(e.target.value)}
                   className="text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:ring-0 cursor-pointer pr-1"
                 >
-                  <option value="">My Pipeline (You)</option>
-                  <option value="all">All Team Tasks (Company-wide)</option>
+                  <option value="all">All Users</option>
+                  <option value="me">My Tasks (You)</option>
                   {availableUsers.map((u) => (
                     <option key={u.id} value={String(u.id)}>
                       {u.name} {u.role ? `(${u.role})` : ''}

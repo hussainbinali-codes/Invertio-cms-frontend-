@@ -401,20 +401,26 @@ const MyPipelineTab = ({
   // Deduplicate dataset: if admin selected a user, filter allTasks by that user; otherwise show tasks
   const rawDataset = useMemo(() => {
     let source = [];
-    if (selectedUserId === 'all') {
+    if (!effectiveIsAdmin) {
+      source = tasks || [];
+    } else if (selectedUserId === 'all' || !selectedUserId) {
+      // Admin default: Show all users' tasks in the company
       source = allTasks || [];
-    } else if (selectedUserId) {
+    } else if (selectedUserId === 'me') {
+      // Admin specifically wants only their personal tasks
+      source = (tasks && tasks.length > 0) ? tasks : (allTasks || []).filter((task) => {
+        return storedUser?.id ? String(task.assigned_to) === String(storedUser.id) : false;
+      });
+    } else {
       const targetName = selectedUserObj?.name?.trim().toLowerCase();
       source = (allTasks || []).filter((task) => {
         const matchesId = task.assigned_to ? String(task.assigned_to) === String(selectedUserId) : false;
         const matchesName = !task.assigned_to && targetName ? String(task.assigned_to_name || '').trim().toLowerCase() === targetName : false;
         return matchesId || matchesName;
       });
-    } else {
-      source = (tasks && tasks.length > 0) ? tasks : (allTasks || []);
     }
     return deduplicateTasks(source);
-  }, [allTasks, tasks, selectedUserId, selectedUserObj]);
+  }, [allTasks, tasks, selectedUserId, selectedUserObj, effectiveIsAdmin, storedUser]);
 
   // Search query (from parent or internal)
   const query = (searchTerm || internalSearch).trim().toLowerCase();
@@ -1032,7 +1038,7 @@ const MyPipelineTab = ({
                   <div className="h-10 pl-3 pr-8 flex items-center gap-2 bg-white border border-blue-200/90 rounded-2xl shadow-2xs hover:border-blue-300 transition-all cursor-pointer relative group">
                     <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                     <select
-                      value={selectedUserId || ''}
+                      value={selectedUserId || 'all'}
                       onChange={(e) => {
                         setSelectedUserId(e.target.value);
                         setCurrentPage(1);
@@ -1040,8 +1046,8 @@ const MyPipelineTab = ({
                       className="text-[12px] font-semibold text-slate-800 bg-transparent border-none outline-none focus:ring-0 cursor-pointer appearance-none pr-1 max-w-[160px] truncate"
                       title="Select a team member to view what they are working on"
                     >
-                      <option value="">My Pipeline (You)</option>
-                      <option value="all">All Team Tasks (Company-wide)</option>
+                      <option value="all">All Users</option>
+                      <option value="me">My Tasks (You)</option>
                       {availableUsers.map((u) => (
                         <option key={u.id} value={String(u.id)}>
                           {u.name} {u.role ? `(${u.role})` : ''}
@@ -1132,7 +1138,11 @@ const MyPipelineTab = ({
           {/* Current Date Filter Indicator Banner */}
           <div className="flex items-center justify-between text-xs text-slate-500 px-1">
             <span className="font-medium text-slate-600">
-              {selectedUserObj ? `${selectedUserObj.name}'s Tasks — ` : ''}
+              {selectedUserObj
+                ? `${selectedUserObj.name}'s Tasks — `
+                : selectedUserId === 'me'
+                  ? 'My Tasks — '
+                  : (effectiveIsAdmin ? 'All Users — ' : '')}
               {dateFilterMode === 'all'
                 ? `Showing all tasks (${sortedTasks.length})`
                 : `Showing tasks for ${getDateLabel(selectedDate, dateFilterMode)} (${displayTasks.length})`}
