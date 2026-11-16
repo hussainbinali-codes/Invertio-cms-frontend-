@@ -18,7 +18,8 @@ import {
   UserCheck,
   Users,
   AlertCircle,
-  X
+  X,
+  XCircle
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { deduplicateTasks } from '../utils/taskDeduplication';
@@ -197,7 +198,7 @@ const matchesTaskDate = (task, targetDate) => {
   }
 
   if (isCancelled) {
-    // A cancelled task reflects on the day it was cancelled or scheduled!
+    // A cancelled task ONLY appears on the date it was cancelled (it does NOT carry forward or show on prior/other dates)
     const cancelledDate =
       parseDateOnly(task.cancelled_at) ||
       parseDateOnly(task.cancellation_date) ||
@@ -208,22 +209,8 @@ const matchesTaskDate = (task, targetDate) => {
 
     if (!cancelledDate) return false;
 
-    // Matches the exact day it was cancelled / scheduled
-    if (target.getTime() === cancelledDate.getTime()) {
-      return true;
-    }
-
-    // Active prior to cancellation (between start/created and cancellation date)
-    const startDate =
-      parseDateOnly(task.start_date) ||
-      parseDateOnly(task.estimated_start_date) ||
-      parseDateOnly(task.created_at) ||
-      cancelledDate;
-
-    const effectiveStart = startDate <= cancelledDate ? startDate : cancelledDate;
-
-    // Only active between start date and cancellation date (never shown on dates after cancelledDate)
-    return target >= effectiveStart && target <= cancelledDate;
+    // Strictly matches only the exact date it was cancelled
+    return target.getTime() === cancelledDate.getTime();
   }
 
   // Active / Ongoing / Pending task
@@ -337,7 +324,8 @@ const MyPipelineTab = ({
   const pageSize = 8;
   const [openStatusDropdownTaskId, setOpenStatusDropdownTaskId] = useState(null);
   const [taskToCancel, setTaskToCancel] = useState(null);
-  const [showCompletedOnToday, setShowCompletedOnToday] = useState(false);
+  const [showCompletedOnDate, setShowCompletedOnDate] = useState(false);
+  const [showCancelledOnDate, setShowCancelledOnDate] = useState(false);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -441,12 +429,12 @@ const MyPipelineTab = ({
       if (!task.due_date) return;
       if (isTaskCompleted(task) || isTaskCancelled(task)) return;
 
-      const dueDate = new Date(task.due_date);
+      const dueDate = parseDateOnly(task.due_date) || new Date(task.due_date);
       dueDate.setHours(0, 0, 0, 0);
 
       if (dueDate < now) {
         overdue.push(task);
-      } else if (dueDate >= now && dueDate <= sevenDaysLater) {
+      } else if (dueDate > now && dueDate <= sevenDaysLater) {
         upcoming.push(task);
       }
     });
@@ -464,8 +452,8 @@ const MyPipelineTab = ({
   const filteredTasks = useMemo(() => {
     return rawDataset.filter((task) => {
       // 1. Date Filter (Default: Today's tasks)
-      // When explicitly filtering by "Cancelled" status, or when "all" date mode is active, include all cancelled tasks
-      if (dateFilterMode === 'date' && statusFilter !== 'Cancelled') {
+      // When viewing by date, strictly filter by selectedDate (do not carry forward cancelled or completed tasks)
+      if (dateFilterMode === 'date') {
         if (!matchesTaskDate(task, selectedDate)) {
           return false;
         }
@@ -600,22 +588,33 @@ const MyPipelineTab = ({
     parseDateOnly(selectedDate).getTime() === parseDateOnly(new Date()).getTime()
   );
 
-  // When viewing Today with statusFilter 'all', separate active tasks and today's completed tasks
-  const { displayTasks, todayCompletedTasks } = useMemo(() => {
-    if (isTodayView && statusFilter === 'all') {
+  // When viewing by date with statusFilter 'all', separate active tasks, completed tasks, and cancelled tasks
+  const { displayTasks, completedTasksForDate, cancelledTasksForDate } = useMemo(() => {
+    if (dateFilterMode === 'date' && statusFilter === 'all') {
       const active = [];
       const completed = [];
+      const cancelled = [];
       sortedTasks.forEach((t) => {
         if (isTaskCompleted(t)) {
           completed.push(t);
+        } else if (isTaskCancelled(t)) {
+          cancelled.push(t);
         } else {
           active.push(t);
         }
       });
-      return { displayTasks: active, todayCompletedTasks: completed };
+      return {
+        displayTasks: active,
+        completedTasksForDate: completed,
+        cancelledTasksForDate: cancelled
+      };
     }
-    return { displayTasks: sortedTasks, todayCompletedTasks: [] };
-  }, [isTodayView, statusFilter, sortedTasks]);
+    return {
+      displayTasks: sortedTasks,
+      completedTasksForDate: [],
+      cancelledTasksForDate: []
+    };
+  }, [dateFilterMode, statusFilter, sortedTasks]);
 
   // Pagination (paginates the active displayTasks)
   const totalPages = Math.ceil(displayTasks.length / pageSize) || 1;
@@ -676,53 +675,53 @@ const MyPipelineTab = ({
         {/* Circular Quick Completion Button (Interactive ONLY for assignee) */}
         {isSelf ? (
           <button
-          type="button"
-          disabled={isUpdating || isCompleted || isCancelled}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isCompleted || isCancelled || isUpdating) return;
-            if (task.status !== 'In Progress') {
-              if (handleUpdateTask) {
-                handleUpdateTask(task.id, { status: 'In Progress' });
+            type="button"
+            disabled={isUpdating || isCompleted || isCancelled}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isCompleted || isCancelled || isUpdating) return;
+              if (task.status !== 'In Progress') {
+                if (handleUpdateTask) {
+                  handleUpdateTask(task.id, { status: 'In Progress' });
+                }
+                return;
               }
-              return;
-            }
-            if (handleUpdateTask) {
-              handleUpdateTask(task.id, {
-                status: 'Completed'
-              });
-            }
-          }}
-          className={cn(
-            "mt-0.5 ml-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all",
-            isCompleted
-              ? "bg-emerald-500 text-white border border-emerald-500 cursor-default shadow-2xs"
-              : isCancelled
-                ? "bg-rose-50 text-rose-400 border border-rose-200 cursor-default"
-                : isUpdating
-                  ? "opacity-50 cursor-not-allowed"
+              if (handleUpdateTask) {
+                handleUpdateTask(task.id, {
+                  status: 'Completed'
+                });
+              }
+            }}
+            className={cn(
+              "mt-0.5 ml-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all",
+              isCompleted
+                ? "bg-emerald-500 text-white border border-emerald-500 cursor-default shadow-2xs"
+                : isCancelled
+                  ? "bg-rose-50 text-rose-400 border border-rose-200 cursor-default"
+                  : isUpdating
+                    ? "opacity-50 cursor-not-allowed"
+                    : task.status === 'In Progress'
+                      ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
+                      : "border-2 border-slate-200 bg-slate-50 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer"
+            )}
+            title={
+              isCompleted
+                ? "Task is completed (status locked)"
+                : isCancelled
+                  ? "Task is cancelled"
                   : task.status === 'In Progress'
-                    ? "border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/50 cursor-pointer"
-                    : "border-2 border-slate-200 bg-slate-50 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer"
-          )}
-          title={
-            isCompleted
-              ? "Task is completed (status locked)"
-              : isCancelled
-                ? "Task is cancelled"
-                : task.status === 'In Progress'
-                  ? "Complete Task"
-                  : "Click to start task (move to In Progress)"
-          }
-        >
-          {isUpdating ? (
-            <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
-          ) : isCompleted ? (
-            <CheckCircle2 className="w-3.5 h-3.5 fill-current" />
-          ) : isCancelled ? (
-            <X className="w-3 h-3 text-rose-500 stroke-[2.5]" />
-          ) : null}
-        </button>
+                    ? "Complete Task"
+                    : "Click to start task (move to In Progress)"
+            }
+          >
+            {isUpdating ? (
+              <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+            ) : isCompleted ? (
+              <CheckCircle2 className="w-3.5 h-3.5 fill-current" />
+            ) : isCancelled ? (
+              <X className="w-3 h-3 text-rose-500 stroke-[2.5]" />
+            ) : null}
+          </button>
         ) : (
           <div
             className={cn(
@@ -1220,16 +1219,18 @@ const MyPipelineTab = ({
           {/* Tasks List Feed */}
           <div className="space-y-3">
             {paginatedTasks.length === 0 ? (
-              isTodayView && statusFilter === 'all' && todayCompletedTasks.length > 0 ? (
+              dateFilterMode === 'date' && statusFilter === 'all' && (completedTasksForDate.length > 0 || cancelledTasksForDate.length > 0) ? (
                 <div className="bg-emerald-50/40 rounded-2xl p-8 border border-emerald-200/70 shadow-2xs text-center space-y-2">
                   <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <p className="text-[14px] font-bold text-emerald-900">
-                    All caught up for today! 🎉
+                    {isTodayView ? 'All caught up for today! 🎉' : `No active tasks for ${getDateLabel(selectedDate, dateFilterMode)}`}
                   </p>
                   <p className="text-[12px] text-emerald-700/80 font-normal">
-                    You have finished all active tasks scheduled for today. Check your completed tasks below!
+                    {isTodayView
+                      ? 'You have finished all active tasks scheduled for today. Check your completed or cancelled tasks below!'
+                      : 'All tasks for this date have been concluded. Check below for details.'}
                   </p>
                 </div>
               ) : (
@@ -1277,29 +1278,57 @@ const MyPipelineTab = ({
               paginatedTasks.map((task) => renderTaskCard(task))
             )}
 
-            {/* Collapsible Completed Section on Today */}
-            {isTodayView && statusFilter === 'all' && todayCompletedTasks.length > 0 && (
+            {/* Collapsible Completed Section */}
+            {dateFilterMode === 'date' && statusFilter === 'all' && completedTasksForDate.length > 0 && (
               <div className="pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowCompletedOnToday((prev) => !prev)}
+                  onClick={() => setShowCompletedOnDate((prev) => !prev)}
                   className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50/90 hover:bg-slate-100 border border-slate-200/80 rounded-2xl text-[12px] font-semibold text-slate-600 transition-all cursor-pointer shadow-2xs group"
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </div>
-                    <span>Completed today ({todayCompletedTasks.length})</span>
+                    <span>{isTodayView ? 'Completed today' : 'Completed on this date'} ({completedTasksForDate.length})</span>
                   </div>
                   <span className="text-[11px] text-blue-600 font-semibold group-hover:underline flex items-center gap-1">
-                    {showCompletedOnToday ? 'Hide' : 'Show'}
-                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCompletedOnToday && "rotate-180")} />
+                    {showCompletedOnDate ? 'Hide' : 'Show'}
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCompletedOnDate && "rotate-180")} />
                   </span>
                 </button>
 
-                {showCompletedOnToday && (
+                {showCompletedOnDate && (
                   <div className="mt-3 space-y-3">
-                    {todayCompletedTasks.map((task) => renderTaskCard(task))}
+                    {completedTasksForDate.map((task) => renderTaskCard(task))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Collapsible Cancelled Section */}
+            {dateFilterMode === 'date' && statusFilter === 'all' && cancelledTasksForDate.length > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelledOnDate((prev) => !prev)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50/90 hover:bg-slate-100 border border-slate-200/80 rounded-2xl text-[12px] font-semibold text-slate-600 transition-all cursor-pointer shadow-2xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                      <XCircle className="w-3.5 h-3.5" />
+                    </div>
+                    <span>{isTodayView ? 'Cancelled today' : 'Cancelled on this date'} ({cancelledTasksForDate.length})</span>
+                  </div>
+                  <span className="text-[11px] text-rose-600 font-semibold group-hover:underline flex items-center gap-1">
+                    {showCancelledOnDate ? 'Hide' : 'Show'}
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCancelledOnDate && "rotate-180")} />
+                  </span>
+                </button>
+
+                {showCancelledOnDate && (
+                  <div className="mt-3 space-y-3">
+                    {cancelledTasksForDate.map((task) => renderTaskCard(task))}
                   </div>
                 )}
               </div>
