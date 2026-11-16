@@ -1127,27 +1127,7 @@ const MyPipelineTab = ({
             </div>
           </div>
 
-          {/* ADMIN ACTIVE USER INSPECTION BANNER */}
-          {isAdmin && selectedUserObj && (
-            <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl shadow-2xs animate-in fade-in duration-200">
-              <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
-                <span className="text-xs font-semibold text-blue-900 truncate">
-                  Admin View: Currently inspecting <strong>{selectedUserObj.name}</strong>'s pipeline ({rawDataset.length} total tasks assigned)
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedUserId('');
-                  setCurrentPage(1);
-                }}
-                className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-white/90 hover:bg-white px-3 py-1 rounded-xl border border-blue-200 shadow-2xs transition-all shrink-0 cursor-pointer"
-              >
-                Reset to My Tasks
-              </button>
-            </div>
-          )}
+
 
           {/* Current Date Filter Indicator Banner */}
           <div className="flex items-center justify-between text-xs text-slate-500 px-1">
