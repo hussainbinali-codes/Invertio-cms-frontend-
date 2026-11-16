@@ -176,6 +176,8 @@ const TasksPage = () => {
     ...(isAdmin ? [{ id: 'assignees', label: 'Assignees', count: allTasks.length, icon: Users }] : [])
   ];
 
+  const currentUserId = user?.id;
+
   const availableUsers = React.useMemo(() => {
     const map = new Map();
     (usersList || []).forEach((u) => {
@@ -206,8 +208,12 @@ const TasksPage = () => {
       }
     });
 
-    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [usersList, allTasks]);
+    // Exclude only the currently logged-in account ID so "My Pipeline (You)" isn't repeated.
+    // Distinct accounts (like a Dev account with a different ID) remain selectable!
+    return Array.from(map.values())
+      .filter((u) => !currentUserId || String(u.id) !== String(currentUserId))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [usersList, allTasks, currentUserId]);
 
   const selectedPipelineUserObj = React.useMemo(() => {
     if (!selectedPipelineUserId) return null;
@@ -747,9 +753,11 @@ const TasksPage = () => {
             ? `Managing tasks across ${projects.length} project pipelines.`
             : (activeTab === 'assignees' && isAdmin)
               ? `Viewing all ${allTasks.length} task assignments across the company.`
-              : selectedPipelineUserObj
-                ? `Viewing tasks assigned to ${selectedPipelineUserObj.name}.`
-                : `Tracking ${myTasks.length} items assigned to you.`
+              : selectedPipelineUserId === 'all'
+                ? `Viewing all ${allTasks.length} tasks across the company.`
+                : selectedPipelineUserObj
+                  ? `Viewing tasks assigned to ${selectedPipelineUserObj.name}.`
+                  : `Tracking ${myTasks.length} items assigned to you.`
         }
         icon={CheckSquare}
         headerRight={
@@ -764,6 +772,7 @@ const TasksPage = () => {
                   className="text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:ring-0 cursor-pointer pr-1"
                 >
                   <option value="">My Pipeline (You)</option>
+                  <option value="all">All Team Tasks (Company-wide)</option>
                   {availableUsers.map((u) => (
                     <option key={u.id} value={String(u.id)}>
                       {u.name} {u.role ? `(${u.role})` : ''}

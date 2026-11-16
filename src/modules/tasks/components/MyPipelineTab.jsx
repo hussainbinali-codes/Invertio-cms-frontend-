@@ -384,8 +384,14 @@ const MyPipelineTab = ({
       }
     });
 
-    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [usersList, allTasks]);
+    const currentUserId = storedUser?.id;
+
+    // Exclude only the currently logged-in account ID so "My Pipeline (You)" isn't repeated.
+    // Distinct accounts (like a Dev account with a different ID) remain selectable!
+    return Array.from(map.values())
+      .filter((u) => !currentUserId || String(u.id) !== String(currentUserId))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [usersList, allTasks, storedUser]);
 
   const selectedUserObj = useMemo(() => {
     if (!selectedUserId) return null;
@@ -395,11 +401,13 @@ const MyPipelineTab = ({
   // Deduplicate dataset: if admin selected a user, filter allTasks by that user; otherwise show tasks
   const rawDataset = useMemo(() => {
     let source = [];
-    if (selectedUserId) {
+    if (selectedUserId === 'all') {
+      source = allTasks || [];
+    } else if (selectedUserId) {
       const targetName = selectedUserObj?.name?.trim().toLowerCase();
       source = (allTasks || []).filter((task) => {
-        const matchesId = String(task.assigned_to) === String(selectedUserId);
-        const matchesName = targetName && String(task.assigned_to_name || '').trim().toLowerCase() === targetName;
+        const matchesId = task.assigned_to ? String(task.assigned_to) === String(selectedUserId) : false;
+        const matchesName = !task.assigned_to && targetName ? String(task.assigned_to_name || '').trim().toLowerCase() === targetName : false;
         return matchesId || matchesName;
       });
     } else {
@@ -1033,6 +1041,7 @@ const MyPipelineTab = ({
                       title="Select a team member to view what they are working on"
                     >
                       <option value="">My Pipeline (You)</option>
+                      <option value="all">All Team Tasks (Company-wide)</option>
                       {availableUsers.map((u) => (
                         <option key={u.id} value={String(u.id)}>
                           {u.name} {u.role ? `(${u.role})` : ''}
