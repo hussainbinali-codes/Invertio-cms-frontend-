@@ -168,7 +168,7 @@ const matchesTaskDate = (task, targetDate) => {
   const isCancelled = isTaskCancelled(task);
 
   if (isCompleted) {
-    // A completed task reflects on the day it was completed!
+    // A completed task reflects strictly on the exact day it was completed!
     const completedDate =
       parseDateOnly(task.completion_date) ||
       parseDateOnly(task.completed_at) ||
@@ -178,23 +178,8 @@ const matchesTaskDate = (task, targetDate) => {
 
     if (!completedDate) return false;
 
-    // Matches the exact day it was completed
-    if (target.getTime() === completedDate.getTime()) {
-      return true;
-    }
-
-    // It was also an active task prior to completion (between start/created/due and completion)
-    const startDate =
-      parseDateOnly(task.start_date) ||
-      parseDateOnly(task.estimated_start_date) ||
-      parseDateOnly(task.created_at) ||
-      parseDateOnly(task.due_date) ||
-      completedDate;
-
-    const effectiveStart = startDate <= completedDate ? startDate : completedDate;
-
-    // Active between start date and completion date (never shown on dates after completionDate)
-    return target >= effectiveStart && target <= completedDate;
+    // Strictly matches only the exact day it was completed (never shows on other dates)
+    return target.getTime() === completedDate.getTime();
   }
 
   if (isCancelled) {
@@ -229,31 +214,17 @@ const matchesTaskDate = (task, targetDate) => {
 
   if (dueDate && startDate) {
     const effectiveStart = startDate <= dueDate ? startDate : dueDate;
-
     // Task is active from start date through due date!
     // E.g. start date Nov 10, due date Nov 13 -> visible on Nov 10, 11, 12, 13
-    if (target >= effectiveStart && target <= dueDate) {
-      return true;
-    }
-
-    // If viewing Today and the task is overdue (past due date but still not completed):
-    if (target.getTime() === now.getTime() && dueDate < now) {
-      return true;
-    }
-
-    return false;
+    return target >= effectiveStart && target <= dueDate;
   }
 
   if (dueDate) {
-    if (target.getTime() === dueDate.getTime()) return true;
-    if (target.getTime() === now.getTime() && dueDate < now) return true;
-    return false;
+    return target.getTime() === dueDate.getTime();
   }
 
   if (startDate) {
-    if (target.getTime() === startDate.getTime()) return true;
-    if (target.getTime() === now.getTime() && startDate < now) return true;
-    return false;
+    return target.getTime() === startDate.getTime();
   }
 
   return false;
@@ -264,12 +235,12 @@ const isOverdue = (dueDate, status) => {
   const s = String(status || '').trim().toLowerCase();
   if (s === 'completed' || s === 'done' || s === 'cancelled' || s === 'canceled') return false;
   try {
-    const due = new Date(dueDate);
+    const due = parseDateOnly(dueDate) || new Date(dueDate);
     if (isNaN(due.getTime())) return false;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
-    return due < now;
+    return due.getTime() < now.getTime();
   } catch {
     return false;
   }
@@ -386,6 +357,20 @@ const MyPipelineTab = ({
     return availableUsers.find((u) => String(u.id) === String(selectedUserId));
   }, [availableUsers, selectedUserId]);
 
+  const getTaskAssigneeName = (task) => {
+    if (!task) return 'Unassigned';
+    const isSelf = String(task.assigned_to) === String(storedUser?.id) ||
+      (storedUser?.name && (task.assigned_to_name === storedUser.name || task.user_name === storedUser.name));
+    const raw =
+      task.assigned_to_name ||
+      task.user_name ||
+      task.author_name ||
+      task.assignee_name ||
+      availableUsers.find((u) => String(u.id) === String(task.assigned_to))?.name ||
+      (task.assigned_to ? `User #${task.assigned_to}` : (isSelf ? (storedUser?.name || 'You') : 'Unassigned'));
+    return isSelf ? (raw.includes('(You)') ? raw : `${raw} (You)`) : raw;
+  };
+
   // Deduplicate dataset: if admin selected a user, filter allTasks by that user; otherwise show tasks
   const rawDataset = useMemo(() => {
     let source = [];
@@ -443,8 +428,8 @@ const MyPipelineTab = ({
     upcoming.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
     return {
-      overdueTasks: overdue.slice(0, 5),
-      upcomingTasks: upcoming.slice(0, 5)
+      overdueTasks: overdue,
+      upcomingTasks: upcoming
     };
   }, [rawDataset]);
 
@@ -588,17 +573,44 @@ const MyPipelineTab = ({
     parseDateOnly(selectedDate).getTime() === parseDateOnly(new Date()).getTime()
   );
 
-  // When viewing by date with statusFilter 'all', separate active tasks, completed tasks, and cancelled tasks
+  // Separate active running tasks, completed tasks, and cancelled tasks.
+  // Overdue tasks are already featured in the dedicated right sidebar Overdue card,
+  // so they are excluded from the main working tasks feed to avoid duplicate clutter.
   const { displayTasks, completedTasksForDate, cancelledTasksForDate } = useMemo(() => {
-    if (dateFilterMode === 'date' && statusFilter === 'all') {
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const targetDateMidnight = (dateFilterMode === 'date' && selectedDate) ? parseDateOnly(selectedDate) : todayMidnight;
+
+    if (statusFilter === 'all') {
       const active = [];
       const completed = [];
       const cancelled = [];
       sortedTasks.forEach((t) => {
         if (isTaskCompleted(t)) {
-          completed.push(t);
+          // Completed tasks should ONLY show if completed on the selected date (or completed Today when in 'all' mode).
+          // Tasks completed on previous dates (e.g. 13 Nov, 16 Nov) do NOT appear on today (17 Nov)!
+          const completionDate =
+            parseDateOnly(t.completion_date) ||
+            parseDateOnly(t.completed_at) ||
+            parseDateOnly(t.completion_time) ||
+            (String(t.status || '').toLowerCase() === 'completed' ? parseDateOnly(t.updated_at) : null) ||
+            parseDateOnly(t.due_date);
+
+          if (completionDate && targetDateMidnight && completionDate.getTime() === targetDateMidnight.getTime()) {
+            completed.push(t);
+          }
         } else if (isTaskCancelled(t)) {
-          cancelled.push(t);
+          const cancelDate =
+            parseDateOnly(t.cancelled_at) ||
+            parseDateOnly(t.cancellation_date) ||
+            (String(t.status || '').toLowerCase().includes('cancel') ? parseDateOnly(t.updated_at) : null) ||
+            parseDateOnly(t.due_date);
+
+          if (cancelDate && targetDateMidnight && cancelDate.getTime() === targetDateMidnight.getTime()) {
+            cancelled.push(t);
+          }
+        } else if (isOverdue(t.due_date, t.status)) {
+          // Exclude overdue tasks: they are already displayed in the right sidebar Overdue card!
         } else {
           active.push(t);
         }
@@ -610,11 +622,11 @@ const MyPipelineTab = ({
       };
     }
     return {
-      displayTasks: sortedTasks,
+      displayTasks: sortedTasks.filter((t) => !isOverdue(t.due_date, t.status)),
       completedTasksForDate: [],
       cancelledTasksForDate: []
     };
-  }, [dateFilterMode, statusFilter, sortedTasks]);
+  }, [statusFilter, sortedTasks, dateFilterMode, selectedDate]);
 
   // Pagination (paginates the active displayTasks)
   const totalPages = Math.ceil(displayTasks.length / pageSize) || 1;
@@ -657,7 +669,6 @@ const MyPipelineTab = ({
     );
 
     const isTaskOverdue = !isCompleted && !isCancelled && isOverdue(task.due_date, task.status);
-    const isDeadline = isDueOnSelectedDate || isDueToday || isTaskOverdue;
 
     return (
       <div
@@ -934,12 +945,17 @@ const MyPipelineTab = ({
                   <span
                     className={cn(
                       "inline-flex items-center gap-1.5 transition-all",
-                      isDeadline
-                        ? "bg-rose-500 text-white font-bold px-2 py-0.5 rounded-lg shadow-2xs"
-                        : "text-slate-500"
+                      isTaskOverdue
+                        ? "bg-rose-50 text-rose-700 border border-rose-200/80 font-medium px-2 py-0.5 rounded-lg"
+                        : isDueToday
+                          ? "bg-blue-50 text-blue-700 border border-blue-200/70 font-medium px-2 py-0.5 rounded-lg"
+                          : "text-slate-500 font-normal"
                     )}
                   >
-                    <Calendar className={cn("w-3.5 h-3.5 shrink-0", isDeadline ? "text-white" : "text-slate-400")} />
+                    <Calendar className={cn(
+                      "w-3.5 h-3.5 shrink-0",
+                      isTaskOverdue ? "text-rose-500" : isDueToday ? "text-blue-600" : "text-slate-400"
+                    )} />
                     <span>Due {formatShortDate(task.due_date)}</span>
                   </span>
                 )}
@@ -1179,17 +1195,75 @@ const MyPipelineTab = ({
 
 
           {/* Current Date Filter Indicator Banner */}
-          <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-            <span className="font-medium text-slate-600">
-              {selectedUserObj
-                ? `${selectedUserObj.name}'s Tasks — `
-                : selectedUserId === 'me'
-                  ? 'My Tasks — '
-                  : (effectiveIsAdmin ? 'All Users — ' : '')}
-              {dateFilterMode === 'all'
-                ? `Showing all tasks (${sortedTasks.length})`
-                : `Showing tasks for ${getDateLabel(selectedDate, dateFilterMode)} (${displayTasks.length})`}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs text-slate-500 px-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-slate-600">
+                {selectedUserObj
+                  ? `${selectedUserObj.name}'s Tasks — `
+                  : selectedUserId === 'me'
+                    ? 'My Tasks — '
+                    : (effectiveIsAdmin ? 'All Users — ' : '')}
+                {dateFilterMode === 'all'
+                  ? `Showing currently working tasks (${displayTasks.length})`
+                  : `Showing tasks for ${getDateLabel(selectedDate, dateFilterMode)} (${displayTasks.length})`}
+              </span>
+
+              {/* Floating Quick Pills for Completed & Cancelled */}
+              {statusFilter === 'all' && (
+                <div className="flex items-center gap-1.5 ml-1">
+                  {completedTasksForDate.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCompletedOnDate(true);
+                        setTimeout(() => {
+                          const el = document.getElementById('pipeline-completed-section');
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }, 80);
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer shadow-2xs active:scale-95",
+                        showCompletedOnDate
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-300 ring-2 ring-emerald-200/50"
+                          : "bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100/70"
+                      )}
+                      title="Click to view and scroll down to completed tasks"
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span>Completed ({completedTasksForDate.length})</span>
+                    </button>
+                  )}
+
+                  {cancelledTasksForDate.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCancelledOnDate(true);
+                        setTimeout(() => {
+                          const el = document.getElementById('pipeline-cancelled-section');
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }, 80);
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer shadow-2xs active:scale-95",
+                        showCancelledOnDate
+                          ? "bg-slate-200 text-slate-800 border border-slate-300 ring-2 ring-slate-200/50"
+                          : "bg-slate-100 text-slate-600 border border-slate-200/80 hover:bg-slate-200/70"
+                      )}
+                      title="Click to view and scroll down to cancelled tasks"
+                    >
+                      <XCircle className="w-3 h-3 text-slate-500" />
+                      <span>Cancelled ({cancelledTasksForDate.length})</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {dateFilterMode === 'date' ? (
               <button
                 type="button"
@@ -1197,7 +1271,7 @@ const MyPipelineTab = ({
                   setDateFilterMode('all');
                   setCurrentPage(1);
                 }}
-                className="text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer"
+                className="text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer shrink-0"
               >
                 Show all tasks
               </button>
@@ -1209,7 +1283,7 @@ const MyPipelineTab = ({
                   setDateFilterMode('date');
                   setCurrentPage(1);
                 }}
-                className="text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer"
+                className="text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer shrink-0"
               >
                 Back to Today
               </button>
@@ -1219,18 +1293,24 @@ const MyPipelineTab = ({
           {/* Tasks List Feed */}
           <div className="space-y-3">
             {paginatedTasks.length === 0 ? (
-              dateFilterMode === 'date' && statusFilter === 'all' && (completedTasksForDate.length > 0 || cancelledTasksForDate.length > 0) ? (
+              statusFilter === 'all' && (completedTasksForDate.length > 0 || cancelledTasksForDate.length > 0) ? (
                 <div className="bg-emerald-50/40 rounded-2xl p-8 border border-emerald-200/70 shadow-2xs text-center space-y-2">
                   <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <p className="text-[14px] font-bold text-emerald-900">
-                    {isTodayView ? 'All caught up for today! 🎉' : `No active tasks for ${getDateLabel(selectedDate, dateFilterMode)}`}
+                    {isTodayView
+                      ? 'All caught up for today! 🎉'
+                      : dateFilterMode === 'all'
+                        ? 'All tasks completed or cancelled! 🎉'
+                        : `No active tasks for ${getDateLabel(selectedDate, dateFilterMode)}`}
                   </p>
                   <p className="text-[12px] text-emerald-700/80 font-normal">
                     {isTodayView
                       ? 'You have finished all active tasks scheduled for today. Check your completed or cancelled tasks below!'
-                      : 'All tasks for this date have been concluded. Check below for details.'}
+                      : dateFilterMode === 'all'
+                        ? 'There are no active running tasks in your pipeline. Check completed or cancelled tasks below, or review overdue tasks on the right.'
+                        : 'All tasks for this date have been concluded. Check below for details.'}
                   </p>
                 </div>
               ) : (
@@ -1279,8 +1359,8 @@ const MyPipelineTab = ({
             )}
 
             {/* Collapsible Completed Section */}
-            {dateFilterMode === 'date' && statusFilter === 'all' && completedTasksForDate.length > 0 && (
-              <div className="pt-2">
+            {statusFilter === 'all' && completedTasksForDate.length > 0 && (
+              <div id="pipeline-completed-section" className="pt-2 scroll-mt-6">
                 <button
                   type="button"
                   onClick={() => setShowCompletedOnDate((prev) => !prev)}
@@ -1290,7 +1370,7 @@ const MyPipelineTab = ({
                     <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </div>
-                    <span>{isTodayView ? 'Completed today' : 'Completed on this date'} ({completedTasksForDate.length})</span>
+                    <span>{isTodayView ? 'Completed today' : dateFilterMode === 'all' ? 'Completed tasks' : 'Completed on this date'} ({completedTasksForDate.length})</span>
                   </div>
                   <span className="text-[11px] text-blue-600 font-semibold group-hover:underline flex items-center gap-1">
                     {showCompletedOnDate ? 'Hide' : 'Show'}
@@ -1306,9 +1386,10 @@ const MyPipelineTab = ({
               </div>
             )}
 
+
             {/* Collapsible Cancelled Section */}
-            {dateFilterMode === 'date' && statusFilter === 'all' && cancelledTasksForDate.length > 0 && (
-              <div className="pt-2">
+            {statusFilter === 'all' && cancelledTasksForDate.length > 0 && (
+              <div id="pipeline-cancelled-section" className="pt-2 scroll-mt-6">
                 <button
                   type="button"
                   onClick={() => setShowCancelledOnDate((prev) => !prev)}
@@ -1318,7 +1399,7 @@ const MyPipelineTab = ({
                     <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
                       <XCircle className="w-3.5 h-3.5" />
                     </div>
-                    <span>{isTodayView ? 'Cancelled today' : 'Cancelled on this date'} ({cancelledTasksForDate.length})</span>
+                    <span>{isTodayView ? 'Cancelled today' : dateFilterMode === 'all' ? 'Cancelled tasks' : 'Cancelled on this date'} ({cancelledTasksForDate.length})</span>
                   </div>
                   <span className="text-[11px] text-rose-600 font-semibold group-hover:underline flex items-center gap-1">
                     {showCancelledOnDate ? 'Hide' : 'Show'}
@@ -1383,47 +1464,63 @@ const MyPipelineTab = ({
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[380px] overflow-y-auto no-scrollbar pr-0.5">
               {overdueTasks.length === 0 ? (
                 <p className="text-[12px] text-slate-400 font-normal italic py-2 text-center">
                   No overdue tasks. Great work!
                 </p>
               ) : (
-                overdueTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-3 rounded-xl bg-[#f8fafc] hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 transition-all flex items-center justify-between group"
-                  >
+                overdueTasks.map((task) => {
+                  const assignee = getTaskAssigneeName(task);
+                  return (
                     <div
-                      onClick={() => {
-                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
-                      }}
-                      className="min-w-0 pr-2 cursor-pointer group/item flex-1"
-                      title="Click to view task details"
+                      key={task.id}
+                      className="p-3 rounded-xl bg-[#f8fafc] hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 transition-all flex items-center justify-between group"
                     >
-                      <h5
-                        className="text-[12px] font-semibold text-slate-800 truncate group-hover/item:text-blue-600 transition-colors"
-                        title={task.title}
+                      <div
+                        onClick={() => {
+                          if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                        }}
+                        className="min-w-0 pr-2 cursor-pointer group/item flex-1"
+                        title="Click to view task details"
                       >
-                        {task.title}
-                      </h5>
-                      <p className="text-[11px] text-slate-400 font-normal mt-1 flex items-center gap-1">
-                        Was due {formatShortDate(task.due_date)}
-                      </p>
+                        <h5
+                          className="text-[12px] font-semibold text-slate-800 truncate group-hover/item:text-blue-600 transition-colors"
+                          title={task.title}
+                        >
+                          {task.title}
+                        </h5>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px]">
+                          <span className="text-rose-600 font-medium flex items-center gap-1 shrink-0">
+                            <Clock className="w-3 h-3 text-rose-500 shrink-0" />
+                            Was due {formatShortDate(task.due_date)}
+                          </span>
+                          {assignee && (
+                            <span
+                              className="text-slate-500 font-normal flex items-center gap-1 truncate max-w-[150px]"
+                              title={`Assigned to: ${assignee}`}
+                            >
+                              <span className="text-slate-300">•</span>
+                              <User className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{assignee}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                        }}
+                        className="p-1 rounded-full text-slate-400 hover:text-blue-600 hover:bg-white border border-transparent hover:border-slate-200 transition-all shrink-0 cursor-pointer"
+                        title="View Details"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
-                      }}
-                      className="p-1 rounded-full text-slate-400 hover:text-blue-600 hover:bg-white border border-transparent hover:border-slate-200 transition-all shrink-0"
-                      title="View Details"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -1440,7 +1537,7 @@ const MyPipelineTab = ({
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[380px] overflow-y-auto no-scrollbar pr-0.5">
               {upcomingTasks.length === 0 ? (
                 <div className="py-2.5 px-3 bg-[#f8fafc] rounded-xl border border-slate-200/50">
                   <p className="text-[12px] text-slate-400 font-normal">
@@ -1448,41 +1545,56 @@ const MyPipelineTab = ({
                   </p>
                 </div>
               ) : (
-                upcomingTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-3 rounded-xl bg-[#f8fafc] hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 transition-all flex items-center justify-between group"
-                  >
+                upcomingTasks.map((task) => {
+                  const assignee = getTaskAssigneeName(task);
+                  return (
                     <div
-                      onClick={() => {
-                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
-                      }}
-                      className="min-w-0 pr-2 cursor-pointer group/item flex-1"
-                      title="Click to view task details"
+                      key={task.id}
+                      className="p-3 rounded-xl bg-[#f8fafc] hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 transition-all flex items-center justify-between group"
                     >
-                      <h5
-                        className="text-[12px] font-semibold text-slate-800 truncate group-hover/item:text-blue-600 transition-colors"
-                        title={task.title}
+                      <div
+                        onClick={() => {
+                          if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                        }}
+                        className="min-w-0 pr-2 cursor-pointer group/item flex-1"
+                        title="Click to view task details"
                       >
-                        {task.title}
-                      </h5>
-                      <p className="text-[11px] text-slate-400 font-normal mt-1 flex items-center gap-1">
-                        Due {formatShortDate(task.due_date)}
-                      </p>
+                        <h5
+                          className="text-[12px] font-semibold text-slate-800 truncate group-hover/item:text-blue-600 transition-colors"
+                          title={task.title}
+                        >
+                          {task.title}
+                        </h5>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px]">
+                          <span className="text-slate-400 font-normal flex items-center gap-1 shrink-0">
+                            Due {formatShortDate(task.due_date)}
+                          </span>
+                          {assignee && (
+                            <span
+                              className="text-slate-500 font-normal flex items-center gap-1 truncate max-w-[150px]"
+                              title={`Assigned to: ${assignee}`}
+                            >
+                              <span className="text-slate-300">•</span>
+                              <User className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{assignee}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (setSelectedTaskDetail) setSelectedTaskDetail(task);
+                        }}
+                        className="p-1 rounded-full text-slate-400 hover:text-blue-600 hover:bg-white border border-transparent hover:border-slate-200 transition-all shrink-0 cursor-pointer"
+                        title="View Details"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (setSelectedTaskDetail) setSelectedTaskDetail(task);
-                      }}
-                      className="p-1 rounded-full text-slate-400 hover:text-blue-600 hover:bg-white border border-transparent hover:border-slate-200 transition-all shrink-0"
-                      title="View Details"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
