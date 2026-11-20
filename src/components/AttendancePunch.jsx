@@ -128,7 +128,7 @@ const AttendancePunch = ({
             const next = !prev;
             try {
                 localStorage.setItem("invertio_punch_card_collapsed", String(next));
-            } catch {}
+            } catch { }
             return next;
         });
     };
@@ -285,7 +285,34 @@ const AttendancePunch = ({
             if (typeof onPunchInSuccess === "function") {
                 onPunchInSuccess();
             }
-            navigate("/tasks?tab=my");
+
+            // Developer user redirection to My Tasks pipeline after punch in
+            try {
+                const userObj = JSON.parse(localStorage.getItem("user") || "{}");
+                const userRole = (userObj.role_name || userObj.role || "").toLowerCase();
+                const userEmail = (userObj.email || "").toLowerCase();
+                const userIsAdmin = (
+                    userRole === "super admin" ||
+                    userRole === "admin" ||
+                    userRole === "administrator" ||
+                    userRole.includes("admin") ||
+                    userEmail === "cloud4invertio@gmail.com"
+                );
+                const isHR = userRole === "hr" || !!userObj.pages?.["hr"];
+                const isDeveloperUser = !userIsAdmin && !isHR;
+
+                if (isDeveloperUser) {
+                    if (window.location.pathname === "/tasks" && window.location.search === "?tab=my") {
+                        window.location.reload();
+                    } else if (window.location.pathname === "/tasks") {
+                        window.location.href = "/tasks?tab=my";
+                    } else {
+                        navigate("/tasks?tab=my");
+                    }
+                }
+            } catch {
+                navigate("/tasks?tab=my");
+            }
         } catch (err) {
             const msg = err.response?.data?.message || "Failed to process punch in";
             setWorkModeError(msg);
