@@ -16,6 +16,7 @@ import {
   Megaphone,
   ChevronLeft,
   ChevronRight,
+  Wallet,
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import axios from "../api/axios";
@@ -85,6 +86,12 @@ const DashboardLayout = () => {
       permission: "finance",
     },
     { label: "HR", path: "/hr", icon: UserPlus, permission: "hr" },
+    {
+      label: "Payroll",
+      path: "/payroll",
+      icon: Wallet,
+      permission: "payroll",
+    },
     {
       label: "Attendance",
       path: "/attendance",

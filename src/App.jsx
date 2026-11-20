@@ -20,6 +20,7 @@ const TasksPage = lazy(() => import('./modules/tasks/pages/TasksPage'));
 
 const FinancePage = lazy(() => import('./modules/finance/pages/FinancePage'));
 const HRPage = lazy(() => import('./modules/hr/pages/HRPage'));
+const PayrollPage = lazy(() => import('./modules/payroll/pages/PayrollPage'));
 const LeavesPage = lazy(() => import('./modules/hr/pages/LeavesPage'));
 const AttendancePage = lazy(() => import('./modules/attendance/pages/AttendancePage'));
 const ClientsPage = lazy(() => import('./modules/clients/pages/ClientsPage'));
@@ -90,6 +91,10 @@ function App() {
 
               <Route element={<ProtectedRoute permission="hr" />}>
                 <Route path="/hr" element={<HRPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute permission="payroll" />}>
+                <Route path="/payroll" element={<PayrollPage />} />
               </Route>
 
               <Route element={<ProtectedRoute permission="attendance" />}>

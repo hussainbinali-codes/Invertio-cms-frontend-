@@ -115,7 +115,7 @@ const PayrollTab = ({
 
         <div className="flex items-center gap-3">
 
-          {hasPermission('finance', 'payroll.manage') && (
+          {(hasPermission('payroll', 'manage') || hasPermission('finance', 'payroll.manage') || hasPermission('payroll')) && (
             <Button
               onClick={onOpenGenerateModal}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-2.5 px-5 text-xs font-bold shadow-sm flex items-center gap-2"

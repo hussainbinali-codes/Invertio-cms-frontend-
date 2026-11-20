@@ -20,12 +20,24 @@ export const hasPermission = (module, action = null) => {
             email === 'cloud4invertio@gmail.com'
         ) return true;
 
+        const isHR = role === 'hr' || !!user.pages?.['hr'];
+
+        // HR has full access to payroll
+        if ((module === 'payroll' || (module === 'finance' && action?.startsWith('payroll'))) && isHR) {
+            return true;
+        }
+
         if (!action) {
             // Page-level check (navigation/routing)
-            return !!user.pages?.[module];
+            return !!user.pages?.[module] || (module === 'payroll' && (isHR || !!user.pages?.['finance']));
         } else {
             // Action-level check (buttons/APIs)
-            // Format can be 'create', 'edit', 'delete' etc.
+            if (module === 'finance' && action?.startsWith('payroll')) {
+                return !!user.modules?.['finance']?.[action] || !!user.modules?.['payroll']?.['manage'] || isHR;
+            }
+            if (module === 'payroll') {
+                return !!user.modules?.['payroll']?.[action] || !!user.modules?.['finance']?.['payroll.manage'] || isHR;
+            }
             return !!user.modules?.[module]?.[action];
         }
     } catch (err) {

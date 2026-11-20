@@ -339,7 +339,7 @@ const PayrollBatchDetailsDrawer = ({
                 </Button>
               </div>
 
-              {hasPermission('finance', 'payroll.manage') && (
+              {(hasPermission('payroll', 'manage') || hasPermission('finance', 'payroll.manage') || hasPermission('payroll')) && (
                 <Button
                   onClick={() => onSendBatchPayslips(batch?.id)}
                   disabled={isSendingBatch}

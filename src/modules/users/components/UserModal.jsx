@@ -21,6 +21,7 @@ import {
   Contact,
   Monitor,
   Megaphone,
+  Wallet,
 } from "lucide-react";
 import { cn } from "../../../utils/cn";
 import { useLockBodyScroll } from "../../../hooks/useLockBodyScroll";
@@ -114,6 +115,18 @@ const UserModal = ({
         { key: "view", label: "View HR Dashboard" },
         { key: "leaves.approve", label: "Approve Leaves" },
         { key: "documents.confidential", label: "Manage Confidential HR Docs" },
+      ],
+    },
+    {
+      id: "payroll",
+      label: "Payroll",
+      icon: <Wallet className="w-5 h-5 text-emerald-500" />,
+      description: "Employee monthly payroll runs, salary calculations, and payslips.",
+      actions: [
+        { key: "view", label: "View Payroll Runs" },
+        { key: "manage", label: "Generate & Manage Payroll" },
+        { key: "adjust", label: "Adjust Salary & Bonus" },
+        { key: "payslips.send", label: "Send Payslips" },
       ],
     },
     {
